@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Course Management - EduPulse{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1>
+            <i class="fas fa-book me-2"></i>
+            Course Management
+        </h1>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <a href="{% url 'core:course_add' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Create Course
+        </a>
+    </div>
+</div>
+
+<!-- Filters and Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="form-control" name="search" 
+                           value="{{ request.GET.search }}" placeholder="Search courses...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>Draft</option>
+                    <option value="published" {% if request.GET.status == 'published' %}selected{% endif %}>Published</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="course_type" class="form-select">
+                    <option value="">All Types</option>
+                    <option value="group" {% if request.GET.course_type == 'group' %}selected{% endif %}>Group Class</option>
+                    <option value="private" {% if request.GET.course_type == 'private' %}selected{% endif %}>Private Lesson</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-filter me-1"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Course List -->
+{% if courses %}
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>
+                Courses ({{ courses|length }})
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Course Name</th>
+                            <th>Status</th>
+                            <th>Type</th>
+                            <th>Teacher</th>
+                            <th>Period</th>
+                            <th>Price</th>
+                            <th>Vacancy</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for course in courses %}
+                        <tr class="clickable-row" data-href="{% url 'core:course_detail' course.pk %}">
+                            <td>
+                                <div>
+                                    <strong>{{ course.name }}</strong>
+                                    {% if course.short_description %}
+                                        <br><small class="text-muted">{{ course.short_description|truncatechars:60 }}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ course.status }}">
+                                    {{ course.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">
+                                    {{ course.get_course_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if course.teacher %}
+                                    {{ course.teacher.first_name }} {{ course.teacher.last_name }}
+                                {% else %}
+                                    <span class="text-muted">Not assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ course.get_period_display }}</small>
+                            </td>
+                            <td>
+                                <strong>${{ course.price }}</strong>
+                            </td>
+                            <td>
+                                <span class="badge {% if course.vacancy > 0 %}bg-success{% else %}bg-warning{% endif %}">
+                                    {{ course.vacancy }} places
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'core:course_detail' course.pk %}" 
+                                       class="btn btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'core:course_edit' course.pk %}" 
+                                       class="btn btn-outline-secondary" title="Edit Course">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if course.status == 'draft' %}
+                                    <button type="button" class="btn btn-outline-success publish-btn" 
+                                            data-course-id="{{ course.pk }}" title="Publish Course">
+                                        <i class="fas fa-upload"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Course pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page=1">First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                </li>
+            {% endif %}
+            
+            <li class="page-item active">
+                <span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            </li>
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.paginator.num_pages }}">Last</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+{% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-book fa-4x text-muted mb-4"></i>
+            <h3 class="text-muted">No Courses Found</h3>
+            <p class="text-muted">Get started by creating your first course.</p>
+            <a href="{% url 'core:course_add' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Create Course
+            </a>
+        </div>
+    </div>
+{% endif %}
+
+<script>
+$(document).ready(function() {
+    // Publish course functionality
+    $('.publish-btn').click(function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        var courseId = $(this).data('course-id');
+        var button = $(this);
+        
+        if (confirm('Publish this course? It will be visible on the website and sync to WooCommerce.')) {
+            // Here you would make an AJAX call to publish the course
+            // For now, we'll just show a success message
+            button.removeClass('btn-outline-success').addClass('btn-outline-secondary')
+                  .html('<i class="fas fa-check"></i>')
+                  .attr('title', 'Published')
+                  .prop('disabled', true);
+        }
+    });
+});
+</script>
+{% endblock %}
