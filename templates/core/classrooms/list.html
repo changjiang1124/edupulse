@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Classrooms - EduPulse{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h1 class="page-title">Classroom Management</h1>
+        <p class="page-subtitle">Manage classrooms across all facilities</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'core:classroom_add' %}" class="btn btn-primary">Add New Classroom</a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="facility" class="form-label">Filter by Facility</label>
+                        <select name="facility" id="facility" class="form-select">
+                            <option value="">All Facilities</option>
+                            {% for facility in facilities %}
+                                <option value="{{ facility.id }}" {% if selected_facility == facility.id|stringformat:'s' %}selected{% endif %}>
+                                    {{ facility.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" name="search" id="search" class="form-control" 
+                               placeholder="Search classrooms..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Classrooms List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Classrooms ({{ classrooms|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if classrooms %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Facility</th>
+                                    <th>Classroom</th>
+                                    <th>Capacity</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for classroom in classrooms %}
+                                <tr class="clickable-row" onclick="location.href='{% url 'core:classroom_detail' classroom.pk %}'">
+                                    <td>{{ classroom.facility.name }}</td>
+                                    <td>
+                                        <strong>{{ classroom.name }}</strong>
+                                    </td>
+                                    <td>{{ classroom.capacity }} students</td>
+                                    <td>
+                                        <span class="status-badge {% if classroom.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                            {% if classroom.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'core:classroom_detail' classroom.pk %}" 
+                                               class="btn btn-outline-primary btn-sm">View</a>
+                                            <a href="{% url 'core:classroom_edit' classroom.pk %}" 
+                                               class="btn btn-outline-secondary btn-sm">Edit</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <nav aria-label="Classroom pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.facility %}facility={{ request.GET.facility }}&{% endif %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.facility %}facility={{ request.GET.facility }}&{% endif %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-3">No classrooms found.</p>
+                        <a href="{% url 'core:classroom_add' %}" class="btn btn-primary">Add First Classroom</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -198,3 +198,8 @@ local_settings.py
 # IDE specific files
 .trae/
 .claude/
+
+
+node_modules/
+package-lock.json
+package.json

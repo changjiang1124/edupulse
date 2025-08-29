@@ -35,6 +35,12 @@ urlpatterns = [
     path('facilities/add/', views.FacilityCreateView.as_view(), name='facility_add'),
     path('facilities/<int:pk>/', views.FacilityDetailView.as_view(), name='facility_detail'),
     
+    # Classroom Management
+    path('classrooms/', views.ClassroomListView.as_view(), name='classroom_list'),
+    path('classrooms/add/', views.ClassroomCreateView.as_view(), name='classroom_add'),
+    path('classrooms/<int:pk>/', views.ClassroomDetailView.as_view(), name='classroom_detail'),
+    path('classrooms/<int:pk>/edit/', views.ClassroomUpdateView.as_view(), name='classroom_edit'),
+    
     # Enrollment Management
     path('enrollments/', views.EnrollmentListView.as_view(), name='enrollment_list'),
     path('enrollments/<int:pk>/', views.EnrollmentDetailView.as_view(), name='enrollment_detail'),
@@ -46,4 +52,7 @@ urlpatterns = [
     # Clock In/Out
     path('clock/', views.ClockInOutView.as_view(), name='clock_inout'),
     path('timesheet/', views.TimesheetView.as_view(), name='timesheet'),
+    
+    # TinyMCE Image Upload
+    path('tinymce/upload/', views.tinymce_upload_image, name='tinymce_upload'),
 ]

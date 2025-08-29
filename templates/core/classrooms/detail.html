@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ classroom.name }} - Classroom Details - EduPulse{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h1 class="page-title">{{ classroom.facility.name }} - {{ classroom.name }}</h1>
+        <p class="page-subtitle">Classroom Information</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'core:classroom_edit' classroom.pk %}" class="btn btn-primary">Edit Classroom</a>
+        <a href="{% url 'core:classroom_list' %}" class="btn btn-outline-secondary">Back to Classrooms</a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Classroom Information -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Classroom Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Facility:</strong></div>
+                    <div class="col-sm-8">{{ classroom.facility.name }}</div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Classroom:</strong></div>
+                    <div class="col-sm-8">{{ classroom.name }}</div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Capacity:</strong></div>
+                    <div class="col-sm-8">{{ classroom.capacity }} students</div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Status:</strong></div>
+                    <div class="col-sm-8">
+                        <span class="status-badge {% if classroom.is_active %}status-active{% else %}status-inactive{% endif %}">
+                            {% if classroom.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Created:</strong></div>
+                    <div class="col-sm-8">{{ classroom.created_at|date:"d F Y g:i A" }}</div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-sm-4"><strong>Last Updated:</strong></div>
+                    <div class="col-sm-8">{{ classroom.updated_at|date:"d F Y g:i A" }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Facility Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Facility Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Address:</strong></div>
+                    <div class="col-sm-8">{{ classroom.facility.address }}</div>
+                </div>
+                
+                {% if classroom.facility.phone %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Phone:</strong></div>
+                    <div class="col-sm-8">{{ classroom.facility.phone }}</div>
+                </div>
+                {% endif %}
+                
+                {% if classroom.facility.email %}
+                <div class="row">
+                    <div class="col-sm-4"><strong>Email:</strong></div>
+                    <div class="col-sm-8">{{ classroom.facility.email }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Classes in this Classroom -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Scheduled Classes</h5>
+                <small class="text-muted">({{ classes.count }} classes)</small>
+            </div>
+            <div class="card-body">
+                {% if classes %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for class in classes|slice:":10" %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ class.course.name }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ class.course.get_course_type_display }}</small>
+                                    </td>
+                                    <td>{{ class.date|date:"d/m/Y" }}</td>
+                                    <td>{{ class.start_time|time:"g:i A" }}</td>
+                                    <td>{{ class.duration_minutes }}min</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if classes.count > 10 %}
+                    <div class="text-center mt-3">
+                        <a href="{% url 'core:class_list' %}?classroom={{ classroom.pk }}" class="btn btn-sm btn-outline-primary">
+                            View All Classes ({{ classes.count }})
+                        </a>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-0">No classes scheduled for this classroom</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'core:classroom_edit' classroom.pk %}" class="btn btn-primary">Edit Classroom</a>
+                    <a href="{% url 'core:facility_detail' classroom.facility.pk %}" class="btn btn-outline-info">View Facility</a>
+                    <a href="{% url 'core:class_add' %}?classroom={{ classroom.pk }}" class="btn btn-outline-success">Schedule Class</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

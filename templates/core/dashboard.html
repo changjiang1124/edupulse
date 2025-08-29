@@ -6,11 +6,8 @@
 {% block content %}
 <div class="row">
     <div class="col-12">
-        <h1 class="mb-4">
-            <i class="fas fa-tachometer-alt me-2"></i>
-            Dashboard
-            <small class="text-muted">Welcome back, {{ user.first_name }} {{ user.last_name }}</small>
-        </h1>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Welcome back, {{ user.first_name }} {{ user.last_name }}</p>
     </div>
 </div>
 
@@ -56,10 +53,7 @@
     <div class="col-lg-8 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-calendar-alt me-2"></i>
-                    Upcoming Classes
-                </h5>
+                <h5 class="mb-0">Upcoming Classes</h5>
             </div>
             <div class="card-body">
                 {% if upcoming_classes %}
@@ -110,10 +104,9 @@
                     </div>
                 {% else %}
                     <div class="text-center py-4">
-                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No upcoming classes scheduled</p>
+                        <p class="text-muted mb-3">No upcoming classes scheduled</p>
                         <a href="{% url 'core:class_add' %}" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>Add Class
+                            Add Class
                         </a>
                     </div>
                 {% endif %}
@@ -125,17 +118,14 @@
     <div class="col-lg-4 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-user-plus me-2"></i>
-                    Recent Enrolments
-                </h5>
+                <h5 class="mb-0">Recent Enrolments</h5>
             </div>
             <div class="card-body">
                 {% if recent_enrollments %}
                     {% for enrollment in recent_enrollments %}
                     <div class="d-flex align-items-center mb-3 {% if not forloop.last %}border-bottom pb-3{% endif %}">
                         <div class="flex-shrink-0">
-                            <div class="avatar-circle bg-primary text-white">
+                            <div class="avatar-circle">
                                 {{ enrollment.student.first_name|first }}{{ enrollment.student.last_name|first }}
                             </div>
                         </div>
@@ -159,8 +149,7 @@
                     </div>
                 {% else %}
                     <div class="text-center py-4">
-                        <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No enrolments yet</p>
+                        <p class="text-muted mb-0">No enrolments yet</p>
                     </div>
                 {% endif %}
             </div>
@@ -203,25 +192,4 @@
     </div>
 </div>
 
-<style>
-.avatar-circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 0.9rem;
-}
-
-.clickable-row {
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.clickable-row:hover {
-    background-color: rgba(111, 66, 193, 0.05);
-}
-</style>
 {% endblock %}

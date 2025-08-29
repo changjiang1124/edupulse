@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # 第三方应用
+    'tinymce',
     # 本地应用
     'core',
 ]
@@ -151,3 +153,24 @@ LOGOUT_REDIRECT_URL = '/auth/login/'
 
 # 自定义用户模型
 AUTH_USER_MODEL = 'core.Staff'
+
+# TinyMCE 配置 - WordPress兼容的简化版本
+TINYMCE_DEFAULT_CONFIG = {
+    'height': 360,
+    'width': '100%',
+    'menubar': False,  # 移除菜单栏避免混乱
+    'branding': False,  # 移除"Powered by TinyMCE"
+    'promotion': False,  # 移除升级按钮和广告
+    'plugins': 'lists link paste code help wordcount',
+    'toolbar': 'undo redo | bold italic underline | bullist numlist | link | code | help',
+    # WordPress兼容配置
+    'forced_root_block': 'p',
+    'force_br_newlines': False,
+    'force_p_newlines': True,
+    'convert_urls': False,  # 保持URL原样
+    'paste_auto_cleanup_on_paste': True,
+    'paste_remove_styles': True,
+    'paste_remove_styles_if_webkit': True,
+    'paste_strip_class_attributes': 'all',
+    'custom_undo_redo_levels': 10,
+}

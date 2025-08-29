@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Edit Student{% else %}Add Student{% endif %} - EduPulse{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="page-title">
+            {% if form.instance.pk %}Edit Student{% else %}Add New Student{% endif %}
+        </h1>
+        <p class="page-subtitle">
+            {% if form.instance.pk %}Update student information{% else %}Add a new student to the system{% endif %}
+        </p>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Student Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Personal Information -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">Personal Information</h6>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name *</label>
+                                    {{ form.first_name }}
+                                    {% if form.first_name.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.first_name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name *</label>
+                                    {{ form.last_name }}
+                                    {% if form.last_name.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.last_name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.birth_date.id_for_label }}" class="form-label">Date of Birth</label>
+                                    {{ form.birth_date }}
+                                    {% if form.birth_date.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.birth_date.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.phone.id_for_label }}" class="form-label">Phone Number</label>
+                                    {{ form.phone }}
+                                    {% if form.phone.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.phone.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">Email Address</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback d-block">{{ form.email.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.address.id_for_label }}" class="form-label">Address</label>
+                            {{ form.address }}
+                            {% if form.address.errors %}
+                                <div class="invalid-feedback d-block">{{ form.address.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Guardian Information -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">Guardian Information</h6>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.guardian_name.id_for_label }}" class="form-label">Guardian Name</label>
+                            {{ form.guardian_name }}
+                            {% if form.guardian_name.errors %}
+                                <div class="invalid-feedback d-block">{{ form.guardian_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.guardian_phone.id_for_label }}" class="form-label">Guardian Phone</label>
+                                    {{ form.guardian_phone }}
+                                    {% if form.guardian_phone.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.guardian_phone.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.guardian_email.id_for_label }}" class="form-label">Guardian Email</label>
+                                    {{ form.guardian_email }}
+                                    {% if form.guardian_email.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.guardian_email.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">Additional Information</h6>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.reference.id_for_label }}" class="form-label">How did you hear about us?</label>
+                            {{ form.reference }}
+                            {% if form.reference.errors %}
+                                <div class="invalid-feedback d-block">{{ form.reference.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if form.instance.pk %}
+                        <div class="form-check mb-3">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                Active Student
+                            </label>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'core:student_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if form.instance.pk %}Update Student{% else %}Add Student{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

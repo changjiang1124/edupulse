@@ -9,11 +9,20 @@ from django.urls import reverse_lazy
 from django.db.models import Count, Q
 from django.utils import timezone
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from datetime import datetime, date, timedelta
+import os
+import uuid
+from django.conf import settings
 
 from .models import (
     Staff, Student, Course, Class, Facility, Classroom,
     Enrollment, Attendance, ClockInOut, EmailLog, SMSLog
+)
+from .forms import (
+    CourseForm, StudentForm, StaffForm, StaffCreationForm, 
+    ClassForm, FacilityForm, EnrollmentForm, ClassroomForm
 )
 
 
@@ -73,12 +82,12 @@ class StaffListView(AdminRequiredMixin, ListView):
 
 class StaffCreateView(AdminRequiredMixin, CreateView):
     model = Staff
+    form_class = StaffCreationForm
     template_name = 'core/staff/form.html'
-    fields = ['username', 'first_name', 'last_name', 'email', 'phone', 'role']
     success_url = reverse_lazy('core:staff_list')
     
     def form_valid(self, form):
-        messages.success(self.request, f'员工 {form.instance.first_name} {form.instance.last_name} 创建成功！')
+        messages.success(self.request, f'Staff member {form.instance.first_name} {form.instance.last_name} created successfully!')
         return super().form_valid(form)
 
 
@@ -90,8 +99,8 @@ class StaffDetailView(AdminRequiredMixin, DetailView):
 
 class StaffUpdateView(AdminRequiredMixin, UpdateView):
     model = Staff
+    form_class = StaffForm
     template_name = 'core/staff/form.html'
-    fields = ['first_name', 'last_name', 'email', 'phone', 'role', 'is_active_staff']
     
     def get_success_url(self):
         return reverse_lazy('core:staff_detail', kwargs={'pk': self.object.pk})
@@ -119,15 +128,12 @@ class StudentListView(LoginRequiredMixin, ListView):
 
 class StudentCreateView(LoginRequiredMixin, CreateView):
     model = Student
+    form_class = StudentForm
     template_name = 'core/students/form.html'
-    fields = [
-        'first_name', 'last_name', 'birth_date', 'email', 'phone', 'address',
-        'guardian_name', 'guardian_phone', 'guardian_email', 'reference'
-    ]
     success_url = reverse_lazy('core:student_list')
     
     def form_valid(self, form):
-        messages.success(self.request, f'学生 {form.instance.first_name} {form.instance.last_name} 添加成功！')
+        messages.success(self.request, f'Student {form.instance.first_name} {form.instance.last_name} added successfully!')
         return super().form_valid(form)
 
 
@@ -147,11 +153,8 @@ class StudentDetailView(LoginRequiredMixin, DetailView):
 
 class StudentUpdateView(LoginRequiredMixin, UpdateView):
     model = Student
+    form_class = StudentForm
     template_name = 'core/students/form.html'
-    fields = [
-        'first_name', 'last_name', 'birth_date', 'email', 'phone', 'address',
-        'guardian_name', 'guardian_phone', 'guardian_email', 'reference', 'is_active'
-    ]
     
     def get_success_url(self):
         return reverse_lazy('core:student_detail', kwargs={'pk': self.object.pk})
@@ -177,12 +180,8 @@ class CourseListView(LoginRequiredMixin, ListView):
 
 class CourseCreateView(LoginRequiredMixin, CreateView):
     model = Course
+    form_class = CourseForm
     template_name = 'core/courses/form.html'
-    fields = [
-        'name', 'short_description', 'description', 'price', 'course_type', 'status', 'teacher',
-        'start_date', 'end_date', 'repeat_pattern', 'start_time', 'duration_minutes',
-        'vacancy', 'facility', 'classroom'
-    ]
     success_url = reverse_lazy('core:course_list')
     
     def form_valid(self, form):
@@ -211,12 +210,8 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
 
 class CourseUpdateView(LoginRequiredMixin, UpdateView):
     model = Course
+    form_class = CourseForm
     template_name = 'core/courses/form.html'
-    fields = [
-        'name', 'short_description', 'description', 'price', 'course_type', 'status', 'teacher',
-        'start_date', 'end_date', 'repeat_pattern', 'start_time', 'duration_minutes',
-        'vacancy', 'facility', 'classroom', 'is_bookable', 'is_active'
-    ]
     
     def get_success_url(self):
         return reverse_lazy('core:course_detail', kwargs={'pk': self.object.pk})
@@ -260,11 +255,8 @@ class ClassListView(LoginRequiredMixin, ListView):
 
 class ClassCreateView(LoginRequiredMixin, CreateView):
     model = Class
+    form_class = ClassForm
     template_name = 'core/classes/form.html'
-    fields = [
-        'course', 'date', 'start_time', 'duration_minutes',
-        'teacher', 'facility', 'classroom'
-    ]
     success_url = reverse_lazy('core:class_list')
 
 
@@ -288,8 +280,8 @@ class FacilityListView(AdminRequiredMixin, ListView):
 
 class FacilityCreateView(AdminRequiredMixin, CreateView):
     model = Facility
+    form_class = FacilityForm
     template_name = 'core/facilities/form.html'
-    fields = ['name', 'address', 'phone', 'email']
     success_url = reverse_lazy('core:facility_list')
 
 
@@ -302,6 +294,71 @@ class FacilityDetailView(AdminRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['classrooms'] = self.object.classrooms.filter(is_active=True)
         return context
+
+
+# Classroom Management Views
+class ClassroomListView(AdminRequiredMixin, ListView):
+    model = Classroom
+    template_name = 'core/classrooms/list.html'
+    context_object_name = 'classrooms'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        queryset = Classroom.objects.select_related('facility').filter(is_active=True)
+        facility = self.request.GET.get('facility')
+        search = self.request.GET.get('search')
+        
+        if facility:
+            queryset = queryset.filter(facility_id=facility)
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(facility__name__icontains=search)
+            )
+        return queryset.order_by('facility__name', 'name')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['facilities'] = Facility.objects.filter(is_active=True).order_by('name')
+        context['selected_facility'] = self.request.GET.get('facility')
+        context['search_query'] = self.request.GET.get('search', '')
+        return context
+
+
+class ClassroomCreateView(AdminRequiredMixin, CreateView):
+    model = Classroom
+    form_class = ClassroomForm
+    template_name = 'core/classrooms/form.html'
+    success_url = reverse_lazy('core:classroom_list')
+    
+    def form_valid(self, form):
+        messages.success(self.request, f'Classroom "{form.instance.name}" created successfully!')
+        return super().form_valid(form)
+
+
+class ClassroomDetailView(AdminRequiredMixin, DetailView):
+    model = Classroom
+    template_name = 'core/classrooms/detail.html'
+    context_object_name = 'classroom'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # 获取使用此教室的班级
+        context['classes'] = self.object.classes.filter(is_active=True).select_related('course').order_by('-date')
+        return context
+
+
+class ClassroomUpdateView(AdminRequiredMixin, UpdateView):
+    model = Classroom
+    form_class = ClassroomForm
+    template_name = 'core/classrooms/form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('core:classroom_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        messages.success(self.request, f'Classroom "{form.instance.name}" updated successfully!')
+        return super().form_valid(form)
 
 
 # Enrollment Management Views
@@ -401,3 +458,60 @@ class TimesheetView(LoginRequiredMixin, TemplateView):
         
         context['records'] = records
         return context
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def tinymce_upload_image(request):
+    """
+    TinyMCE图片上传API端点
+    处理课程描述中的图片上传
+    """
+    try:
+        if 'file' not in request.FILES:
+            return JsonResponse({'error': 'No file provided'}, status=400)
+        
+        uploaded_file = request.FILES['file']
+        
+        # 验证文件类型
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+        file_ext = os.path.splitext(uploaded_file.name)[1].lower()
+        
+        if file_ext not in allowed_extensions:
+            return JsonResponse({'error': 'Invalid file type. Only JPG, PNG, GIF, and WebP are allowed.'}, status=400)
+        
+        # 验证文件大小 (最大5MB)
+        max_size = 5 * 1024 * 1024  # 5MB
+        if uploaded_file.size > max_size:
+            return JsonResponse({'error': 'File too large. Maximum size is 5MB.'}, status=400)
+        
+        # 生成唯一文件名
+        unique_filename = f"{uuid.uuid4()}{file_ext}"
+        
+        # 创建基于日期的子目录
+        upload_date = datetime.now()
+        date_path = upload_date.strftime('%Y/%m')
+        
+        # 完整的存储路径
+        relative_path = f"uploads/courses/descriptions/{date_path}/{unique_filename}"
+        full_path = os.path.join(settings.MEDIA_ROOT, relative_path)
+        
+        # 确保目录存在
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        
+        # 保存文件
+        with open(full_path, 'wb+') as destination:
+            for chunk in uploaded_file.chunks():
+                destination.write(chunk)
+        
+        # 返回文件URL给TinyMCE
+        file_url = f"{settings.MEDIA_URL}{relative_path}"
+        
+        return JsonResponse({
+            'location': request.build_absolute_uri(file_url),
+            'title': uploaded_file.name
+        })
+    
+    except Exception as e:
+        return JsonResponse({'error': f'Upload failed: {str(e)}'}, status=500)

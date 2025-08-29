@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.utils import timezone
+from tinymce.models import HTMLField
 
 
 class Staff(AbstractUser):
@@ -239,7 +240,7 @@ class Course(models.Model):
         max_length=200,
         verbose_name='Course Name'
     )
-    description = models.TextField(
+    description = HTMLField(
         blank=True,
         verbose_name='Full Description'
     )

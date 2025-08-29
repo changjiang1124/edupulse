@@ -16,6 +16,9 @@ urlpatterns = [
     path('', DashboardView.as_view(), name='dashboard'),
     path('core/', include('core.urls')),
     
+    # TinyMCE URL
+    path('tinymce/', include('tinymce.urls')),
+    
     # 认证相关URL
     path('auth/login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
     path('auth/logout/', auth_views.LogoutView.as_view(), name='logout'),

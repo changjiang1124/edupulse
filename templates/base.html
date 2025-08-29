@@ -16,6 +16,7 @@
     <link href="{% static 'css/custom.css' %}" rel="stylesheet">
     
     {% block extra_css %}{% endblock %}
+    {% block extra_head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
     
@@ -35,51 +36,34 @@
                     <ul class="navbar-nav me-auto">
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'dashboard' %}">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                                Dashboard
                             </a>
                         </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" 
-                               data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-users"></i> Student Management
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'core:student_list' %}">
+                                Students
                             </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">Student List</a></li>
-                                <li><a class="dropdown-item" href="#">Add Student</a></li>
-                            </ul>
                         </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" 
-                               data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-book"></i> Course Management
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'core:course_list' %}">
+                                Courses
                             </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">Course List</a></li>
-                                <li><a class="dropdown-item" href="#">Add Course</a></li>
-                                <li><a class="dropdown-item" href="#">Class Management</a></li>
-                            </ul>
                         </li>
                         {% if user.role == 'admin' %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" 
-                               data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-user-tie"></i> Staff Management
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'core:staff_list' %}">
+                                Staff
                             </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">Staff List</a></li>
-                                <li><a class="dropdown-item" href="#">Add Staff</a></li>
-                                <li><a class="dropdown-item" href="#">Clock Records</a></li>
-                            </ul>
                         </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" 
-                               data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-building"></i> Facility Management
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'core:facility_list' %}">
+                                Facilities
                             </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">Facility List</a></li>
-                                <li><a class="dropdown-item" href="#">Classroom Management</a></li>
-                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'core:classroom_list' %}">
+                                Classrooms
+                            </a>
                         </li>
                         {% endif %}
                     </ul>
@@ -87,7 +71,7 @@
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" 
                                data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-user"></i> {{ user.first_name }} {{ user.last_name }}
+                                <i class="fas fa-user-circle"></i> {{ user.first_name }} {{ user.last_name }}
                             </a>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="#">Profile</a></li>
