@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Facilities - EduPulse{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h1 class="page-title">Facility Management</h1>
+        <p class="page-subtitle">Manage teaching facilities and locations</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'core:facility_add' %}" class="btn btn-primary">Add New Facility</a>
+    </div>
+</div>
+
+<!-- Search -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-10">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" name="search" id="search" class="form-control" 
+                               placeholder="Search facilities by name, address, phone, or email..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-outline-primary w-100">Search</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Facilities List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Facilities ({{ facilities|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if facilities %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Facility Name</th>
+                                    <th>Address</th>
+                                    <th>Contact</th>
+                                    <th>Classrooms</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for facility in facilities %}
+                                <tr class="clickable-row" onclick="location.href='{% url 'core:facility_detail' facility.pk %}'">
+                                    <td>
+                                        <strong>{{ facility.name }}</strong>
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 200px;" title="{{ facility.address }}">
+                                            {{ facility.address }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if facility.phone %}
+                                            <div><i class="fas fa-phone text-muted"></i> {{ facility.phone }}</div>
+                                        {% endif %}
+                                        {% if facility.email %}
+                                            <div><i class="fas fa-envelope text-muted"></i> {{ facility.email }}</div>
+                                        {% endif %}
+                                        {% if not facility.phone and not facility.email %}
+                                            <span class="text-muted">No contact info</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ facility.classrooms.count }} rooms</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge {% if facility.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                            {% if facility.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'core:facility_detail' facility.pk %}" 
+                                               class="btn btn-outline-primary btn-sm">View</a>
+                                            <a href="{% url 'core:facility_edit' facility.pk %}" 
+                                               class="btn btn-outline-secondary btn-sm">Edit</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <nav aria-label="Facility pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-3">No facilities found.</p>
+                        <a href="{% url 'core:facility_add' %}" class="btn btn-primary">Add First Facility</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

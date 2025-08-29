@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ facility.name }} - Facility Details - EduPulse{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h1 class="page-title">{{ facility.name }}</h1>
+        <p class="page-subtitle">Facility Information</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'core:facility_edit' facility.pk %}" class="btn btn-primary">Edit Facility</a>
+        <a href="{% url 'core:facility_list' %}" class="btn btn-outline-secondary">Back to Facilities</a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Facility Information -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Facility Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Name:</strong></div>
+                    <div class="col-sm-8">{{ facility.name }}</div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Address:</strong></div>
+                    <div class="col-sm-8">{{ facility.address|linebreaksbr }}</div>
+                </div>
+                
+                {% if facility.phone %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Phone:</strong></div>
+                    <div class="col-sm-8">
+                        <a href="tel:{{ facility.phone }}">{{ facility.phone }}</a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if facility.email %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Email:</strong></div>
+                    <div class="col-sm-8">
+                        <a href="mailto:{{ facility.email }}">{{ facility.email }}</a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Status:</strong></div>
+                    <div class="col-sm-8">
+                        <span class="status-badge {% if facility.is_active %}status-active{% else %}status-inactive{% endif %}">
+                            {% if facility.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Created:</strong></div>
+                    <div class="col-sm-8">{{ facility.created_at|date:"d F Y g:i A" }}</div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-sm-4"><strong>Last Updated:</strong></div>
+                    <div class="col-sm-8">{{ facility.updated_at|date:"d F Y g:i A" }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h3 class="text-primary">{{ classrooms.count }}</h3>
+                                <p class="mb-0">Classrooms</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h3 class="text-success">{{ courses.count }}</h3>
+                                <p class="mb-0">Courses</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h3 class="text-info">{{ classrooms|length|add:courses|length }}</h3>
+                                <p class="mb-0">Total Capacity</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Classrooms and Courses -->
+    <div class="col-md-6">
+        <!-- Classrooms -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Classrooms</h5>
+                <small class="text-muted">({{ classrooms.count }} rooms)</small>
+            </div>
+            <div class="card-body">
+                {% if classrooms %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Room</th>
+                                    <th>Capacity</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for classroom in classrooms %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ classroom.name }}</strong>
+                                    </td>
+                                    <td>{{ classroom.capacity }} students</td>
+                                    <td>
+                                        <span class="status-badge {% if classroom.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                            {% if classroom.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'core:classroom_detail' classroom.pk %}" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <a href="{% url 'core:classroom_list' %}?facility={{ facility.pk }}" class="btn btn-sm btn-outline-primary">
+                            View All Classrooms
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-2">No classrooms yet</p>
+                        <a href="{% url 'core:classroom_add' %}" class="btn btn-sm btn-primary">Add Classroom</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Courses at this Facility -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Courses at this Facility</h5>
+                <small class="text-muted">({{ courses.count }} courses)</small>
+            </div>
+            <div class="card-body">
+                {% if courses %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Type</th>
+                                    <th>Price</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for course in courses|slice:":10" %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ course.name }}</strong>
+                                        <br><small class="text-muted">{{ course.teacher.first_name }} {{ course.teacher.last_name }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ course.get_course_type_display }}</span>
+                                    </td>
+                                    <td>${{ course.price }}</td>
+                                    <td>
+                                        <span class="badge {% if course.status == 'published' %}bg-success{% elif course.status == 'draft' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                            {{ course.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if courses.count > 10 %}
+                    <div class="text-center mt-3">
+                        <a href="{% url 'core:course_list' %}?facility={{ facility.pk }}" class="btn btn-sm btn-outline-primary">
+                            View All Courses ({{ courses.count }})
+                        </a>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-0">No courses at this facility</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'core:facility_edit' facility.pk %}" class="btn btn-primary">Edit Facility</a>
+                    <a href="{% url 'core:classroom_add' %}?facility={{ facility.pk }}" class="btn btn-outline-success">Add Classroom</a>
+                    <a href="{% url 'core:course_list' %}?facility={{ facility.pk }}" class="btn btn-outline-info">View Courses</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

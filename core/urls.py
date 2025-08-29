@@ -34,6 +34,7 @@ urlpatterns = [
     path('facilities/', views.FacilityListView.as_view(), name='facility_list'),
     path('facilities/add/', views.FacilityCreateView.as_view(), name='facility_add'),
     path('facilities/<int:pk>/', views.FacilityDetailView.as_view(), name='facility_detail'),
+    path('facilities/<int:pk>/edit/', views.FacilityUpdateView.as_view(), name='facility_edit'),
     
     # Classroom Management
     path('classrooms/', views.ClassroomListView.as_view(), name='classroom_list'),

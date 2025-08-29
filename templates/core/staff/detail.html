@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ staff.first_name }} {{ staff.last_name }} - Staff Details - EduPulse{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h1 class="page-title">{{ staff.first_name }} {{ staff.last_name }}</h1>
+        <p class="page-subtitle">
+            <span class="badge {% if staff.role == 'admin' %}bg-danger{% else %}bg-primary{% endif %} me-2">
+                {{ staff.get_role_display }}
+            </span>
+            Staff Member Details
+        </p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'core:staff_edit' staff.pk %}" class="btn btn-primary">Edit Staff</a>
+        <a href="{% url 'core:staff_list' %}" class="btn btn-outline-secondary">Back to Staff</a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Personal Information -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Personal Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Full Name:</strong></div>
+                    <div class="col-sm-8">{{ staff.first_name }} {{ staff.last_name }}</div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Username:</strong></div>
+                    <div class="col-sm-8">{{ staff.username }}</div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Email:</strong></div>
+                    <div class="col-sm-8">
+                        {% if staff.email %}
+                            <a href="mailto:{{ staff.email }}">{{ staff.email }}</a>
+                        {% else %}
+                            <span class="text-muted">No email provided</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Phone:</strong></div>
+                    <div class="col-sm-8">
+                        {% if staff.phone %}
+                            <a href="tel:{{ staff.phone }}">{{ staff.phone }}</a>
+                        {% else %}
+                            <span class="text-muted">No phone provided</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Role:</strong></div>
+                    <div class="col-sm-8">
+                        <span class="badge {% if staff.role == 'admin' %}bg-danger{% else %}bg-primary{% endif %}">
+                            {{ staff.get_role_display }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Status:</strong></div>
+                    <div class="col-sm-8">
+                        <span class="status-badge {% if staff.is_active_staff %}status-active{% else %}status-inactive{% endif %}">
+                            {% if staff.is_active_staff %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Date Joined:</strong></div>
+                    <div class="col-sm-8">{{ staff.created_at|date:"d F Y g:i A" }}</div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Last Updated:</strong></div>
+                    <div class="col-sm-8">{{ staff.updated_at|date:"d F Y g:i A" }}</div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-sm-4"><strong>Last Login:</strong></div>
+                    <div class="col-sm-8">
+                        {% if staff.last_login %}
+                            {{ staff.last_login|date:"d F Y g:i A" }}
+                        {% else %}
+                            <span class="text-muted">Never logged in</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- System Access -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">System Access</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>User Active:</strong></div>
+                    <div class="col-sm-8">
+                        <span class="status-badge {% if staff.is_active %}status-active{% else %}status-inactive{% endif %}">
+                            {% if staff.is_active %}Yes{% else %}No{% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Staff Status:</strong></div>
+                    <div class="col-sm-8">
+                        <span class="status-badge {% if staff.is_staff %}status-active{% else %}status-inactive{% endif %}">
+                            {% if staff.is_staff %}Staff Member{% else %}Not Staff{% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-sm-4"><strong>Admin Rights:</strong></div>
+                    <div class="col-sm-8">
+                        <span class="status-badge {% if staff.is_superuser %}status-active{% else %}status-inactive{% endif %}">
+                            {% if staff.is_superuser %}Superuser{% else %}Regular User{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teaching and Activity -->
+    <div class="col-md-6">
+        <!-- Courses Teaching -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Teaching Assignments</h5>
+                <small class="text-muted">({{ taught_courses.count }} courses)</small>
+            </div>
+            <div class="card-body">
+                {% if taught_courses.exists %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for course in taught_courses|slice:":10" %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ course.name }}</strong>
+                                        <br><small class="text-muted">${{ course.price }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ course.get_course_type_display }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if course.status == 'published' %}bg-success{% elif course.status == 'draft' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                            {{ course.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if taught_courses.count > 10 %}
+                    <div class="text-center mt-3">
+                        <a href="{% url 'core:course_list' %}?teacher={{ staff.pk }}" class="btn btn-sm btn-outline-primary">
+                            View All Courses ({{ taught_courses.count }})
+                        </a>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-0">No teaching assignments</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Recent Classes -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Classes</h5>
+            </div>
+            <div class="card-body">
+                {% if taught_classes %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for class in taught_classes %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ class.course.name }}</strong>
+                                    </td>
+                                    <td>{{ class.date|date:"d/m/Y" }}</td>
+                                    <td>{{ class.start_time|time:"g:i A" }}</td>
+                                    <td>
+                                        <span class="status-badge {% if class.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                            {% if class.is_active %}Active{% else %}Cancelled{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <a href="{% url 'core:class_list' %}?teacher={{ staff.pk }}" class="btn btn-sm btn-outline-primary">
+                            View All Classes
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-0">No recent classes</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'core:staff_edit' staff.pk %}" class="btn btn-primary">Edit Staff Details</a>
+                    <a href="{% url 'core:course_list' %}?teacher={{ staff.pk }}" class="btn btn-outline-info">View Teaching Assignments</a>
+                    <a href="{% url 'core:class_list' %}?teacher={{ staff.pk }}" class="btn btn-outline-success">View Class Schedule</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Students - EduPulse{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h1 class="page-title">Student Management</h1>
+        <p class="page-subtitle">Manage student profiles and information</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'core:student_add' %}" class="btn btn-primary">Add New Student</a>
+    </div>
+</div>
+
+<!-- Search -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-10">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" name="search" id="search" class="form-control" 
+                               placeholder="Search students by name, email, or guardian name..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-outline-primary w-100">Search</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Students List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Students ({{ students|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if students %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Contact</th>
+                                    <th>Guardian</th>
+                                    <th>Enrollments</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr class="clickable-row" onclick="location.href='{% url 'core:student_detail' student.pk %}'">
+                                    <td>
+                                        <strong>{{ student.first_name }} {{ student.last_name }}</strong>
+                                        {% if student.birth_date %}
+                                            <br><small class="text-muted">Born: {{ student.birth_date|date:"d/m/Y" }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if student.email %}
+                                            <div><i class="fas fa-envelope text-muted"></i> {{ student.email }}</div>
+                                        {% endif %}
+                                        {% if student.phone %}
+                                            <div><i class="fas fa-phone text-muted"></i> {{ student.phone }}</div>
+                                        {% endif %}
+                                        {% if not student.email and not student.phone %}
+                                            <span class="text-muted">No contact info</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if student.guardian_name %}
+                                            <strong>{{ student.guardian_name }}</strong>
+                                            {% if student.guardian_phone %}
+                                                <br><small class="text-muted">{{ student.guardian_phone }}</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">No guardian info</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ student.enrollments.count }} courses</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge {% if student.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                            {% if student.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'core:student_detail' student.pk %}" 
+                                               class="btn btn-outline-primary btn-sm">View</a>
+                                            <a href="{% url 'core:student_edit' student.pk %}" 
+                                               class="btn btn-outline-secondary btn-sm">Edit</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <nav aria-label="Student pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-3">No students found.</p>
+                        <a href="{% url 'core:student_add' %}" class="btn btn-primary">Add First Student</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

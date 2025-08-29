@@ -75,9 +75,15 @@ class StaffListView(AdminRequiredMixin, ListView):
             queryset = queryset.filter(
                 Q(first_name__icontains=search) |
                 Q(last_name__icontains=search) |
-                Q(email__icontains=search)
+                Q(email__icontains=search) |
+                Q(username__icontains=search)
             )
         return queryset.order_by('last_name', 'first_name')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.request.GET.get('search', '')
+        return context
 
 
 class StaffCreateView(AdminRequiredMixin, CreateView):
@@ -95,6 +101,13 @@ class StaffDetailView(AdminRequiredMixin, DetailView):
     model = Staff
     template_name = 'core/staff/detail.html'
     context_object_name = 'staff'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # 添加教师相关的课程和班级信息
+        context['taught_courses'] = self.object.courses.filter(is_active=True)
+        context['taught_classes'] = self.object.class_set.filter(is_active=True).select_related('course').order_by('-date')[:5]
+        return context
 
 
 class StaffUpdateView(AdminRequiredMixin, UpdateView):
@@ -276,6 +289,24 @@ class FacilityListView(AdminRequiredMixin, ListView):
     model = Facility
     template_name = 'core/facilities/list.html'
     context_object_name = 'facilities'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        queryset = Facility.objects.filter(is_active=True)
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(address__icontains=search) |
+                Q(phone__icontains=search) |
+                Q(email__icontains=search)
+            )
+        return queryset.order_by('name')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.request.GET.get('search', '')
+        return context
 
 
 class FacilityCreateView(AdminRequiredMixin, CreateView):
@@ -283,6 +314,10 @@ class FacilityCreateView(AdminRequiredMixin, CreateView):
     form_class = FacilityForm
     template_name = 'core/facilities/form.html'
     success_url = reverse_lazy('core:facility_list')
+    
+    def form_valid(self, form):
+        messages.success(self.request, f'Facility "{form.instance.name}" created successfully!')
+        return super().form_valid(form)
 
 
 class FacilityDetailView(AdminRequiredMixin, DetailView):
@@ -293,7 +328,21 @@ class FacilityDetailView(AdminRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['classrooms'] = self.object.classrooms.filter(is_active=True)
+        context['courses'] = self.object.course_set.filter(is_active=True)
         return context
+
+
+class FacilityUpdateView(AdminRequiredMixin, UpdateView):
+    model = Facility
+    form_class = FacilityForm
+    template_name = 'core/facilities/form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('core:facility_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        messages.success(self.request, f'Facility "{form.instance.name}" updated successfully!')
+        return super().form_valid(form)
 
 
 # Classroom Management Views
@@ -344,7 +393,7 @@ class ClassroomDetailView(AdminRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # 获取使用此教室的班级
-        context['classes'] = self.object.classes.filter(is_active=True).select_related('course').order_by('-date')
+        context['classes'] = self.object.class_set.filter(is_active=True).select_related('course').order_by('-date')
         return context
 
 
@@ -460,7 +509,6 @@ class TimesheetView(LoginRequiredMixin, TemplateView):
         return context
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @login_required
 def tinymce_upload_image(request):

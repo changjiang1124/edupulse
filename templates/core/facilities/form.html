@@ -62,14 +62,12 @@
                         </div>
                     </div>
                     
-                    {% if form.instance.pk %}
                     <div class="form-check mb-3">
                         {{ form.is_active }}
                         <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
                             Active Facility
                         </label>
                     </div>
-                    {% endif %}
 
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'core:facility_list' %}" class="btn btn-outline-secondary">Cancel</a>
