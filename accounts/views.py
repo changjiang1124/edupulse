@@ -43,7 +43,7 @@ class StaffCreateView(AdminRequiredMixin, CreateView):
     model = Staff
     form_class = StaffCreationForm
     template_name = 'core/staff/form.html'
-    success_url = reverse_lazy('core:staff_list')
+    success_url = reverse_lazy('accounts:staff_list')
     
     def form_valid(self, form):
         messages.success(self.request, f'Staff member {form.instance.first_name} {form.instance.last_name} created successfully!')
@@ -57,9 +57,17 @@ class StaffDetailView(AdminRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Add teacher-related courses and classes
-        context['taught_courses'] = self.object.courses.filter(is_active=True)
-        context['taught_classes'] = self.object.class_set.filter(is_active=True).select_related('course').order_by('-date')[:5]
+        # Add teacher-related courses and classes - with try/except to avoid errors
+        try:
+            # Import here to avoid circular imports
+            from academics.models import Course, Class
+            context['taught_courses'] = Course.objects.filter(teacher=self.object, is_active=True)
+            context['taught_classes'] = Class.objects.filter(
+                course__teacher=self.object
+            ).select_related('course').order_by('-date')[:5]
+        except ImportError:
+            context['taught_courses'] = []
+            context['taught_classes'] = []
         return context
 
 
@@ -69,4 +77,8 @@ class StaffUpdateView(AdminRequiredMixin, UpdateView):
     template_name = 'core/staff/form.html'
     
     def get_success_url(self):
-        return reverse_lazy('core:staff_detail', kwargs={'pk': self.object.pk})
+        return reverse_lazy('accounts:staff_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        messages.success(self.request, f'Staff member {form.instance.first_name} {form.instance.last_name} updated successfully!')
+        return super().form_valid(form)

@@ -1,0 +1,162 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Edit Enrollment - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">Edit Enrollment</h1>
+                    <p class="text-muted mb-0">Modify enrollment details for {{ enrollment.student.get_full_name }}</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'enrollment:enrollment_detail' enrollment.pk %}" class="btn btn-outline-info">
+                        <i class="fas fa-eye me-2"></i>View Details
+                    </a>
+                    <a href="{% url 'enrollment:enrollment_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Enrollments
+                    </a>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Enrollment Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" novalidate>
+                                {% csrf_token %}
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.student.id_for_label }}" class="form-label">
+                                                Student <span class="text-danger">*</span>
+                                            </label>
+                                            {{ form.student }}
+                                            {% if form.student.errors %}
+                                                <div class="invalid-feedback d-block">
+                                                    {% for error in form.student.errors %}
+                                                        {{ error }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.course.id_for_label }}" class="form-label">
+                                                Course <span class="text-danger">*</span>
+                                            </label>
+                                            {{ form.course }}
+                                            {% if form.course.errors %}
+                                                <div class="invalid-feedback d-block">
+                                                    {% for error in form.course.errors %}
+                                                        {{ error }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.status.id_for_label }}" class="form-label">
+                                                Status <span class="text-danger">*</span>
+                                            </label>
+                                            {{ form.status }}
+                                            {% if form.status.errors %}
+                                                <div class="invalid-feedback d-block">
+                                                    {% for error in form.status.errors %}
+                                                        {{ error }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.source_channel.id_for_label }}" class="form-label">
+                                                Source Channel <span class="text-danger">*</span>
+                                            </label>
+                                            {{ form.source_channel }}
+                                            {% if form.source_channel.errors %}
+                                                <div class="invalid-feedback d-block">
+                                                    {% for error in form.source_channel.errors %}
+                                                        {{ error }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'enrollment:enrollment_delete' enrollment.pk %}" 
+                                       class="btn btn-danger"
+                                       onclick="return confirm('Are you sure you want to delete this enrollment?')">
+                                        <i class="fas fa-trash me-2"></i>Delete Enrollment
+                                    </a>
+                                    <div class="d-flex gap-2">
+                                        <a href="{% url 'enrollment:enrollment_list' %}" class="btn btn-secondary">Cancel</a>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-2"></i>Update Enrollment
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Enrollment History</h5>
+                        </div>
+                        <div class="card-body">
+                            <small class="text-muted">
+                                <strong>Created:</strong> {{ enrollment.created_at|date:"d M Y g:i A" }}
+                            </small><br>
+                            <small class="text-muted">
+                                <strong>Last Updated:</strong> {{ enrollment.updated_at|date:"d M Y g:i A" }}
+                            </small><br>
+                            <small class="text-muted">
+                                <strong>Source:</strong> {{ enrollment.get_source_channel_display }}
+                            </small>
+                        </div>
+                    </div>
+                    
+                    {% if enrollment.form_data %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Original Form Data</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-0">
+                                This enrollment was created through a form submission. View the original data for reference.
+                            </p>
+                            <details class="mt-2">
+                                <summary class="btn btn-sm btn-outline-info">View Form Data</summary>
+                                <pre class="mt-2 p-2 bg-light rounded small">{{ enrollment.form_data|pprint }}</pre>
+                            </details>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

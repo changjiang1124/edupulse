@@ -668,3 +668,124 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: var(--border-radius);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+
+
+/* Avatar and Icon Circles for Course Detail Page */
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    background-color: var(--primary-color);
+    color: white;
+    flex-shrink: 0;
+}
+
+.icon-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+}
+
+.icon-circle.bg-info {
+    background-color: #0ea5e9 !important;
+}
+
+.icon-circle.bg-success {
+    background-color: var(--success-color) !important;
+}
+
+.icon-circle.bg-warning {
+    background-color: #f59e0b !important;
+}
+
+/* Course Description Styling */
+.course-description {
+    line-height: 1.8;
+    font-size: 1.05rem;
+}
+
+.course-description img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 1rem 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.course-description h1, .course-description h2, .course-description h3 {
+    color: #2563eb;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.course-description p {
+    margin-bottom: 1.2rem;
+}
+
+.course-description ul, .course-description ol {
+    margin-bottom: 1.2rem;
+    padding-left: 1.5rem;
+}
+
+/* Course Hero Section */
+.course-hero {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+/* Course Meta Cards */
+.course-meta-card {
+    border: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border-radius: 12px;
+}
+
+.course-meta-card .card-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 12px 12px 0 0 !important;
+}
+
+/* Duration Widget Styling */
+.duration-widget .row {
+    align-items: end;
+}
+
+.duration-widget .form-label.small {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.duration-widget .form-select {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+}
+
+/* Custom styling for the duration field container */
+.duration-field-container {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    transition: border-color 0.15s ease;
+}
+
+.duration-field-container:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}

@@ -1,0 +1,465 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ class.course.name }} - {{ class.date }} - Class Details - EduPulse{% endblock %}
+
+{% block extra_css %}
+<style>
+.class-hero {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+.class-meta-card {
+    border: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border-radius: 12px;
+}
+.class-meta-card .card-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 12px 12px 0 0 !important;
+}
+.student-list-item {
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+}
+.student-list-item:hover {
+    background-color: #f8fafc;
+    transform: translateX(4px);
+}
+.participation-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+}
+.participation-enrolled {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+.participation-temp {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+.attendance-status {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+.attendance-present {
+    background-color: #10b981;
+}
+.attendance-absent {
+    background-color: #ef4444;
+}
+.attendance-late {
+    background-color: #f59e0b;
+}
+.attendance-pending {
+    background-color: #6b7280;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Class Hero Section -->
+<div class="class-hero">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <h1 class="display-6 fw-bold mb-2">{{ class.course.name }}</h1>
+            <p class="lead mb-3">{{ class.date|date:"l, d F Y" }} at {{ class.start_time|time:"g:i A" }}</p>
+            <div class="d-flex flex-wrap gap-2 mb-0">
+                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">
+                    <i class="fas fa-clock me-1"></i>{{ class.duration_minutes }} minutes
+                </span>
+                {% if class.teacher %}
+                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">
+                    <i class="fas fa-user-tie me-1"></i>{{ class.teacher.first_name }} {{ class.teacher.last_name }}
+                </span>
+                {% endif %}
+                {% if class.classroom %}
+                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">
+                    <i class="fas fa-map-marker-alt me-1"></i>{{ class.classroom.name }}
+                </span>
+                {% endif %}
+                <span class="status-badge status-{{ class.is_active|yesno:'active,inactive' }} bg-white bg-opacity-25">
+                    {{ class.is_active|yesno:'Active,Inactive' }}
+                </span>
+            </div>
+        </div>
+        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+            <div class="d-flex flex-column gap-2">
+                <a href="{% url 'academics:class_edit' class.pk %}" class="btn btn-light">
+                    <i class="fas fa-edit me-2"></i>Edit Class
+                </a>
+                <a href="{% url 'academics:class_list' %}" class="btn btn-outline-light">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Classes
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        
+        <!-- Class Information -->
+        <div class="card class-meta-card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>Class Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-circle bg-primary me-3">
+                                <i class="fas fa-book"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Course</small>
+                                <strong>
+                                    <a href="{% url 'academics:course_detail' class.course.pk %}" class="text-decoration-none">
+                                        {{ class.course.name }}
+                                    </a>
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-circle bg-info me-3">
+                                <i class="fas fa-calendar"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Date & Time</small>
+                                <strong>{{ class.date|date:"d/m/Y" }} at {{ class.start_time|time:"g:i A" }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if class.teacher %}
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-circle bg-primary me-3">
+                                {{ class.teacher.first_name|first }}{{ class.teacher.last_name|first }}
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Instructor</small>
+                                <strong>{{ class.teacher.first_name }} {{ class.teacher.last_name }}</strong>
+                                {% if class.teacher != class.course.teacher %}
+                                <br><small class="text-warning">
+                                    <i class="fas fa-info-circle me-1"></i>Different from course teacher
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if class.classroom %}
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-circle bg-warning me-3">
+                                <i class="fas fa-door-open"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Location</small>
+                                <strong>{{ class.classroom.name }}</strong>
+                                {% if class.facility %}<br><small class="text-muted">{{ class.facility.name }}</small>{% endif %}
+                                {% if class.classroom != class.course.classroom %}
+                                <br><small class="text-warning">
+                                    <i class="fas fa-info-circle me-1"></i>Different from course classroom
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Students in This Class -->
+        <div class="card class-meta-card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2 text-primary"></i>
+                    Students <span class="badge bg-primary ms-2">{{ class_students.count }}</span>
+                </h5>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                        <i class="fas fa-user-plus me-1"></i>Add Student
+                    </button>
+                    <a href="{% url 'enrollment:attendance_mark' class.pk %}" class="btn btn-outline-primary">
+                        <i class="fas fa-check me-1"></i>Mark Attendance
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if class_students %}
+                    {% for student_info in class_students %}
+                    <div class="student-list-item border">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-circle bg-primary bg-opacity-10 text-primary me-3">
+                                        {{ student_info.student.first_name|first }}{{ student_info.student.last_name|first }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-medium">{{ student_info.student.first_name }} {{ student_info.student.last_name }}</div>
+                                        <small class="text-muted">{{ student_info.student.email|default:"No email" }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <span class="participation-badge participation-{{ student_info.participation_type }}">
+                                    {% if student_info.participation_type == 'enrolled' %}
+                                        <i class="fas fa-user-check me-1"></i>Enrolled
+                                    {% elif student_info.participation_type == 'temp' %}
+                                        <i class="fas fa-user-clock me-1"></i>Temporary
+                                    {% else %}
+                                        <i class="fas fa-user-plus me-1"></i>Added
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="col-md-2">
+                                {% with student_info.attendance_status as status %}
+                                <div class="attendance-status attendance-{{ status|default:'pending' }}"></div>
+                                <small class="text-muted">
+                                    {% if status == 'present' %}Present
+                                    {% elif status == 'absent' %}Absent
+                                    {% elif status == 'late' %}Late
+                                    {% else %}Pending
+                                    {% endif %}
+                                </small>
+                                {% endwith %}
+                            </div>
+                            <div class="col-md-1">
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="{% url 'students:student_detail' student_info.student.pk %}">View Student</a></li>
+                                        <li><a class="dropdown-item text-danger" href="#" onclick="removeStudent({{ student_info.student.pk }})">Remove from Class</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No students assigned</h6>
+                        <p class="text-muted mb-3">Add students to this class to get started</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                            <i class="fas fa-user-plus me-2"></i>Add First Student
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Attendance History -->
+        <div class="card class-meta-card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-clipboard-check me-2 text-primary"></i>Attendance History</h5>
+            </div>
+            <div class="card-body">
+                {% if attendances %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Status</th>
+                                    <th>Time</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attendance in attendances %}
+                                <tr>
+                                    <td>{{ attendance.student.first_name }} {{ attendance.student.last_name }}</td>
+                                    <td>
+                                        <span class="attendance-status attendance-{{ attendance.status }}"></span>
+                                        {{ attendance.get_status_display }}
+                                    </td>
+                                    <td>{{ attendance.attendance_time|date:"g:i A" }}</td>
+                                    <td>{{ attendance.notes|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clipboard fa-2x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No attendance records yet</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="card class-meta-card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt me-2 text-primary"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'academics:class_edit' class.pk %}" class="btn btn-primary">
+                        <i class="fas fa-edit me-2"></i>Edit Class Details
+                    </a>
+                    <a href="{% url 'enrollment:attendance_mark' class.pk %}" class="btn btn-success">
+                        <i class="fas fa-check me-2"></i>Mark Attendance
+                    </a>
+                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                        <i class="fas fa-user-plus me-2"></i>Add Student
+                    </button>
+                    <hr class="my-2">
+                    <a href="{% url 'academics:course_detail' class.course.pk %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-book me-2"></i>View Course
+                    </a>
+                    <a href="{% url 'academics:class_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-2"></i>All Classes
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Class Stats -->
+        <div class="card class-meta-card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2 text-primary"></i>Class Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 text-center">
+                    <div class="col-6">
+                        <div class="bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3 p-3">
+                            <h4 class="text-primary mb-1">{{ class_students.count }}</h4>
+                            <small class="text-muted">Students</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 p-3">
+                            <h4 class="text-success mb-1">{{ attendance_stats.present|default:0 }}</h4>
+                            <small class="text-muted">Present</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-warning bg-opacity-10 border border-warning border-opacity-25 rounded-3 p-3">
+                            <h4 class="text-warning mb-1">{{ attendance_stats.late|default:0 }}</h4>
+                            <small class="text-muted">Late</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded-3 p-3">
+                            <h4 class="text-danger mb-1">{{ attendance_stats.absent|default:0 }}</h4>
+                            <small class="text-muted">Absent</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Information -->
+        <div class="card class-meta-card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-book-open me-2 text-primary"></i>Course Context</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <small class="text-muted d-block">Course</small>
+                    <strong>{{ class.course.name }}</strong>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted d-block">Course Type</small>
+                    <span class="badge bg-info">{{ class.course.get_course_type_display }}</span>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted d-block">Total Sessions</small>
+                    <strong>{{ class.course.classes.count }}</strong>
+                </div>
+                <div class="mb-0">
+                    <small class="text-muted d-block">Course Status</small>
+                    <span class="status-badge status-{{ class.course.status }}">{{ class.course.get_status_display }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Student Modal -->
+<div class="modal fade" id="addStudentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Student to Class</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="studentSearch" class="form-label">Search Students</label>
+                    <input type="text" class="form-control" id="studentSearch" placeholder="Type student name...">
+                </div>
+                <div id="studentSearchResults">
+                    <!-- Student search results will be populated here -->
+                </div>
+                <div class="mt-3">
+                    <label for="participationType" class="form-label">Participation Type</label>
+                    <select class="form-select" id="participationType">
+                        <option value="enrolled">Enrolled (Regular student)</option>
+                        <option value="temp">Temporary (One-time participant)</option>
+                        <option value="makeup">Makeup Class</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addSelectedStudents()">Add Students</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function removeStudent(studentId) {
+    if (confirm('Are you sure you want to remove this student from the class?')) {
+        // Implement remove student functionality
+        // This would make an AJAX call to remove the student
+        console.log('Remove student:', studentId);
+    }
+}
+
+function addSelectedStudents() {
+    // Implement add student functionality
+    // This would make an AJAX call to add selected students
+    console.log('Add selected students');
+}
+
+// Student search functionality
+document.getElementById('studentSearch').addEventListener('input', function() {
+    const query = this.value;
+    if (query.length >= 2) {
+        // Implement student search AJAX call
+        console.log('Search for:', query);
+    }
+});
+</script>
+{% endblock %}

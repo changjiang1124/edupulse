@@ -145,6 +145,22 @@ class Course(models.Model):
         verbose_name = 'Course'
         verbose_name_plural = 'Courses'
     
+    def get_duration_display(self):
+        """
+        Return human-friendly duration format
+        """
+        if self.duration_minutes:
+            hours = self.duration_minutes // 60
+            minutes = self.duration_minutes % 60
+            
+            if hours == 0:
+                return f"{minutes} minutes"
+            elif minutes == 0:
+                return f"{hours} hour{'s' if hours != 1 else ''}"
+            else:
+                return f"{hours} hour{'s' if hours != 1 else ''} {minutes} minutes"
+        return "Duration not set"
+    
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
     
@@ -285,6 +301,22 @@ class Class(models.Model):
         verbose_name = 'Class'
         verbose_name_plural = 'Classes'
         unique_together = ['course', 'date', 'start_time']
+    
+    def get_duration_display(self):
+        """
+        Return human-friendly duration format
+        """
+        if self.duration_minutes:
+            hours = self.duration_minutes // 60
+            minutes = self.duration_minutes % 60
+            
+            if hours == 0:
+                return f"{minutes} min" if minutes < 60 else f"{minutes} minutes"
+            elif minutes == 0:
+                return f"{hours}h"
+            else:
+                return f"{hours}h {minutes}m"
+        return "TBD"
     
     def __str__(self):
         return f"{self.course.name} - {self.date} {self.start_time}"

@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Classes - EduPulse{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h1 class="page-title">Classes</h1>
+        <p class="page-subtitle">Manage individual class sessions</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'academics:class_add' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Add New Class
+        </a>
+    </div>
+</div>
+
+<!-- Filter Options -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ search_query }}" placeholder="Search course or teacher...">
+            </div>
+            <div class="col-md-3">
+                <label for="filter" class="form-label">Time Filter</label>
+                <select class="form-select" id="filter" name="filter">
+                    <option value="upcoming" {% if filter == 'upcoming' %}selected{% endif %}>Upcoming Classes</option>
+                    <option value="past" {% if filter == 'past' %}selected{% endif %}>Past Classes</option>
+                    <option value="all" {% if filter == 'all' %}selected{% endif %}>All Classes</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-search me-1"></i>Filter
+                </button>
+                <a href="{% url 'academics:class_list' %}" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Classes List -->
+<div class="card">
+    <div class="card-body">
+        {% if classes %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Course</th>
+                            <th>Date & Time</th>
+                            <th>Duration</th>
+                            <th>Teacher</th>
+                            <th>Location</th>
+                            <th>Students</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for class in classes %}
+                        <tr class="{% if not class.is_active %}table-secondary{% endif %}">
+                            <td>
+                                <strong>{{ class.course.name }}</strong>
+                                <br><small class="text-muted">{{ class.course.get_course_type_display }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ class.date|date:"d/m/Y" }}</strong>
+                                <br><small class="text-muted">{{ class.start_time|time:"g:i A" }}</small>
+                            </td>
+                            <td>{{ class.duration_minutes }}min</td>
+                            <td>
+                                {% if class.teacher %}
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-circle bg-primary me-2" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                                            {{ class.teacher.first_name|first }}{{ class.teacher.last_name|first }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-medium">{{ class.teacher.first_name }} {{ class.teacher.last_name }}</div>
+                                            {% if class.teacher != class.course.teacher %}
+                                            <small class="text-warning">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>Changed
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">Not assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if class.classroom %}
+                                    <strong>{{ class.classroom.name }}</strong>
+                                    {% if class.facility %}<br><small class="text-muted">{{ class.facility.name }}</small>{% endif %}
+                                    {% if class.classroom != class.course.classroom %}
+                                    <br><small class="text-warning">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Changed
+                                    </small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">TBD</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-primary me-1">{{ class.course.enrollments.count }}</span>
+                                    <small class="text-muted">enrolled</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ class.is_active|yesno:'active,inactive' }}">
+                                    {{ class.is_active|yesno:'Active,Inactive' }}
+                                </span>
+                                {% if class.date < today %}
+                                <br><span class="badge bg-secondary">Past</span>
+                                {% elif class.date == today %}
+                                <br><span class="badge bg-success">Today</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'academics:class_detail' class.pk %}" 
+                                       class="btn btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'academics:class_edit' class.pk %}" 
+                                       class="btn btn-outline-secondary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if class.date >= today %}
+                                    <a href="{% url 'enrollment:attendance_mark' class.pk %}" 
+                                       class="btn btn-outline-success" title="Mark Attendance">
+                                        <i class="fas fa-check"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Classes pagination">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}">First</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}">Previous</a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}">Next</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}">Last</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+        {% else %}
+            <div class="text-center py-5">
+                {% if search_query or filter != 'upcoming' %}
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No classes found</h5>
+                    <p class="text-muted mb-3">Try adjusting your search or filter criteria</p>
+                    <a href="{% url 'academics:class_list' %}" class="btn btn-outline-primary me-2">Clear Filters</a>
+                    <a href="{% url 'academics:class_add' %}" class="btn btn-primary">Add First Class</a>
+                {% else %}
+                    <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No classes scheduled</h5>
+                    <p class="text-muted mb-3">Start by creating a course and scheduling your first class</p>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <a href="{% url 'academics:course_add' %}" class="btn btn-primary">
+                            <i class="fas fa-book me-2"></i>Create Course
+                        </a>
+                        <a href="{% url 'academics:class_add' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-plus me-2"></i>Add Class
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

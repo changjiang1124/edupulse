@@ -3,162 +3,225 @@
 
 {% block title %}{{ course.name }} - Course Details - EduPulse{% endblock %}
 
+{% block extra_css %}
+<style>
+.course-description {
+    line-height: 1.8;
+    font-size: 1.05rem;
+}
+.course-description img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 1rem 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.course-description h1, .course-description h2, .course-description h3 {
+    color: #2563eb;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+.course-description p {
+    margin-bottom: 1.2rem;
+}
+.course-description ul, .course-description ol {
+    margin-bottom: 1.2rem;
+    padding-left: 1.5rem;
+}
+.course-hero {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+.course-meta-card {
+    border: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border-radius: 12px;
+}
+.course-meta-card .card-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 12px 12px 0 0 !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <h1 class="page-title">{{ course.name }}</h1>
-        <p class="page-subtitle">{{ course.get_period_display }}</p>
-    </div>
-    <div class="col-md-4 text-end">
-        <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-primary">Edit Course</a>
-        <a href="{% url 'academics:course_list' %}" class="btn btn-outline-secondary">Back to Courses</a>
+<!-- Course Hero Section -->
+<div class="course-hero">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <h1 class="display-5 fw-bold mb-2">{{ course.name }}</h1>
+            <p class="lead mb-3">{{ course.short_description|default:"Learn with our expert instructors in a supportive environment." }}</p>
+            <div class="d-flex flex-wrap gap-2 mb-0">
+                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">{{ course.get_course_type_display }}</span>
+                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">${{ course.price }}</span>
+                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">{{ course.vacancy }} places</span>
+                <span class="status-badge status-{{ course.status }} bg-white bg-opacity-25">{{ course.get_status_display }}</span>
+            </div>
+        </div>
+        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+            <div class="d-flex flex-column gap-2">
+                <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-light">
+                    <i class="fas fa-edit me-2"></i>Edit Course
+                </a>
+                <a href="{% url 'academics:course_list' %}" class="btn btn-outline-light">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Courses
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
 <div class="row">
-    <!-- Course Information -->
-    <div class="col-md-8">
-        <div class="card mb-4">
+    <!-- Main Content Area -->
+    <div class="col-lg-8">
+        
+        <!-- Course Description - Full Width for Rich Content -->
+        {% if course.description %}
+        <div class="card course-meta-card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Course Information</h5>
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>Course Description</h5>
             </div>
             <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Status:</strong></div>
-                    <div class="col-sm-9">
-                        <span class="status-badge status-{{ course.status }}">
-                            {{ course.get_status_display }}
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Type:</strong></div>
-                    <div class="col-sm-9">
-                        <span class="badge bg-info">{{ course.get_course_type_display }}</span>
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Price:</strong></div>
-                    <div class="col-sm-9">${{ course.price }}</div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Vacancy:</strong></div>
-                    <div class="col-sm-9">{{ course.vacancy }} places</div>
-                </div>
-                
-                {% if course.short_description %}
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Short Description:</strong></div>
-                    <div class="col-sm-9">{{ course.short_description }}</div>
-                </div>
-                {% endif %}
-                
-                {% if course.description %}
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Description:</strong></div>
-                    <div class="col-sm-9">{{ course.description|safe }}</div>
-                </div>
-                {% endif %}
-                
-                {% if course.teacher %}
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Teacher:</strong></div>
-                    <div class="col-sm-9">{{ course.teacher.first_name }} {{ course.teacher.last_name }}</div>
-                </div>
-                {% endif %}
-                
-                {% if course.facility %}
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Facility:</strong></div>
-                    <div class="col-sm-9">{{ course.facility.name }}</div>
-                </div>
-                {% endif %}
-                
-                {% if course.classroom %}
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Classroom:</strong></div>
-                    <div class="col-sm-9">{{ course.classroom.name }}</div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Schedule Information -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">Schedule Information</h5>
-            </div>
-            <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Start Date:</strong></div>
-                    <div class="col-sm-9">{{ course.start_date|date:"d F Y" }}</div>
-                </div>
-                
-                {% if course.end_date and course.end_date != course.start_date %}
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>End Date:</strong></div>
-                    <div class="col-sm-9">{{ course.end_date|date:"d F Y" }}</div>
-                </div>
-                {% endif %}
-                
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Time:</strong></div>
-                    <div class="col-sm-9">{{ course.start_time|time:"g:i A" }}</div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Duration:</strong></div>
-                    <div class="col-sm-9">{{ course.duration_minutes }} minutes</div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Pattern:</strong></div>
-                    <div class="col-sm-9">{{ course.get_repeat_pattern_display }}</div>
+                <div class="course-description">
+                    {{ course.description|safe }}
                 </div>
             </div>
         </div>
+        {% endif %}
 
-        <!-- Classes -->
-        <div class="card mb-4">
+        <!-- Course Details -->
+        <div class="card course-meta-card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-list-ul me-2 text-primary"></i>Course Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    {% if course.teacher %}
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-circle bg-primary me-3">
+                                {{ course.teacher.first_name|first }}{{ course.teacher.last_name|first }}
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Instructor</small>
+                                <strong>{{ course.teacher.first_name }} {{ course.teacher.last_name }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-circle bg-info me-3">
+                                <i class="fas fa-calendar"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Schedule</small>
+                                <strong>{{ course.get_repeat_pattern_display }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-circle bg-success me-3">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Duration</small>
+                                <strong>{{ course.get_duration_display }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-circle bg-warning me-3">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Location</small>
+                                <strong>
+                                    {% if course.classroom %}
+                                        {{ course.classroom.name }}
+                                        {% if course.facility %} - {{ course.facility.name }}{% endif %}
+                                    {% elif course.facility %}
+                                        {{ course.facility.name }}
+                                    {% else %}
+                                        To be determined
+                                    {% endif %}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Schedule Details -->
+                <div class="mt-4 pt-4 border-top">
+                    <h6 class="text-muted mb-3">Schedule Details</h6>
+                    <div class="row g-3">
+                        <div class="col-sm-4">
+                            <small class="text-muted d-block">Start Date</small>
+                            <strong>{{ course.start_date|date:"d F Y" }}</strong>
+                        </div>
+                        {% if course.end_date and course.end_date != course.start_date %}
+                        <div class="col-sm-4">
+                            <small class="text-muted d-block">End Date</small>
+                            <strong>{{ course.end_date|date:"d F Y" }}</strong>
+                        </div>
+                        {% endif %}
+                        <div class="col-sm-4">
+                            <small class="text-muted d-block">Time</small>
+                            <strong>{{ course.start_time|time:"g:i A" }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Classes Section -->
+        <div class="card course-meta-card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Classes ({{ classes.count }})</h5>
-                <a href="{% url 'academics:class_add' %}" class="btn btn-sm btn-outline-primary">Add Class</a>
+                <h5 class="mb-0">
+                    <i class="fas fa-chalkboard-teacher me-2 text-primary"></i>
+                    Scheduled Classes <span class="badge bg-primary ms-2">{{ classes.count }}</span>
+                </h5>
+                <a href="{% url 'academics:class_add' %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i>Add Class
+                </a>
             </div>
             <div class="card-body">
                 {% if classes %}
                     <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
+                        <table class="table table-hover">
+                            <thead class="table-light">
                                 <tr>
                                     <th>Date</th>
                                     <th>Time</th>
                                     <th>Duration</th>
-                                    <th>Teacher</th>
                                     <th>Classroom</th>
                                     <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for class in classes %}
                                 <tr>
-                                    <td>{{ class.date|date:"d/m/Y" }}</td>
-                                    <td>{{ class.start_time|time:"g:i A" }}</td>
-                                    <td>{{ class.duration_minutes }}min</td>
                                     <td>
-                                        {% if class.teacher %}
-                                            {{ class.teacher.first_name }} {{ class.teacher.last_name }}
-                                        {% else %}
-                                            <span class="text-muted">Not assigned</span>
-                                        {% endif %}
+                                        <strong>{{ class.date|date:"d/m/Y" }}</strong>
+                                        <br><small class="text-muted">{{ class.date|date:"l" }}</small>
                                     </td>
+                                    <td>{{ class.start_time|time:"g:i A" }}</td>
+                                    <td>{{ class.get_duration_display }}</td>
                                     <td>
                                         {% if class.classroom %}
                                             {{ class.classroom.name }}
                                         {% else %}
-                                            <span class="text-muted">Not assigned</span>
+                                            <span class="text-muted">TBD</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -166,14 +229,29 @@
                                             {% if class.is_active %}Active{% else %}Inactive{% endif %}
                                         </span>
                                     </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="#" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="#" class="btn btn-outline-secondary btn-sm">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 {% else %}
-                    <div class="text-center py-3">
-                        <p class="text-muted mb-0">No classes scheduled for this course</p>
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No classes scheduled</h6>
+                        <p class="text-muted mb-3">Get started by adding your first class</p>
+                        <a href="{% url 'academics:class_add' %}?course={{ course.pk }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Schedule First Class
+                        </a>
                     </div>
                 {% endif %}
             </div>
@@ -181,24 +259,36 @@
     </div>
 
     <!-- Sidebar -->
-    <div class="col-md-4">
+    <div class="col-lg-4">
         <!-- Quick Stats -->
-        <div class="card mb-4">
+        <div class="card course-meta-card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Quick Stats</h5>
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2 text-primary"></i>Quick Stats</h5>
             </div>
             <div class="card-body text-center">
                 <div class="row g-3">
                     <div class="col-6">
-                        <div class="border rounded p-3">
+                        <div class="bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3 p-3">
                             <h4 class="text-primary mb-1">{{ enrollments.count }}</h4>
                             <small class="text-muted">Enrolments</small>
                         </div>
                     </div>
                     <div class="col-6">
-                        <div class="border rounded p-3">
+                        <div class="bg-info bg-opacity-10 border border-info border-opacity-25 rounded-3 p-3">
                             <h4 class="text-info mb-1">{{ classes.count }}</h4>
                             <small class="text-muted">Classes</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 p-3">
+                            <h4 class="text-success mb-1">{{ course.vacancy }}</h4>
+                            <small class="text-muted">Available</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-warning bg-opacity-10 border border-warning border-opacity-25 rounded-3 p-3">
+                            <h4 class="text-warning mb-1">${{ course.price }}</h4>
+                            <small class="text-muted">Price</small>
                         </div>
                     </div>
                 </div>
@@ -206,15 +296,15 @@
         </div>
 
         <!-- Recent Enrolments -->
-        <div class="card mb-4">
+        <div class="card course-meta-card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Recent Enrolments</h5>
+                <h5 class="mb-0"><i class="fas fa-users me-2 text-primary"></i>Recent Enrolments</h5>
             </div>
             <div class="card-body">
                 {% if enrollments %}
                     {% for enrollment in enrollments|slice:":5" %}
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="avatar-circle me-3">
+                    <div class="d-flex align-items-center mb-3 {% if not forloop.last %}border-bottom pb-3{% endif %}">
+                        <div class="avatar-circle bg-primary bg-opacity-10 text-primary me-3">
                             {{ enrollment.student.first_name|first }}{{ enrollment.student.last_name|first }}
                         </div>
                         <div class="flex-grow-1">
@@ -228,14 +318,15 @@
                     {% endfor %}
                     
                     {% if enrollments.count > 5 %}
-                    <div class="text-center">
+                    <div class="text-center mt-3">
                         <a href="{% url 'enrollment:enrollment_list' %}?course={{ course.pk }}" class="btn btn-sm btn-outline-primary">
-                            View All ({{ enrollments.count }})
+                            <i class="fas fa-arrow-right me-1"></i>View All ({{ enrollments.count }})
                         </a>
                     </div>
                     {% endif %}
                 {% else %}
-                    <div class="text-center py-3">
+                    <div class="text-center py-4">
+                        <i class="fas fa-user-plus fa-2x text-muted mb-3"></i>
                         <p class="text-muted mb-0">No enrolments yet</p>
                     </div>
                 {% endif %}
@@ -243,21 +334,47 @@
         </div>
 
         <!-- Course Actions -->
-        <div class="card">
+        <div class="card course-meta-card">
             <div class="card-header">
-                <h5 class="mb-0">Actions</h5>
+                <h5 class="mb-0"><i class="fas fa-tools me-2 text-primary"></i>Course Actions</h5>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-primary">Edit Course</a>
+                    <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-primary">
+                        <i class="fas fa-edit me-2"></i>Edit Course Details
+                    </a>
                     {% if course.status == 'draft' %}
-                        <button class="btn btn-success" onclick="publishCourse({{ course.pk }})">Publish Course</button>
+                        <button class="btn btn-success" onclick="publishCourse({{ course.pk }})">
+                            <i class="fas fa-rocket me-2"></i>Publish Course
+                        </button>
                     {% endif %}
-                    <a href="{% url 'academics:class_add' %}?course={{ course.pk }}" class="btn btn-outline-primary">Add Class</a>
-                    <button class="btn btn-outline-info" onclick="generateClasses({{ course.pk }})">Generate Classes</button>
+                    <a href="{% url 'academics:class_add' %}?course={{ course.pk }}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus me-2"></i>Add New Class
+                    </a>
+                    <button class="btn btn-outline-info" onclick="generateClasses({{ course.pk }})">
+                        <i class="fas fa-magic me-2"></i>Generate Classes
+                    </button>
+                    <hr class="my-2">
+                    <a href="{% url 'enrollment:enrollment_list' %}?course={{ course.pk }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-2"></i>View All Enrolments
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+function publishCourse(courseId) {
+    // Implement publish course functionality
+    alert('Publish course functionality would be implemented here');
+}
+
+function generateClasses(courseId) {
+    // Implement generate classes functionality  
+    alert('Generate classes functionality would be implemented here');
+}
+</script>
+{% endblock %}
 {% endblock %}

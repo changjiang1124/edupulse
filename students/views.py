@@ -32,7 +32,7 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
     model = Student
     form_class = StudentForm
     template_name = 'core/students/form.html'
-    success_url = reverse_lazy('core:student_list')
+    success_url = reverse_lazy('students:student_list')
     
     def form_valid(self, form):
         messages.success(self.request, f'Student {form.instance.first_name} {form.instance.last_name} added successfully!')
@@ -46,11 +46,18 @@ class StudentDetailView(LoginRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Add enrollments and attendance information
-        context['enrollments'] = self.object.enrollments.select_related('course').all()
-        context['attendances'] = self.object.attendances.select_related(
-            'class_instance__course'
-        ).order_by('-attendance_time')[:10]
+        # Add enrollments and attendance information - with try/except to avoid errors
+        try:
+            from enrollment.models import Enrollment, Attendance
+            context['enrollments'] = Enrollment.objects.filter(
+                student=self.object
+            ).select_related('course').all()
+            context['attendances'] = Attendance.objects.filter(
+                student=self.object
+            ).select_related('class_instance__course').order_by('-attendance_time')[:10]
+        except ImportError:
+            context['enrollments'] = []
+            context['attendances'] = []
         return context
 
 
@@ -60,4 +67,8 @@ class StudentUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'core/students/form.html'
     
     def get_success_url(self):
-        return reverse_lazy('core:student_detail', kwargs={'pk': self.object.pk})
+        return reverse_lazy('students:student_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        messages.success(self.request, f'Student {form.instance.first_name} {form.instance.last_name} updated successfully!')
+        return super().form_valid(form)

@@ -161,8 +161,11 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label for="{{ form.duration_minutes.id_for_label }}" class="form-label">Duration (minutes) *</label>
+                                    <label for="{{ form.duration_minutes.id_for_label }}" class="form-label">Duration *</label>
                                     {{ form.duration_minutes }}
+                                    {% if form.duration_minutes.help_text %}
+                                        <div class="form-text">{{ form.duration_minutes.help_text }}</div>
+                                    {% endif %}
                                     {% if form.duration_minutes.errors %}
                                         <div class="invalid-feedback d-block">{{ form.duration_minutes.errors.0 }}</div>
                                     {% endif %}
@@ -229,28 +232,83 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
 
-                    <!-- Class Generation Options -->
+                    <!-- Class Update Options for Edit Form -->
+                    {% if form.instance.pk %}
                     <div class="mb-4">
-                        <h6 class="text-muted mb-3">Class Generation</h6>
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="regenerate_classes" name="regenerate_classes">
-                            <label class="form-check-label" for="regenerate_classes">
-                                Regenerate classes based on schedule
-                            </label>
-                            <div class="form-text">This will delete existing classes and create new ones</div>
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-cogs me-2"></i>Class Update Options
+                            {% if existing_classes %}
+                                <span class="badge bg-info ms-2">{{ existing_classes }} upcoming class(es)</span>
+                            {% endif %}
+                        </h6>
+                        
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <div class="form-check mb-3">
+                                    {{ form.update_existing_classes }}
+                                    <label class="form-check-label" for="{{ form.update_existing_classes.id_for_label }}">
+                                        <strong>Update Existing Classes</strong>
+                                    </label>
+                                    <div class="form-text">Apply changes to existing class sessions</div>
+                                </div>
+                                
+                                <div id="classUpdateOptions" style="display: none;">
+                                    <div class="mb-3">
+                                        <label class="form-label">{{ form.class_update_fields.label }}</label>
+                                        <div class="row">
+                                            {% for choice in form.class_update_fields %}
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    {{ choice.tag }}
+                                                    <label class="form-check-label" for="{{ choice.id_for_label }}">
+                                                        {{ choice.choice_label }}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        <div class="form-text">{{ form.class_update_fields.help_text }}</div>
+                                        {% if form.class_update_fields.errors %}
+                                            <div class="invalid-feedback d-block">{{ form.class_update_fields.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="{{ form.update_classes_from_date.id_for_label }}" class="form-label">
+                                            {{ form.update_classes_from_date.label }}
+                                        </label>
+                                        {{ form.update_classes_from_date }}
+                                        <div class="form-text">{{ form.update_classes_from_date.help_text }}</div>
+                                        {% if form.update_classes_from_date.errors %}
+                                            <div class="invalid-feedback d-block">{{ form.update_classes_from_date.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>Warning:</strong> This will update the selected fields in existing classes. 
+                                        Students will be notified of any changes that affect them.
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     {% else %}
                     <!-- Class Generation Options for New Course -->
                     <div class="mb-4">
-                        <h6 class="text-muted mb-3">Class Generation</h6>
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="generate_classes" name="generate_classes" checked>
-                            <label class="form-check-label" for="generate_classes">
-                                Generate classes automatically
-                            </label>
-                            <div class="form-text">Create class instances based on the schedule</div>
+                        <h6 class="text-muted mb-3"><i class="fas fa-calendar-plus me-2"></i>Class Generation</h6>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="generate_classes" name="generate_classes" checked>
+                                    <label class="form-check-label" for="generate_classes">
+                                        <strong>Generate classes automatically</strong>
+                                    </label>
+                                    <div class="form-text">Create class instances based on the schedule</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     {% endif %}
@@ -467,6 +525,29 @@ tinymce.init({
                 });
             }
         });
+    }
+});
+
+// Class update options toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const updateClassesCheckbox = document.getElementById('updateExistingClasses');
+    const classUpdateOptions = document.getElementById('classUpdateOptions');
+    
+    if (updateClassesCheckbox && classUpdateOptions) {
+        // Show/hide class update options based on checkbox
+        function toggleClassUpdateOptions() {
+            if (updateClassesCheckbox.checked) {
+                classUpdateOptions.style.display = 'block';
+            } else {
+                classUpdateOptions.style.display = 'none';
+            }
+        }
+        
+        // Initial state
+        toggleClassUpdateOptions();
+        
+        // Toggle on change
+        updateClassesCheckbox.addEventListener('change', toggleClassUpdateOptions);
     }
 });
 </script>

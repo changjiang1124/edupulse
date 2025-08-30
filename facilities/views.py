@@ -45,7 +45,7 @@ class FacilityCreateView(AdminRequiredMixin, CreateView):
     model = Facility
     form_class = FacilityForm
     template_name = 'core/facilities/form.html'
-    success_url = reverse_lazy('core:facility_list')
+    success_url = reverse_lazy('facilities:facility_list')
     
     def form_valid(self, form):
         messages.success(self.request, f'Facility "{form.instance.name}" created successfully!')
@@ -61,7 +61,12 @@ class FacilityDetailView(AdminRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         # Add classrooms and courses for this facility
         context['classrooms'] = self.object.classrooms.filter(is_active=True)
-        context['courses'] = self.object.course_set.filter(is_active=True)
+        # Add courses for this facility - with try/except to avoid errors
+        try:
+            from academics.models import Course
+            context['courses'] = Course.objects.filter(facility=self.object, is_active=True)
+        except ImportError:
+            context['courses'] = []
         return context
 
 
@@ -75,7 +80,7 @@ class FacilityUpdateView(AdminRequiredMixin, UpdateView):
         return super().form_valid(form)
     
     def get_success_url(self):
-        return reverse_lazy('core:facility_detail', kwargs={'pk': self.object.pk})
+        return reverse_lazy('facilities:facility_detail', kwargs={'pk': self.object.pk})
 
 
 class ClassroomListView(AdminRequiredMixin, ListView):
@@ -112,7 +117,7 @@ class ClassroomCreateView(AdminRequiredMixin, CreateView):
     model = Classroom
     form_class = ClassroomForm
     template_name = 'core/classrooms/form.html'
-    success_url = reverse_lazy('core:classroom_list')
+    success_url = reverse_lazy('facilities:classroom_list')
     
     def form_valid(self, form):
         messages.success(self.request, f'Classroom "{form.instance.name}" created successfully!')
@@ -126,9 +131,16 @@ class ClassroomDetailView(AdminRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Add courses and classes using this classroom
-        context['courses'] = self.object.course_set.filter(is_active=True)
-        context['classes'] = self.object.class_set.filter(is_active=True).select_related('course').order_by('-date')[:10]
+        # Add courses and classes using this classroom - with try/except to avoid errors
+        try:
+            from academics.models import Course, Class
+            context['courses'] = Course.objects.filter(classroom=self.object, is_active=True)
+            context['classes'] = Class.objects.filter(
+                classroom=self.object, is_active=True
+            ).select_related('course').order_by('-date')[:10]
+        except ImportError:
+            context['courses'] = []
+            context['classes'] = []
         return context
 
 
@@ -142,4 +154,4 @@ class ClassroomUpdateView(AdminRequiredMixin, UpdateView):
         return super().form_valid(form)
     
     def get_success_url(self):
-        return reverse_lazy('core:classroom_detail', kwargs={'pk': self.object.pk})
+        return reverse_lazy('facilities:classroom_detail', kwargs={'pk': self.object.pk})
