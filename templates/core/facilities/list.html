@@ -10,7 +10,7 @@
         <p class="page-subtitle">Manage teaching facilities and locations</p>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'core:facility_add' %}" class="btn btn-primary">Add New Facility</a>
+        <a href="{% url 'facilities:facility_add' %}" class="btn btn-primary">Add New Facility</a>
     </div>
 </div>
 
@@ -57,7 +57,7 @@
                             </thead>
                             <tbody>
                                 {% for facility in facilities %}
-                                <tr class="clickable-row" onclick="location.href='{% url 'core:facility_detail' facility.pk %}'">
+                                <tr class="clickable-row" onclick="location.href='{% url 'facilities:facility_detail' facility.pk %}'">
                                     <td>
                                         <strong>{{ facility.name }}</strong>
                                     </td>
@@ -87,9 +87,9 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <a href="{% url 'core:facility_detail' facility.pk %}" 
+                                            <a href="{% url 'facilities:facility_detail' facility.pk %}" 
                                                class="btn btn-outline-primary btn-sm">View</a>
-                                            <a href="{% url 'core:facility_edit' facility.pk %}" 
+                                            <a href="{% url 'facilities:facility_edit' facility.pk %}" 
                                                class="btn btn-outline-secondary btn-sm">Edit</a>
                                         </div>
                                     </td>
@@ -126,7 +126,7 @@
                 {% else %}
                     <div class="text-center py-4">
                         <p class="text-muted mb-3">No facilities found.</p>
-                        <a href="{% url 'core:facility_add' %}" class="btn btn-primary">Add First Facility</a>
+                        <a href="{% url 'facilities:facility_add' %}" class="btn btn-primary">Add First Facility</a>
                     </div>
                 {% endif %}
             </div>

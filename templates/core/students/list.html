@@ -10,7 +10,7 @@
         <p class="page-subtitle">Manage student profiles and information</p>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'core:student_add' %}" class="btn btn-primary">Add New Student</a>
+        <a href="{% url 'students:student_add' %}" class="btn btn-primary">Add New Student</a>
     </div>
 </div>
 
@@ -57,7 +57,7 @@
                             </thead>
                             <tbody>
                                 {% for student in students %}
-                                <tr class="clickable-row" onclick="location.href='{% url 'core:student_detail' student.pk %}'">
+                                <tr class="clickable-row" onclick="location.href='{% url 'students:student_detail' student.pk %}'">
                                     <td>
                                         <strong>{{ student.first_name }} {{ student.last_name }}</strong>
                                         {% if student.birth_date %}
@@ -95,9 +95,9 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <a href="{% url 'core:student_detail' student.pk %}" 
+                                            <a href="{% url 'students:student_detail' student.pk %}" 
                                                class="btn btn-outline-primary btn-sm">View</a>
-                                            <a href="{% url 'core:student_edit' student.pk %}" 
+                                            <a href="{% url 'students:student_edit' student.pk %}" 
                                                class="btn btn-outline-secondary btn-sm">Edit</a>
                                         </div>
                                     </td>
@@ -134,7 +134,7 @@
                 {% else %}
                     <div class="text-center py-4">
                         <p class="text-muted mb-3">No students found.</p>
-                        <a href="{% url 'core:student_add' %}" class="btn btn-primary">Add First Student</a>
+                        <a href="{% url 'students:student_add' %}" class="btn btn-primary">Add First Student</a>
                     </div>
                 {% endif %}
             </div>

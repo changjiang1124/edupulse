@@ -10,8 +10,8 @@
         <p class="page-subtitle">Classroom Information</p>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'core:classroom_edit' classroom.pk %}" class="btn btn-primary">Edit Classroom</a>
-        <a href="{% url 'core:classroom_list' %}" class="btn btn-outline-secondary">Back to Classrooms</a>
+        <a href="{% url 'facilities:classroom_edit' classroom.pk %}" class="btn btn-primary">Edit Classroom</a>
+        <a href="{% url 'facilities:classroom_list' %}" class="btn btn-outline-secondary">Back to Classrooms</a>
     </div>
 </div>
 
@@ -125,7 +125,7 @@
                     
                     {% if classes.count > 10 %}
                     <div class="text-center mt-3">
-                        <a href="{% url 'core:class_list' %}?classroom={{ classroom.pk }}" class="btn btn-sm btn-outline-primary">
+                        <a href="{% url 'academics:class_list' %}?classroom={{ classroom.pk }}" class="btn btn-sm btn-outline-primary">
                             View All Classes ({{ classes.count }})
                         </a>
                     </div>
@@ -145,9 +145,9 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'core:classroom_edit' classroom.pk %}" class="btn btn-primary">Edit Classroom</a>
-                    <a href="{% url 'core:facility_detail' classroom.facility.pk %}" class="btn btn-outline-info">View Facility</a>
-                    <a href="{% url 'core:class_add' %}?classroom={{ classroom.pk }}" class="btn btn-outline-success">Schedule Class</a>
+                    <a href="{% url 'facilities:classroom_edit' classroom.pk %}" class="btn btn-primary">Edit Classroom</a>
+                    <a href="{% url 'facilities:facility_detail' classroom.facility.pk %}" class="btn btn-outline-info">View Facility</a>
+                    <a href="{% url 'academics:class_add' %}?classroom={{ classroom.pk }}" class="btn btn-outline-success">Schedule Class</a>
                 </div>
             </div>
         </div>

@@ -256,7 +256,7 @@
                     {% endif %}
 
                     <div class="d-flex justify-content-between">
-                        <a href="{% url 'core:course_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{% url 'academics:course_list' %}" class="btn btn-outline-secondary">Cancel</a>
                         <button type="submit" class="btn btn-primary">
                             {% if form.instance.pk %}Update Course{% else %}Create Course{% endif %}
                         </button>

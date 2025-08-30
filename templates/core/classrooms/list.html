@@ -10,7 +10,7 @@
         <p class="page-subtitle">Manage classrooms across all facilities</p>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'core:classroom_add' %}" class="btn btn-primary">Add New Classroom</a>
+        <a href="{% url 'facilities:classroom_add' %}" class="btn btn-primary">Add New Classroom</a>
     </div>
 </div>
 
@@ -67,7 +67,7 @@
                             </thead>
                             <tbody>
                                 {% for classroom in classrooms %}
-                                <tr class="clickable-row" onclick="location.href='{% url 'core:classroom_detail' classroom.pk %}'">
+                                <tr class="clickable-row" onclick="location.href='{% url 'facilities:classroom_detail' classroom.pk %}'">
                                     <td>{{ classroom.facility.name }}</td>
                                     <td>
                                         <strong>{{ classroom.name }}</strong>
@@ -80,9 +80,9 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <a href="{% url 'core:classroom_detail' classroom.pk %}" 
+                                            <a href="{% url 'facilities:classroom_detail' classroom.pk %}" 
                                                class="btn btn-outline-primary btn-sm">View</a>
-                                            <a href="{% url 'core:classroom_edit' classroom.pk %}" 
+                                            <a href="{% url 'facilities:classroom_edit' classroom.pk %}" 
                                                class="btn btn-outline-secondary btn-sm">Edit</a>
                                         </div>
                                     </td>
@@ -119,7 +119,7 @@
                 {% else %}
                     <div class="text-center py-4">
                         <p class="text-muted mb-3">No classrooms found.</p>
-                        <a href="{% url 'core:classroom_add' %}" class="btn btn-primary">Add First Classroom</a>
+                        <a href="{% url 'facilities:classroom_add' %}" class="btn btn-primary">Add First Classroom</a>
                     </div>
                 {% endif %}
             </div>

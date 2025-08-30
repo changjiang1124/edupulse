@@ -1,11 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.views.generic import (
-    TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView
-)
-from django.urls import reverse_lazy
+from django.views.generic import TemplateView
 from django.db.models import Count, Q
 from django.utils import timezone
 from django.http import JsonResponse
@@ -16,43 +13,35 @@ import os
 import uuid
 from django.conf import settings
 
-from .models import (
-    Staff, Student, Course, Class, Facility, Classroom,
-    Enrollment, Attendance, ClockInOut, EmailLog, SMSLog
-)
-from .forms import (
-    CourseForm, StudentForm, StaffForm, StaffCreationForm, 
-    ClassForm, FacilityForm, EnrollmentForm, ClassroomForm
-)
-
-
-class AdminRequiredMixin(UserPassesTestMixin):
-    """管理员权限检查混入类"""
-    def test_func(self):
-        return self.request.user.is_authenticated and self.request.user.role == 'admin'
+from accounts.models import Staff
+from students.models import Student
+from academics.models import Course, Class
+from facilities.models import Facility, Classroom
+from enrollment.models import Enrollment, Attendance
+from .models import ClockInOut, EmailLog, SMSLog
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
-    """仪表盘视图"""
+    """Dashboard view"""
     template_name = 'core/dashboard.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # 统计数据
+        # Statistics
         context.update({
             'total_students': Student.objects.filter(is_active=True).count(),
             'total_courses': Course.objects.filter(is_active=True).count(),
             'total_staff': Staff.objects.filter(is_active_staff=True).count(),
             'pending_enrollments': Enrollment.objects.filter(status='pending').count(),
             
-            # 近期班级
+            # Upcoming classes
             'upcoming_classes': Class.objects.filter(
                 date__gte=timezone.now().date(),
                 is_active=True
             ).order_by('date', 'start_time')[:5],
             
-            # 最新报名
+            # Recent enrollments
             'recent_enrollments': Enrollment.objects.select_related(
                 'student', 'course'
             ).order_by('-created_at')[:5],
@@ -61,428 +50,48 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         return context
 
 
-# Staff Management Views
-class StaffListView(AdminRequiredMixin, ListView):
-    model = Staff
-    template_name = 'core/staff/list.html'
-    context_object_name = 'staff_list'
-    paginate_by = 20
-    
-    def get_queryset(self):
-        queryset = Staff.objects.filter(is_active_staff=True)
-        search = self.request.GET.get('search')
-        if search:
-            queryset = queryset.filter(
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search) |
-                Q(email__icontains=search) |
-                Q(username__icontains=search)
-            )
-        return queryset.order_by('last_name', 'first_name')
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['search_query'] = self.request.GET.get('search', '')
-        return context
-
-
-class StaffCreateView(AdminRequiredMixin, CreateView):
-    model = Staff
-    form_class = StaffCreationForm
-    template_name = 'core/staff/form.html'
-    success_url = reverse_lazy('core:staff_list')
-    
-    def form_valid(self, form):
-        messages.success(self.request, f'Staff member {form.instance.first_name} {form.instance.last_name} created successfully!')
-        return super().form_valid(form)
-
-
-class StaffDetailView(AdminRequiredMixin, DetailView):
-    model = Staff
-    template_name = 'core/staff/detail.html'
-    context_object_name = 'staff'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # 添加教师相关的课程和班级信息
-        context['taught_courses'] = self.object.courses.filter(is_active=True)
-        context['taught_classes'] = self.object.class_set.filter(is_active=True).select_related('course').order_by('-date')[:5]
-        return context
-
-
-class StaffUpdateView(AdminRequiredMixin, UpdateView):
-    model = Staff
-    form_class = StaffForm
-    template_name = 'core/staff/form.html'
-    
-    def get_success_url(self):
-        return reverse_lazy('core:staff_detail', kwargs={'pk': self.object.pk})
-
-
-# Student Management Views
-class StudentListView(LoginRequiredMixin, ListView):
-    model = Student
-    template_name = 'core/students/list.html'
-    context_object_name = 'students'
-    paginate_by = 20
-    
-    def get_queryset(self):
-        queryset = Student.objects.filter(is_active=True)
-        search = self.request.GET.get('search')
-        if search:
-            queryset = queryset.filter(
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search) |
-                Q(email__icontains=search) |
-                Q(guardian_name__icontains=search)
-            )
-        return queryset.order_by('last_name', 'first_name')
-
-
-class StudentCreateView(LoginRequiredMixin, CreateView):
-    model = Student
-    form_class = StudentForm
-    template_name = 'core/students/form.html'
-    success_url = reverse_lazy('core:student_list')
-    
-    def form_valid(self, form):
-        messages.success(self.request, f'Student {form.instance.first_name} {form.instance.last_name} added successfully!')
-        return super().form_valid(form)
-
-
-class StudentDetailView(LoginRequiredMixin, DetailView):
-    model = Student
-    template_name = 'core/students/detail.html'
-    context_object_name = 'student'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['enrollments'] = self.object.enrollments.select_related('course').all()
-        context['attendances'] = self.object.attendances.select_related(
-            'class_instance__course'
-        ).order_by('-attendance_time')[:10]
-        return context
-
-
-class StudentUpdateView(LoginRequiredMixin, UpdateView):
-    model = Student
-    form_class = StudentForm
-    template_name = 'core/students/form.html'
-    
-    def get_success_url(self):
-        return reverse_lazy('core:student_detail', kwargs={'pk': self.object.pk})
-
-
-# Course Management Views
-class CourseListView(LoginRequiredMixin, ListView):
-    model = Course
-    template_name = 'core/courses/list.html'
-    context_object_name = 'courses'
-    paginate_by = 20
-    
-    def get_queryset(self):
-        queryset = Course.objects.filter(is_active=True).select_related('teacher', 'facility')
-        search = self.request.GET.get('search')
-        if search:
-            queryset = queryset.filter(
-                Q(name__icontains=search) |
-                Q(description__icontains=search)
-            )
-        return queryset.order_by('-start_date')
-
-
-class CourseCreateView(LoginRequiredMixin, CreateView):
-    model = Course
-    form_class = CourseForm
-    template_name = 'core/courses/form.html'
-    success_url = reverse_lazy('core:course_list')
-    
-    def form_valid(self, form):
-        messages.success(self.request, f'Course "{form.instance.name}" created successfully!')
-        response = super().form_valid(form)
-        
-        # Auto-generate classes if requested
-        if self.request.POST.get('generate_classes'):
-            classes_created = self.object.generate_classes()
-            messages.success(self.request, f'{classes_created} classes generated for this course.')
-        
-        return response
-
-
-class CourseDetailView(LoginRequiredMixin, DetailView):
-    model = Course
-    template_name = 'core/courses/detail.html'
-    context_object_name = 'course'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['classes'] = self.object.classes.filter(is_active=True).order_by('date', 'start_time')
-        context['enrollments'] = self.object.enrollments.select_related('student').all()
-        return context
-
-
-class CourseUpdateView(LoginRequiredMixin, UpdateView):
-    model = Course
-    form_class = CourseForm
-    template_name = 'core/courses/form.html'
-    
-    def get_success_url(self):
-        return reverse_lazy('core:course_detail', kwargs={'pk': self.object.pk})
-    
-    def form_valid(self, form):
-        messages.success(self.request, f'Course "{form.instance.name}" updated successfully!')
-        response = super().form_valid(form)
-        
-        # Regenerate classes if requested
-        if self.request.POST.get('regenerate_classes'):
-            classes_created = self.object.generate_classes()
-            messages.success(self.request, f'{classes_created} classes regenerated for this course.')
-        
-        return response
-
-
-# Class Management Views
-class ClassListView(LoginRequiredMixin, ListView):
-    model = Class
-    template_name = 'core/classes/list.html'
-    context_object_name = 'classes'
-    paginate_by = 20
-    
-    def get_queryset(self):
-        queryset = Class.objects.select_related(
-            'course', 'teacher', 'facility', 'classroom'
-        ).filter(is_active=True)
-        
-        # 日期过滤
-        date_filter = self.request.GET.get('date')
-        if date_filter == 'today':
-            queryset = queryset.filter(date=timezone.now().date())
-        elif date_filter == 'week':
-            today = timezone.now().date()
-            week_start = today - timedelta(days=today.weekday())
-            week_end = week_start + timedelta(days=6)
-            queryset = queryset.filter(date__range=[week_start, week_end])
-        
-        return queryset.order_by('date', 'start_time')
-
-
-class ClassCreateView(LoginRequiredMixin, CreateView):
-    model = Class
-    form_class = ClassForm
-    template_name = 'core/classes/form.html'
-    success_url = reverse_lazy('core:class_list')
-
-
-class ClassDetailView(LoginRequiredMixin, DetailView):
-    model = Class
-    template_name = 'core/classes/detail.html'
-    context_object_name = 'class_instance'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['attendances'] = self.object.attendances.select_related('student').all()
-        return context
-
-
-# Facility Management Views
-class FacilityListView(AdminRequiredMixin, ListView):
-    model = Facility
-    template_name = 'core/facilities/list.html'
-    context_object_name = 'facilities'
-    paginate_by = 20
-    
-    def get_queryset(self):
-        queryset = Facility.objects.filter(is_active=True)
-        search = self.request.GET.get('search')
-        if search:
-            queryset = queryset.filter(
-                Q(name__icontains=search) |
-                Q(address__icontains=search) |
-                Q(phone__icontains=search) |
-                Q(email__icontains=search)
-            )
-        return queryset.order_by('name')
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['search_query'] = self.request.GET.get('search', '')
-        return context
-
-
-class FacilityCreateView(AdminRequiredMixin, CreateView):
-    model = Facility
-    form_class = FacilityForm
-    template_name = 'core/facilities/form.html'
-    success_url = reverse_lazy('core:facility_list')
-    
-    def form_valid(self, form):
-        messages.success(self.request, f'Facility "{form.instance.name}" created successfully!')
-        return super().form_valid(form)
-
-
-class FacilityDetailView(AdminRequiredMixin, DetailView):
-    model = Facility
-    template_name = 'core/facilities/detail.html'
-    context_object_name = 'facility'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['classrooms'] = self.object.classrooms.filter(is_active=True)
-        context['courses'] = self.object.course_set.filter(is_active=True)
-        return context
-
-
-class FacilityUpdateView(AdminRequiredMixin, UpdateView):
-    model = Facility
-    form_class = FacilityForm
-    template_name = 'core/facilities/form.html'
-    
-    def get_success_url(self):
-        return reverse_lazy('core:facility_detail', kwargs={'pk': self.object.pk})
-    
-    def form_valid(self, form):
-        messages.success(self.request, f'Facility "{form.instance.name}" updated successfully!')
-        return super().form_valid(form)
-
-
-# Classroom Management Views
-class ClassroomListView(AdminRequiredMixin, ListView):
-    model = Classroom
-    template_name = 'core/classrooms/list.html'
-    context_object_name = 'classrooms'
-    paginate_by = 20
-    
-    def get_queryset(self):
-        queryset = Classroom.objects.select_related('facility').filter(is_active=True)
-        facility = self.request.GET.get('facility')
-        search = self.request.GET.get('search')
-        
-        if facility:
-            queryset = queryset.filter(facility_id=facility)
-        if search:
-            queryset = queryset.filter(
-                Q(name__icontains=search) |
-                Q(facility__name__icontains=search)
-            )
-        return queryset.order_by('facility__name', 'name')
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['facilities'] = Facility.objects.filter(is_active=True).order_by('name')
-        context['selected_facility'] = self.request.GET.get('facility')
-        context['search_query'] = self.request.GET.get('search', '')
-        return context
-
-
-class ClassroomCreateView(AdminRequiredMixin, CreateView):
-    model = Classroom
-    form_class = ClassroomForm
-    template_name = 'core/classrooms/form.html'
-    success_url = reverse_lazy('core:classroom_list')
-    
-    def form_valid(self, form):
-        messages.success(self.request, f'Classroom "{form.instance.name}" created successfully!')
-        return super().form_valid(form)
-
-
-class ClassroomDetailView(AdminRequiredMixin, DetailView):
-    model = Classroom
-    template_name = 'core/classrooms/detail.html'
-    context_object_name = 'classroom'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # 获取使用此教室的班级
-        context['classes'] = self.object.class_set.filter(is_active=True).select_related('course').order_by('-date')
-        return context
-
-
-class ClassroomUpdateView(AdminRequiredMixin, UpdateView):
-    model = Classroom
-    form_class = ClassroomForm
-    template_name = 'core/classrooms/form.html'
-    
-    def get_success_url(self):
-        return reverse_lazy('core:classroom_detail', kwargs={'pk': self.object.pk})
-    
-    def form_valid(self, form):
-        messages.success(self.request, f'Classroom "{form.instance.name}" updated successfully!')
-        return super().form_valid(form)
-
-
-# Enrollment Management Views
-class EnrollmentListView(LoginRequiredMixin, ListView):
-    model = Enrollment
-    template_name = 'core/enrollments/list.html'
-    context_object_name = 'enrollments'
-    paginate_by = 20
-    
-    def get_queryset(self):
-        queryset = Enrollment.objects.select_related('student', 'course')
-        status = self.request.GET.get('status')
-        if status:
-            queryset = queryset.filter(status=status)
-        return queryset.order_by('-created_at')
-
-
-class EnrollmentDetailView(LoginRequiredMixin, DetailView):
-    model = Enrollment
-    template_name = 'core/enrollments/detail.html'
-    context_object_name = 'enrollment'
-
-
-# Attendance Management Views
-class AttendanceListView(LoginRequiredMixin, ListView):
-    model = Attendance
-    template_name = 'core/attendance/list.html'
-    context_object_name = 'attendances'
-    paginate_by = 50
-
-
-class AttendanceMarkView(LoginRequiredMixin, TemplateView):
-    template_name = 'core/attendance/mark.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        today_classes = Class.objects.filter(
-            date=timezone.now().date(),
-            is_active=True
-        ).select_related('course').order_by('start_time')
-        context['today_classes'] = today_classes
-        return context
-
-
-# Clock In/Out Views
 class ClockInOutView(LoginRequiredMixin, TemplateView):
-    template_name = 'core/clock/clock.html'
+    template_name = 'core/clock/clockinout.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # 获取今日最后一次打卡记录
+        
+        # Get today's clock records for the current user
         today = timezone.now().date()
-        last_record = ClockInOut.objects.filter(
+        context['today_records'] = ClockInOut.objects.filter(
             staff=self.request.user,
             timestamp__date=today
+        ).order_by('timestamp')
+        
+        # Check if user is currently clocked in
+        last_record = ClockInOut.objects.filter(
+            staff=self.request.user
         ).order_by('-timestamp').first()
         
-        context['last_record'] = last_record
+        context['is_clocked_in'] = (
+            last_record and last_record.status == 'clock_in' and 
+            last_record.timestamp.date() == today
+        )
+        
         return context
-    
+
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
         latitude = request.POST.get('latitude')
         longitude = request.POST.get('longitude')
         
-        ClockInOut.objects.create(
-            staff=request.user,
-            status='clock_in' if action == 'in' else 'clock_out',
-            latitude=latitude,
-            longitude=longitude
-        )
+        if action in ['clock_in', 'clock_out']:
+            ClockInOut.objects.create(
+                staff=request.user,
+                status=action,
+                latitude=float(latitude) if latitude else None,
+                longitude=float(longitude) if longitude else None
+            )
+            
+            action_text = 'clocked in' if action == 'clock_in' else 'clocked out'
+            messages.success(request, f'Successfully {action_text}!')
         
-        action_text = '上班' if action == 'in' else '下班'
-        messages.success(request, f'{action_text}打卡成功！')
-        return redirect('core:clock_inout')
+        return redirect('core:clockinout')
 
 
 class TimesheetView(LoginRequiredMixin, TemplateView):
@@ -491,75 +100,75 @@ class TimesheetView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # 获取本月打卡记录
-        today = timezone.now().date()
-        month_start = today.replace(day=1)
+        # Get date range from request or default to current week
+        start_date = self.request.GET.get('start_date')
+        end_date = self.request.GET.get('end_date')
         
-        if self.request.user.role == 'admin':
-            records = ClockInOut.objects.filter(
-                timestamp__date__gte=month_start
-            ).select_related('staff').order_by('-timestamp')
-        else:
-            records = ClockInOut.objects.filter(
-                staff=self.request.user,
-                timestamp__date__gte=month_start
-            ).order_by('-timestamp')
+        if not start_date or not end_date:
+            # Default to current week
+            today = timezone.now().date()
+            start_of_week = today - timedelta(days=today.weekday())
+            end_of_week = start_of_week + timedelta(days=6)
+            start_date = start_of_week.strftime('%Y-%m-%d')
+            end_date = end_of_week.strftime('%Y-%m-%d')
         
-        context['records'] = records
+        # Convert string dates back to date objects
+        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        # Get clock records for the date range
+        records = ClockInOut.objects.filter(
+            staff=self.request.user,
+            timestamp__date__range=[start_date_obj, end_date_obj]
+        ).order_by('timestamp')
+        
+        context.update({
+            'start_date': start_date,
+            'end_date': end_date,
+            'records': records,
+        })
+        
         return context
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
-@login_required
 def tinymce_upload_image(request):
-    """
-    TinyMCE图片上传API端点
-    处理课程描述中的图片上传
-    """
+    """Handle TinyMCE image uploads"""
     try:
         if 'file' not in request.FILES:
             return JsonResponse({'error': 'No file provided'}, status=400)
         
-        uploaded_file = request.FILES['file']
+        file = request.FILES['file']
         
-        # 验证文件类型
-        allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-        file_ext = os.path.splitext(uploaded_file.name)[1].lower()
+        # Validate file type
+        if not file.content_type.startswith('image/'):
+            return JsonResponse({'error': 'File must be an image'}, status=400)
         
-        if file_ext not in allowed_extensions:
-            return JsonResponse({'error': 'Invalid file type. Only JPG, PNG, GIF, and WebP are allowed.'}, status=400)
+        # Validate file size (max 5MB)
+        if file.size > 5 * 1024 * 1024:
+            return JsonResponse({'error': 'File size must be less than 5MB'}, status=400)
         
-        # 验证文件大小 (最大5MB)
-        max_size = 5 * 1024 * 1024  # 5MB
-        if uploaded_file.size > max_size:
-            return JsonResponse({'error': 'File too large. Maximum size is 5MB.'}, status=400)
-        
-        # 生成唯一文件名
+        # Generate unique filename
+        file_ext = os.path.splitext(file.name)[1].lower()
         unique_filename = f"{uuid.uuid4()}{file_ext}"
         
-        # 创建基于日期的子目录
-        upload_date = datetime.now()
-        date_path = upload_date.strftime('%Y/%m')
+        # Create upload directory if it doesn't exist
+        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', 'images')
+        os.makedirs(upload_dir, exist_ok=True)
         
-        # 完整的存储路径
-        relative_path = f"uploads/courses/descriptions/{date_path}/{unique_filename}"
-        full_path = os.path.join(settings.MEDIA_ROOT, relative_path)
-        
-        # 确保目录存在
-        os.makedirs(os.path.dirname(full_path), exist_ok=True)
-        
-        # 保存文件
-        with open(full_path, 'wb+') as destination:
-            for chunk in uploaded_file.chunks():
+        # Save the file
+        file_path = os.path.join(upload_dir, unique_filename)
+        with open(file_path, 'wb+') as destination:
+            for chunk in file.chunks():
                 destination.write(chunk)
         
-        # 返回文件URL给TinyMCE
-        file_url = f"{settings.MEDIA_URL}{relative_path}"
+        # Return the URL for TinyMCE
+        file_url = f"/media/uploads/images/{unique_filename}"
         
         return JsonResponse({
-            'location': request.build_absolute_uri(file_url),
-            'title': uploaded_file.name
+            'location': request.build_absolute_uri(file_url)
         })
-    
+        
     except Exception as e:
-        return JsonResponse({'error': f'Upload failed: {str(e)}'}, status=500)
+        return JsonResponse({'error': str(e)}, status=500)

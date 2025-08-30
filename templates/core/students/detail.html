@@ -10,8 +10,8 @@
         <p class="page-subtitle">Student Information</p>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'core:student_edit' student.pk %}" class="btn btn-primary">Edit Student</a>
-        <a href="{% url 'core:student_list' %}" class="btn btn-outline-secondary">Back to Students</a>
+        <a href="{% url 'students:student_edit' student.pk %}" class="btn btn-primary">Edit Student</a>
+        <a href="{% url 'students:student_list' %}" class="btn btn-outline-secondary">Back to Students</a>
     </div>
 </div>
 
@@ -172,7 +172,7 @@
                     
                     {% if enrollments.count > 10 %}
                     <div class="text-center mt-3">
-                        <a href="{% url 'core:enrollment_list' %}?student={{ student.pk }}" class="btn btn-sm btn-outline-primary">
+                        <a href="{% url 'enrollment:enrollment_list' %}?student={{ student.pk }}" class="btn btn-sm btn-outline-primary">
                             View All Enrollments ({{ enrollments.count }})
                         </a>
                     </div>
@@ -220,7 +220,7 @@
                     </div>
                     
                     <div class="text-center mt-3">
-                        <a href="{% url 'core:attendance_list' %}?student={{ student.pk }}" class="btn btn-sm btn-outline-primary">
+                        <a href="{% url 'enrollment:attendance_list' %}?student={{ student.pk }}" class="btn btn-sm btn-outline-primary">
                             View All Attendance Records
                         </a>
                     </div>
@@ -239,9 +239,9 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'core:student_edit' student.pk %}" class="btn btn-primary">Edit Student</a>
-                    <a href="{% url 'core:enrollment_list' %}?student={{ student.pk }}" class="btn btn-outline-info">View Enrollments</a>
-                    <a href="{% url 'core:attendance_list' %}?student={{ student.pk }}" class="btn btn-outline-success">View Attendance</a>
+                    <a href="{% url 'students:student_edit' student.pk %}" class="btn btn-primary">Edit Student</a>
+                    <a href="{% url 'enrollment:enrollment_list' %}?student={{ student.pk }}" class="btn btn-outline-info">View Enrollments</a>
+                    <a href="{% url 'enrollment:attendance_list' %}?student={{ student.pk }}" class="btn btn-outline-success">View Attendance</a>
                 </div>
             </div>
         </div>

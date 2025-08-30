@@ -17,7 +17,7 @@
         <div class="card dashboard-card dashboard-students">
             <h3>{{ total_students }}</h3>
             <p>Active Students</p>
-            <a href="{% url 'core:student_list' %}" class="stretched-link"></a>
+            <a href="{% url 'students:student_list' %}" class="stretched-link"></a>
         </div>
     </div>
     
@@ -25,7 +25,7 @@
         <div class="card dashboard-card dashboard-courses">
             <h3>{{ total_courses }}</h3>
             <p>Available Courses</p>
-            <a href="{% url 'core:course_list' %}" class="stretched-link"></a>
+            <a href="{% url 'academics:course_list' %}" class="stretched-link"></a>
         </div>
     </div>
     
@@ -34,7 +34,7 @@
         <div class="card dashboard-card dashboard-staff">
             <h3>{{ total_staff }}</h3>
             <p>Active Staff</p>
-            <a href="{% url 'core:staff_list' %}" class="stretched-link"></a>
+            <a href="{% url 'accounts:staff_list' %}" class="stretched-link"></a>
         </div>
     </div>
     {% endif %}
@@ -43,7 +43,7 @@
         <div class="card dashboard-card dashboard-enrollments">
             <h3>{{ pending_enrollments }}</h3>
             <p>Pending Enrolments</p>
-            <a href="{% url 'core:enrollment_list' %}?status=pending" class="stretched-link"></a>
+            <a href="{% url 'enrollment:enrollment_list' %}?status=pending" class="stretched-link"></a>
         </div>
     </div>
 </div>
@@ -70,7 +70,7 @@
                             </thead>
                             <tbody>
                                 {% for class in upcoming_classes %}
-                                <tr class="clickable-row" data-href="{% url 'core:class_detail' class.pk %}">
+                                <tr class="clickable-row" data-href="{% url 'academics:class_detail' class.pk %}">
                                     <td>
                                         <strong>{{ class.course.name }}</strong>
                                         <br>
@@ -98,14 +98,14 @@
                         </table>
                     </div>
                     <div class="text-center">
-                        <a href="{% url 'core:class_list' %}" class="btn btn-outline-primary">
+                        <a href="{% url 'academics:class_list' %}" class="btn btn-outline-primary">
                             View All Classes
                         </a>
                     </div>
                 {% else %}
                     <div class="text-center py-4">
                         <p class="text-muted mb-3">No upcoming classes scheduled</p>
-                        <a href="{% url 'core:class_add' %}" class="btn btn-primary">
+                        <a href="{% url 'academics:class_add' %}" class="btn btn-primary">
                             Add Class
                         </a>
                     </div>
@@ -143,7 +143,7 @@
                     </div>
                     {% endfor %}
                     <div class="text-center">
-                        <a href="{% url 'core:enrollment_list' %}" class="btn btn-outline-primary btn-sm">
+                        <a href="{% url 'enrollment:enrollment_list' %}" class="btn btn-outline-primary btn-sm">
                             View All Enrolments
                         </a>
                     </div>
@@ -167,22 +167,22 @@
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-3">
-                        <a href="{% url 'core:student_add' %}" class="btn btn-primary w-100 py-3">
+                        <a href="{% url 'students:student_add' %}" class="btn btn-primary w-100 py-3">
                             Add Student
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="{% url 'core:course_add' %}" class="btn btn-primary w-100 py-3">
+                        <a href="{% url 'academics:course_add' %}" class="btn btn-primary w-100 py-3">
                             Create Course
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="{% url 'core:attendance_mark' %}" class="btn btn-primary w-100 py-3">
+                        <a href="{% url 'enrollment:attendance_list' %}" class="btn btn-primary w-100 py-3">
                             Mark Attendance
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="{% url 'core:clock_inout' %}" class="btn btn-primary w-100 py-3">
+                        <a href="{% url 'core:clockinout' %}" class="btn btn-primary w-100 py-3">
                             Staff Clock In/Out
                         </a>
                     </div>

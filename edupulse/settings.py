@@ -42,10 +42,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # 第三方应用
+    # Third-party applications
     'tinymce',
-    # 本地应用
+    # Local applications - modular architecture
     'core',
+    'accounts',
+    'students',
+    'academics',
+    'facilities',
+    'enrollment',
 ]
 
 MIDDLEWARE = [
@@ -151,8 +156,8 @@ LOGIN_URL = '/auth/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/auth/login/'
 
-# 自定义用户模型
-AUTH_USER_MODEL = 'core.Staff'
+# Custom user model
+AUTH_USER_MODEL = 'accounts.Staff'
 
 # TinyMCE 配置 - WordPress兼容的简化版本
 TINYMCE_DEFAULT_CONFIG = {

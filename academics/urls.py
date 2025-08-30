@@ -1,0 +1,17 @@
+from django.urls import path
+from . import views
+
+app_name = 'academics'
+
+urlpatterns = [
+    # Course URLs
+    path('courses/', views.CourseListView.as_view(), name='course_list'),
+    path('courses/add/', views.CourseCreateView.as_view(), name='course_add'),
+    path('courses/<int:pk>/', views.CourseDetailView.as_view(), name='course_detail'),
+    path('courses/<int:pk>/edit/', views.CourseUpdateView.as_view(), name='course_edit'),
+    
+    # Class URLs
+    path('classes/', views.ClassListView.as_view(), name='class_list'),
+    path('classes/add/', views.ClassCreateView.as_view(), name='class_add'),
+    path('classes/<int:pk>/', views.ClassDetailView.as_view(), name='class_detail'),
+]

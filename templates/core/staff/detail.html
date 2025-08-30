@@ -15,8 +15,8 @@
         </p>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'core:staff_edit' staff.pk %}" class="btn btn-primary">Edit Staff</a>
-        <a href="{% url 'core:staff_list' %}" class="btn btn-outline-secondary">Back to Staff</a>
+        <a href="{% url 'accounts:staff_edit' staff.pk %}" class="btn btn-primary">Edit Staff</a>
+        <a href="{% url 'accounts:staff_list' %}" class="btn btn-outline-secondary">Back to Staff</a>
     </div>
 </div>
 
@@ -179,7 +179,7 @@
                     
                     {% if taught_courses.count > 10 %}
                     <div class="text-center mt-3">
-                        <a href="{% url 'core:course_list' %}?teacher={{ staff.pk }}" class="btn btn-sm btn-outline-primary">
+                        <a href="{% url 'academics:course_list' %}?teacher={{ staff.pk }}" class="btn btn-sm btn-outline-primary">
                             View All Courses ({{ taught_courses.count }})
                         </a>
                     </div>
@@ -229,7 +229,7 @@
                     </div>
                     
                     <div class="text-center mt-3">
-                        <a href="{% url 'core:class_list' %}?teacher={{ staff.pk }}" class="btn btn-sm btn-outline-primary">
+                        <a href="{% url 'academics:class_list' %}?teacher={{ staff.pk }}" class="btn btn-sm btn-outline-primary">
                             View All Classes
                         </a>
                     </div>
@@ -248,9 +248,9 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'core:staff_edit' staff.pk %}" class="btn btn-primary">Edit Staff Details</a>
-                    <a href="{% url 'core:course_list' %}?teacher={{ staff.pk }}" class="btn btn-outline-info">View Teaching Assignments</a>
-                    <a href="{% url 'core:class_list' %}?teacher={{ staff.pk }}" class="btn btn-outline-success">View Class Schedule</a>
+                    <a href="{% url 'accounts:staff_edit' staff.pk %}" class="btn btn-primary">Edit Staff Details</a>
+                    <a href="{% url 'academics:course_list' %}?teacher={{ staff.pk }}" class="btn btn-outline-info">View Teaching Assignments</a>
+                    <a href="{% url 'academics:class_list' %}?teacher={{ staff.pk }}" class="btn btn-outline-success">View Class Schedule</a>
                 </div>
             </div>
         </div>

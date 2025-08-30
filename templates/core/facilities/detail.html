@@ -10,8 +10,8 @@
         <p class="page-subtitle">Facility Information</p>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'core:facility_edit' facility.pk %}" class="btn btn-primary">Edit Facility</a>
-        <a href="{% url 'core:facility_list' %}" class="btn btn-outline-secondary">Back to Facilities</a>
+        <a href="{% url 'facilities:facility_edit' facility.pk %}" class="btn btn-primary">Edit Facility</a>
+        <a href="{% url 'facilities:facility_list' %}" class="btn btn-outline-secondary">Back to Facilities</a>
     </div>
 </div>
 
@@ -141,7 +141,7 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <a href="{% url 'core:classroom_detail' classroom.pk %}" class="btn btn-sm btn-outline-primary">View</a>
+                                        <a href="{% url 'facilities:classroom_detail' classroom.pk %}" class="btn btn-sm btn-outline-primary">View</a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -150,14 +150,14 @@
                     </div>
                     
                     <div class="text-center mt-3">
-                        <a href="{% url 'core:classroom_list' %}?facility={{ facility.pk }}" class="btn btn-sm btn-outline-primary">
+                        <a href="{% url 'facilities:classroom_list' %}?facility={{ facility.pk }}" class="btn btn-sm btn-outline-primary">
                             View All Classrooms
                         </a>
                     </div>
                 {% else %}
                     <div class="text-center py-3">
                         <p class="text-muted mb-2">No classrooms yet</p>
-                        <a href="{% url 'core:classroom_add' %}" class="btn btn-sm btn-primary">Add Classroom</a>
+                        <a href="{% url 'facilities:classroom_add' %}" class="btn btn-sm btn-primary">Add Classroom</a>
                     </div>
                 {% endif %}
             </div>
@@ -205,7 +205,7 @@
                     
                     {% if courses.count > 10 %}
                     <div class="text-center mt-3">
-                        <a href="{% url 'core:course_list' %}?facility={{ facility.pk }}" class="btn btn-sm btn-outline-primary">
+                        <a href="{% url 'academics:course_list' %}?facility={{ facility.pk }}" class="btn btn-sm btn-outline-primary">
                             View All Courses ({{ courses.count }})
                         </a>
                     </div>
@@ -225,9 +225,9 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'core:facility_edit' facility.pk %}" class="btn btn-primary">Edit Facility</a>
-                    <a href="{% url 'core:classroom_add' %}?facility={{ facility.pk }}" class="btn btn-outline-success">Add Classroom</a>
-                    <a href="{% url 'core:course_list' %}?facility={{ facility.pk }}" class="btn btn-outline-info">View Courses</a>
+                    <a href="{% url 'facilities:facility_edit' facility.pk %}" class="btn btn-primary">Edit Facility</a>
+                    <a href="{% url 'facilities:classroom_add' %}?facility={{ facility.pk }}" class="btn btn-outline-success">Add Classroom</a>
+                    <a href="{% url 'academics:course_list' %}?facility={{ facility.pk }}" class="btn btn-outline-info">View Courses</a>
                 </div>
             </div>
         </div>
