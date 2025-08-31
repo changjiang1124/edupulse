@@ -125,45 +125,77 @@
                             {% endif %}
                         </div>
                         
-                        <!-- Date Fields (conditional) -->
-                        <div id="dateFields">
-                            <div class="row" id="multiSessionDates">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="{{ form.start_date.id_for_label }}" class="form-label">Start Date *</label>
-                                        {{ form.start_date }}
-                                        {% if form.start_date.errors %}
-                                            <div class="invalid-feedback d-block">{{ form.start_date.errors.0 }}</div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="{{ form.end_date.id_for_label }}" class="form-label">End Date</label>
-                                        {{ form.end_date }}
-                                        {% if form.end_date.help_text %}
-                                            <div class="form-text">{{ form.end_date.help_text }}</div>
-                                        {% endif %}
-                                        {% if form.end_date.errors %}
-                                            <div class="invalid-feedback d-block">{{ form.end_date.errors.0 }}</div>
-                                        {% endif %}
+                        <!-- Date Fields (conditional based on repeat pattern) -->
+                        <div id="dateFieldsContainer">
+                            <!-- Single Session Date -->
+                            <div id="singleSessionDate" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.start_date.id_for_label }}" class="form-label">Session Date *</label>
+                                            {{ form.start_date }}
+                                            {% if form.start_date.errors %}
+                                                <div class="invalid-feedback d-block">{{ form.start_date.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="row" id="singleSessionDate" style="display: none;">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="{{ form.start_date.id_for_label }}" class="form-label">Session Date *</label>
-                                        <!-- Same input field, different label when single session -->
+                            <!-- Multi-Session Dates -->
+                            <div id="multiSessionDates">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.start_date.id_for_label }}" class="form-label">Start Date *</label>
+                                            {{ form.start_date }}
+                                            {% if form.start_date.errors %}
+                                                <div class="invalid-feedback d-block">{{ form.start_date.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.end_date.id_for_label }}" class="form-label">End Date *</label>
+                                            {{ form.end_date }}
+                                            {% if form.end_date.help_text %}
+                                                <div class="form-text">{{ form.end_date.help_text }}</div>
+                                            {% endif %}
+                                            {% if form.end_date.errors %}
+                                                <div class="invalid-feedback d-block">{{ form.end_date.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
+                        <!-- Repeat Configuration Options -->
+                        <div id="repeatConfigContainer">
+                            <!-- Weekly Configuration -->
+                            <div id="weeklyConfig" class="mb-3" style="display: none;">
+                                <label for="{{ form.repeat_weekday.id_for_label }}" class="form-label">Day of Week</label>
+                                {{ form.repeat_weekday }}
+                                <div class="form-text">Classes will repeat on this day each week</div>
+                                {% if form.repeat_weekday.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.repeat_weekday.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Monthly Configuration -->
+                            <div id="monthlyConfig" class="mb-3" style="display: none;">
+                                <label for="{{ form.repeat_day_of_month.id_for_label }}" class="form-label">Day of Month</label>
+                                {{ form.repeat_day_of_month }}
+                                <div class="form-text">Classes will repeat on this day each month</div>
+                                {% if form.repeat_day_of_month.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.repeat_day_of_month.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
                         <!-- Time and Duration -->
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.start_time.id_for_label }}" class="form-label">Start Time *</label>
                                     {{ form.start_time }}
@@ -172,30 +204,14 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-8">
+                            <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">Duration *</label>
-                                    <div class="row g-2">
-                                        <div class="col-4">
-                                            <div class="input-group input-group-sm">
-                                                <input type="number" class="form-control" id="durationHours" min="0" max="23" value="1" placeholder="0">
-                                                <span class="input-group-text">hours</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-4">
-                                            <div class="input-group input-group-sm">
-                                                <input type="number" class="form-control" id="durationMinutes" min="0" max="59" value="0" placeholder="0">
-                                                <span class="input-group-text">mins</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-4">
-                                            {{ form.duration_minutes }}
-                                            <div class="form-text">Total minutes</div>
-                                        </div>
-                                    </div>
+                                    <label for="{{ form.duration_minutes.id_for_label }}" class="form-label">Duration (minutes) *</label>
+                                    {{ form.duration_minutes }}
                                     {% if form.duration_minutes.help_text %}
                                         <div class="form-text">{{ form.duration_minutes.help_text }}</div>
                                     {% endif %}
+                                    <div class="form-text">e.g. 60 (1 hour), 90 (1.5 hours), 120 (2 hours)</div>
                                     {% if form.duration_minutes.errors %}
                                         <div class="invalid-feedback d-block">{{ form.duration_minutes.errors.0 }}</div>
                                     {% endif %}
@@ -558,75 +574,90 @@ tinymce.init({
     }
 });
 
-// Duration helper functions
-function updateDurationMinutes() {
-    const hours = parseInt(document.getElementById('durationHours').value) || 0;
-    const minutes = parseInt(document.getElementById('durationMinutes').value) || 0;
-    const totalMinutes = (hours * 60) + minutes;
-    document.getElementById('{{ form.duration_minutes.id_for_label }}').value = totalMinutes;
-}
-
-function updateDurationInputs() {
-    const totalMinutes = parseInt(document.getElementById('{{ form.duration_minutes.id_for_label }}').value) || 0;
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    document.getElementById('durationHours').value = hours;
-    document.getElementById('durationMinutes').value = minutes;
-}
-
 // Repeat pattern change handler
 function handleRepeatPatternChange() {
     const repeatPattern = document.getElementById('{{ form.repeat_pattern.id_for_label }}').value;
-    const multiSessionDates = document.getElementById('multiSessionDates');
     const singleSessionDate = document.getElementById('singleSessionDate');
+    const multiSessionDates = document.getElementById('multiSessionDates');
+    const weeklyConfig = document.getElementById('weeklyConfig');
+    const monthlyConfig = document.getElementById('monthlyConfig');
     const classGenerationSection = document.getElementById('classGenerationSection');
-    const startDateLabel = document.querySelector('label[for="{{ form.start_date.id_for_label }}"]');
-    const endDateField = multiSessionDates.querySelector('.col-md-6:last-child');
+    const endDateField = document.getElementById('{{ form.end_date.id_for_label }}');
+    
+    // Hide all configuration sections first
+    weeklyConfig.style.display = 'none';
+    monthlyConfig.style.display = 'none';
     
     if (repeatPattern === 'once') {
         // Single session mode
-        multiSessionDates.style.display = 'none';
         singleSessionDate.style.display = 'block';
+        multiSessionDates.style.display = 'none';
         
-        // Move start_date input to single session container
-        const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
-        singleSessionDate.querySelector('.mb-3').appendChild(startDateInput);
-        
-        // Hide class generation section
+        // Hide class generation section for single sessions
         if (classGenerationSection) {
             classGenerationSection.style.display = 'none';
         }
         
         // Clear end date
-        const endDateInput = document.getElementById('{{ form.end_date.id_for_label }}');
-        if (endDateInput) {
-            endDateInput.value = '';
+        if (endDateField) {
+            endDateField.value = '';
         }
     } else {
         // Multi-session mode
-        multiSessionDates.style.display = 'block';
         singleSessionDate.style.display = 'none';
-        
-        // Move start_date input back to multi-session container
-        const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
-        multiSessionDates.querySelector('.col-md-6:first-child .mb-3').appendChild(startDateInput);
+        multiSessionDates.style.display = 'block';
         
         // Show class generation section
         if (classGenerationSection) {
             classGenerationSection.style.display = 'block';
         }
+        
+        // Show specific configuration based on pattern
+        if (repeatPattern === 'weekly') {
+            weeklyConfig.style.display = 'block';
+            // Auto-set weekday based on start date
+            autoSetWeekdayFromStartDate();
+        } else if (repeatPattern === 'monthly') {
+            monthlyConfig.style.display = 'block';
+            // Auto-set day of month based on start date
+            autoSetDayOfMonthFromStartDate();
+        }
     }
 }
 
-// Class update options toggle
+// Auto-set weekday based on start date
+function autoSetWeekdayFromStartDate() {
+    const startDateField = document.getElementById('{{ form.start_date.id_for_label }}');
+    const weekdayField = document.getElementById('{{ form.repeat_weekday.id_for_label }}');
+    
+    if (startDateField.value && weekdayField) {
+        const startDate = new Date(startDateField.value);
+        if (!isNaN(startDate.getTime())) {
+            // JavaScript getDay(): 0=Sunday, 1=Monday, etc.
+            // Our model: 0=Monday, 1=Tuesday, etc.
+            let weekday = startDate.getDay();
+            // Convert from JS format to our format
+            weekday = weekday === 0 ? 6 : weekday - 1;
+            weekdayField.value = weekday;
+        }
+    }
+}
+
+// Auto-set day of month based on start date
+function autoSetDayOfMonthFromStartDate() {
+    const startDateField = document.getElementById('{{ form.start_date.id_for_label }}');
+    const dayOfMonthField = document.getElementById('{{ form.repeat_day_of_month.id_for_label }}');
+    
+    if (startDateField.value && dayOfMonthField) {
+        const startDate = new Date(startDateField.value);
+        if (!isNaN(startDate.getTime())) {
+            dayOfMonthField.value = startDate.getDate();
+        }
+    }
+}
+
+// Main initialization
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize duration inputs
-    updateDurationInputs();
-    
-    // Duration input handlers
-    document.getElementById('durationHours').addEventListener('input', updateDurationMinutes);
-    document.getElementById('durationMinutes').addEventListener('input', updateDurationMinutes);
-    
     // Repeat pattern handler
     const repeatPatternSelect = document.getElementById('{{ form.repeat_pattern.id_for_label }}');
     if (repeatPatternSelect) {
@@ -637,12 +668,24 @@ document.addEventListener('DOMContentLoaded', function() {
         repeatPatternSelect.addEventListener('change', handleRepeatPatternChange);
     }
     
+    // Start date change handler - auto-update repeat configs
+    const startDateField = document.getElementById('{{ form.start_date.id_for_label }}');
+    if (startDateField) {
+        startDateField.addEventListener('change', function() {
+            const repeatPattern = repeatPatternSelect.value;
+            if (repeatPattern === 'weekly') {
+                autoSetWeekdayFromStartDate();
+            } else if (repeatPattern === 'monthly') {
+                autoSetDayOfMonthFromStartDate();
+            }
+        });
+    }
+    
     // Existing class update options toggle
     const updateClassesCheckbox = document.getElementById('updateExistingClasses');
     const classUpdateOptions = document.getElementById('classUpdateOptions');
     
     if (updateClassesCheckbox && classUpdateOptions) {
-        // Show/hide class update options based on checkbox
         function toggleClassUpdateOptions() {
             if (updateClassesCheckbox.checked) {
                 classUpdateOptions.style.display = 'block';

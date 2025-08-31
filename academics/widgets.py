@@ -8,12 +8,15 @@ class DurationWidget(forms.MultiWidget):
     Custom widget for duration input with hours and minutes (10-minute steps)
     """
     def __init__(self, attrs=None):
+        # Hours: 0-12 hours
         hours_choices = [(i, f'{i} hour{"s" if i != 1 else ""}') for i in range(0, 13)]
+        
+        # Minutes: 0, 10, 20, 30, 40, 50 minutes
         minutes_choices = [(i, f'{i} min{"s" if i != 1 else ""}') for i in range(0, 60, 10)]
         
         widgets = [
-            Select(choices=hours_choices, attrs={'class': 'form-select'}),
-            Select(choices=minutes_choices, attrs={'class': 'form-select'}),
+            Select(choices=hours_choices, attrs={'class': 'form-select form-select-sm'}),
+            Select(choices=minutes_choices, attrs={'class': 'form-select form-select-sm'}),
         ]
         super().__init__(widgets, attrs)
 
@@ -24,24 +27,24 @@ class DurationWidget(forms.MultiWidget):
         if value:
             hours = value // 60
             minutes = value % 60
-            # Round minutes to nearest 10
-            minutes = round(minutes / 10) * 10
+            # Round minutes down to nearest 10-minute step to avoid inflation
+            minutes = (minutes // 10) * 10
             return [hours, minutes]
         return [0, 0]
 
     def format_output(self, rendered_widgets):
         """
-        Format the output HTML
+        Format the output HTML with improved layout
         """
         return f"""
         <div class="duration-field-container">
-            <div class="row g-2 duration-widget">
+            <div class="row g-2">
                 <div class="col-6">
-                    <label class="form-label small text-muted">Hours</label>
+                    <label class="form-label small text-muted mb-1">Hours</label>
                     {rendered_widgets[0]}
                 </div>
                 <div class="col-6">
-                    <label class="form-label small text-muted">Minutes</label>
+                    <label class="form-label small text-muted mb-1">Minutes</label>
                     {rendered_widgets[1]}
                 </div>
             </div>

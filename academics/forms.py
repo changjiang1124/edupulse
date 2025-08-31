@@ -7,18 +7,12 @@ from .widgets import DurationField
 class CourseForm(forms.ModelForm):
     """Course form with Bootstrap styling"""
     
-    # Custom duration field using hours + minutes
-    duration_minutes = DurationField(
-        label='Duration',
-        help_text='Set course duration in hours and minutes (minimum 10 minutes)'
-    )
-    
     class Meta:
         model = Course
         fields = [
             'name', 'short_description', 'description', 'price', 'course_type', 'status', 'teacher',
-            'start_date', 'end_date', 'repeat_pattern', 'start_time', 'duration_minutes',
-            'vacancy', 'facility', 'classroom', 'is_bookable', 'is_active'
+            'start_date', 'end_date', 'repeat_pattern', 'repeat_weekday', 'repeat_day_of_month', 
+            'start_time', 'duration_minutes', 'vacancy', 'facility', 'classroom', 'is_bookable'
         ]
         widgets = {
             'name': forms.TextInput(attrs={
@@ -56,11 +50,22 @@ class CourseForm(forms.ModelForm):
             'repeat_pattern': forms.Select(attrs={
                 'class': 'form-select'
             }),
+            'repeat_weekday': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'repeat_day_of_month': forms.Select(attrs={
+                'class': 'form-select'
+            }),
             'start_time': forms.TimeInput(attrs={
                 'class': 'form-control',
                 'type': 'time'
             }),
-            # duration_minutes handled by custom field
+            'duration_minutes': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '10',
+                'step': '10',
+                'placeholder': 'Duration in minutes (e.g. 60, 90, 120)'
+            }),
             'vacancy': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'min': '1'
@@ -74,14 +79,39 @@ class CourseForm(forms.ModelForm):
             'is_bookable': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
-            'is_active': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
-            }),
         }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Create day of month choices (1-31)
+        day_choices = [('', 'Select day...')] + [(i, f'{i}') for i in range(1, 32)]
+        self.fields['repeat_day_of_month'] = forms.ChoiceField(
+            choices=day_choices,
+            required=False,
+            widget=forms.Select(attrs={'class': 'form-select'})
+        )
+        
+    def clean_repeat_weekday(self):
+        """Clean repeat_weekday field to convert empty string to None"""
+        value = self.cleaned_data.get('repeat_weekday')
+        return None if value == '' else value
+        
+    def clean_repeat_day_of_month(self):
+        """Clean repeat_day_of_month field to convert empty string to None"""
+        value = self.cleaned_data.get('repeat_day_of_month')
+        return None if value == '' else value
 
 
 class CourseUpdateForm(CourseForm):
     """Course update form with class update options"""
+    
+    class Meta(CourseForm.Meta):
+        fields = CourseForm.Meta.fields + ['is_active']
+        widgets = CourseForm.Meta.widgets.copy()
+        widgets['is_active'] = forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        })
     
     # Additional fields for class update control
     update_existing_classes = forms.BooleanField(

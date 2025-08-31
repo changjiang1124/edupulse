@@ -22,6 +22,16 @@ class Course(models.Model):
         ('monthly', 'Monthly'),
     ]
     
+    WEEKDAY_CHOICES = [
+        (0, 'Monday'),
+        (1, 'Tuesday'),
+        (2, 'Wednesday'),
+        (3, 'Thursday'),
+        (4, 'Friday'),
+        (5, 'Saturday'),
+        (6, 'Sunday'),
+    ]
+    
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('published', 'Published'),
@@ -83,6 +93,21 @@ class Course(models.Model):
         choices=REPEAT_PATTERN_CHOICES,
         default='once',
         verbose_name='Repeat Pattern'
+    )
+    
+    # Repeat configuration fields
+    repeat_weekday = models.PositiveSmallIntegerField(
+        choices=WEEKDAY_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name='Weekday',
+        help_text='Day of the week for weekly courses (auto-filled from start date)'
+    )
+    repeat_day_of_month = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Day of Month',
+        help_text='Day of the month for monthly courses (1-31, auto-filled from start date)'
     )
     start_time = models.TimeField(
         verbose_name='Start Time'
@@ -164,6 +189,34 @@ class Course(models.Model):
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
     
+    def save(self, *args, **kwargs):
+        """Override save to auto-set repeat configuration"""
+        # Handle empty string values from forms
+        if self.repeat_weekday == '':
+            self.repeat_weekday = None
+        if self.repeat_day_of_month == '':
+            self.repeat_day_of_month = None
+            
+        if self.start_date:
+            # Auto-set weekday for weekly courses
+            if self.repeat_pattern == 'weekly' and not self.repeat_weekday:
+                self.repeat_weekday = self.start_date.weekday()
+            
+            # Auto-set day of month for monthly courses
+            if self.repeat_pattern == 'monthly' and not self.repeat_day_of_month:
+                self.repeat_day_of_month = self.start_date.day
+            
+            # Clear repeat configurations for non-applicable patterns
+            if self.repeat_pattern in ['once', 'daily']:
+                self.repeat_weekday = None
+                self.repeat_day_of_month = None
+            elif self.repeat_pattern == 'weekly':
+                self.repeat_day_of_month = None
+            elif self.repeat_pattern == 'monthly':
+                self.repeat_weekday = None
+                
+        super().save(*args, **kwargs)
+    
     @property
     def is_single_session(self):
         """Check if this is a single session course (workshop style)"""
@@ -193,6 +246,9 @@ class Course(models.Model):
         Generate Class instances based on course schedule
         Returns the number of classes created
         """
+        from datetime import timedelta
+        import calendar
+        
         if not self.pk:
             return 0
         
@@ -215,14 +271,8 @@ class Course(models.Model):
                 classroom=self.classroom
             )
             classes_created = 1
-        else:
-            # Multi-session course
-            delta_days = {
-                'daily': 1,
-                'weekly': 7,
-                'monthly': 30,  # Approximate
-            }.get(self.repeat_pattern, 7)
-            
+        elif self.repeat_pattern == 'daily':
+            # Daily classes
             while current_date <= end_date:
                 Class.objects.create(
                     course=self,
@@ -234,9 +284,99 @@ class Course(models.Model):
                     classroom=self.classroom
                 )
                 classes_created += 1
-                current_date += timedelta(days=delta_days)
+                current_date += timedelta(days=1)
+        elif self.repeat_pattern == 'weekly':
+            # Weekly classes - use specific weekday
+            if self.repeat_weekday is not None:
+                # Find the first occurrence of the specified weekday on or after start_date
+                days_ahead = self.repeat_weekday - current_date.weekday()
+                if days_ahead < 0:  # Target day already happened this week
+                    days_ahead += 7
+                current_date += timedelta(days_ahead)
+                
+                # Generate classes weekly on the specified day
+                while current_date <= end_date:
+                    Class.objects.create(
+                        course=self,
+                        date=current_date,
+                        start_time=self.start_time,
+                        duration_minutes=self.duration_minutes,
+                        teacher=self.teacher,
+                        facility=self.facility,
+                        classroom=self.classroom
+                    )
+                    classes_created += 1
+                    current_date += timedelta(days=7)
+        elif self.repeat_pattern == 'monthly':
+            # Monthly classes - use specific day of month
+            if self.repeat_day_of_month is not None:
+                # Start from the specified day of the start month
+                if current_date.day <= self.repeat_day_of_month:
+                    # This month, on the specified day
+                    try:
+                        current_date = current_date.replace(day=self.repeat_day_of_month)
+                    except ValueError:
+                        # Day doesn't exist in this month (e.g., Feb 31), skip to next month
+                        next_month = current_date.replace(day=1) + timedelta(days=32)
+                        try:
+                            current_date = next_month.replace(day=self.repeat_day_of_month, month=next_month.month, year=next_month.year)
+                        except ValueError:
+                            current_date = next_month.replace(day=1) + timedelta(days=32)
+                            current_date = current_date.replace(day=min(self.repeat_day_of_month, calendar.monthrange(current_date.year, current_date.month)[1]))
+                else:
+                    # Next month, on the specified day
+                    next_month = current_date.replace(day=1) + timedelta(days=32)
+                    try:
+                        current_date = next_month.replace(day=self.repeat_day_of_month, month=next_month.month, year=next_month.year)
+                    except ValueError:
+                        current_date = next_month.replace(day=min(self.repeat_day_of_month, calendar.monthrange(next_month.year, next_month.month)[1]))
+                
+                # Generate monthly classes
+                while current_date <= end_date:
+                    Class.objects.create(
+                        course=self,
+                        date=current_date,
+                        start_time=self.start_time,
+                        duration_minutes=self.duration_minutes,
+                        teacher=self.teacher,
+                        facility=self.facility,
+                        classroom=self.classroom
+                    )
+                    classes_created += 1
+                    
+                    # Move to next month
+                    if current_date.month == 12:
+                        next_month = current_date.replace(year=current_date.year + 1, month=1, day=1)
+                    else:
+                        next_month = current_date.replace(month=current_date.month + 1, day=1)
+                    
+                    try:
+                        current_date = next_month.replace(day=self.repeat_day_of_month)
+                    except ValueError:
+                        # Day doesn't exist in next month
+                        current_date = next_month.replace(day=min(self.repeat_day_of_month, calendar.monthrange(next_month.year, next_month.month)[1]))
         
         return classes_created
+    
+    def get_repeat_config_display(self):
+        """Get display text for repeat configuration"""
+        if self.repeat_pattern == 'weekly' and self.repeat_weekday is not None:
+            weekday_name = dict(self.WEEKDAY_CHOICES)[self.repeat_weekday]
+            return f"Every {weekday_name}"
+        elif self.repeat_pattern == 'monthly' and self.repeat_day_of_month is not None:
+            day_suffix = 'th'
+            if self.repeat_day_of_month in [1, 21, 31]:
+                day_suffix = 'st'
+            elif self.repeat_day_of_month in [2, 22]:
+                day_suffix = 'nd'
+            elif self.repeat_day_of_month in [3, 23]:
+                day_suffix = 'rd'
+            return f"Every {self.repeat_day_of_month}{day_suffix} of the month"
+        elif self.repeat_pattern == 'daily':
+            return "Every day"
+        elif self.repeat_pattern == 'once':
+            return "Single session"
+        return self.get_repeat_pattern_display()
 
 
 class Class(models.Model):
