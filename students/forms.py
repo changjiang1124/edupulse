@@ -30,7 +30,7 @@ class StudentForm(forms.ModelForm):
             }),
             'phone': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': '+61 xxx xxx xxx'
+                'placeholder': '0412 345 678'
             }),
             'address': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -43,7 +43,7 @@ class StudentForm(forms.ModelForm):
             }),
             'guardian_phone': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': '+61 xxx xxx xxx'
+                'placeholder': '0412 345 678'
             }),
             'guardian_email': forms.EmailInput(attrs={
                 'class': 'form-control',

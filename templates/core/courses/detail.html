@@ -29,11 +29,12 @@
     padding-left: 1.5rem;
 }
 .course-hero {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, #2563eb 0%, #0051ffff 100%);
     color: white;
     border-radius: 12px;
-    padding: 2rem;
+    padding: 2.5rem 2rem;
     margin-bottom: 2rem;
+    min-height: 200px;
 }
 .course-meta-card {
     border: none;
@@ -51,33 +52,52 @@
 {% block content %}
 <!-- Course Hero Section -->
 <div class="course-hero">
-    <div class="row align-items-center">
-        <div class="col-lg-8">
-            <h1 class="display-5 fw-bold mb-2">{{ course.name }}</h1>
-            <p class="lead mb-3">{{ course.short_description|default:"Learn with our expert instructors in a supportive environment." }}</p>
-            <div class="d-flex flex-wrap gap-2 mb-0">
-                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">{{ course.get_course_type_display }}</span>
-                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">${{ course.price }}</span>
-                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">{{ course.vacancy }} places</span>
-                <span class="status-badge status-{{ course.status }} bg-white bg-opacity-25">{{ course.get_status_display }}</span>
+    <div class="row align-items-start">
+        <div class="col-12">
+            <!-- Action Buttons Row -->
+            <div class="d-flex justify-content-end mb-1">
+                <div class="btn-group">
+                    <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-light">
+                        <i class="fas fa-edit me-2"></i>Edit Course
+                    </a>
+                    <a href="{% url 'academics:course_list' %}" class="btn btn-outline-light">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Courses
+                    </a>
+                </div>
             </div>
-        </div>
-        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
-            <div class="d-flex flex-column gap-2">
-                <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-light">
-                    <i class="fas fa-edit me-2"></i>Edit Course
-                </a>
-                <a href="{% url 'academics:course_list' %}" class="btn btn-outline-light">
-                    <i class="fas fa-arrow-left me-2"></i>Back to Courses
-                </a>
+            
+            <!-- Course Title and Description -->
+            <div class="mb-4">
+                <h1 class="display-4 fw-bold mb-3 text-white" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3); line-height: 1.2;">
+                    {{ course.name }}
+                </h1>
+                <p class="lead mb-0 text-white opacity-90" style="font-size: 1.1rem;">
+                    {{ course.short_description|default:"Learn with our expert instructors in a supportive environment." }}
+                </p>
+            </div>
+            
+            <!-- Course Badges -->
+            <div class="d-flex flex-wrap gap-2">
+                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2 fs-6">
+                    <i class="fas fa-users me-1"></i>{{ course.get_course_type_display }}
+                </span>
+                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2 fs-6">
+                    <i class="fas fa-dollar-sign me-1"></i>${{ course.price }}
+                </span>
+                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2 fs-6">
+                    <i class="fas fa-chair me-1"></i>{{ course.vacancy }} places
+                </span>
+                <span class="badge bg-success text-white px-3 py-2 fs-6">
+                    <i class="fas fa-check-circle me-1"></i>{{ course.get_status_display }}
+                </span>
             </div>
         </div>
     </div>
 </div>
 
 <div class="row">
-    <!-- Main Content Area -->
-    <div class="col-lg-8">
+    <!-- Main Content Area - Full Width -->
+    <div class="col-12">
         
         <!-- Course Description - Full Width for Rich Content -->
         {% if course.description %}
@@ -93,7 +113,7 @@
         </div>
         {% endif %}
 
-        <!-- Course Details -->
+        <!-- Course Details with Integrated Stats -->
         <div class="card course-meta-card mb-4">
             <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-list-ul me-2 text-primary"></i>Course Information</h5>
@@ -101,7 +121,7 @@
             <div class="card-body">
                 <div class="row g-4">
                     {% if course.teacher %}
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <div class="d-flex align-items-center">
                             <div class="avatar-circle bg-primary me-3">
                                 {{ course.teacher.first_name|first }}{{ course.teacher.last_name|first }}
@@ -114,7 +134,7 @@
                     </div>
                     {% endif %}
                     
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <div class="d-flex align-items-center">
                             <div class="icon-circle bg-info me-3">
                                 <i class="fas fa-calendar"></i>
@@ -126,7 +146,7 @@
                         </div>
                     </div>
                     
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <div class="d-flex align-items-center">
                             <div class="icon-circle bg-success me-3">
                                 <i class="fas fa-clock"></i>
@@ -138,7 +158,7 @@
                         </div>
                     </div>
                     
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <div class="d-flex align-items-center">
                             <div class="icon-circle bg-warning me-3">
                                 <i class="fas fa-map-marker-alt"></i>
@@ -164,19 +184,36 @@
                 <div class="mt-4 pt-4 border-top">
                     <h6 class="text-muted mb-3">Schedule Details</h6>
                     <div class="row g-3">
-                        <div class="col-sm-4">
+                        <div class="col-sm-3">
                             <small class="text-muted d-block">Start Date</small>
                             <strong>{{ course.start_date|date:"d F Y" }}</strong>
                         </div>
                         {% if course.end_date and course.end_date != course.start_date %}
-                        <div class="col-sm-4">
+                        <div class="col-sm-3">
                             <small class="text-muted d-block">End Date</small>
                             <strong>{{ course.end_date|date:"d F Y" }}</strong>
                         </div>
                         {% endif %}
-                        <div class="col-sm-4">
+                        <div class="col-sm-3">
                             <small class="text-muted d-block">Time</small>
                             <strong>{{ course.start_time|time:"g:i A" }}</strong>
+                        </div>
+                        <div class="col-sm-3">
+                            <!-- Quick Stats Integrated -->
+                            <div class="row g-2 text-center">
+                                <div class="col-6">
+                                    <div class="bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-2 p-2">
+                                        <h6 class="text-primary mb-0">{{ enrollments.count }}</h6>
+                                        <small class="text-muted">Enrolments</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="bg-info bg-opacity-10 border border-info border-opacity-25 rounded-2 p-2">
+                                        <h6 class="text-info mb-0">{{ classes.count }}</h6>
+                                        <small class="text-muted">Classes</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -190,7 +227,7 @@
                     <i class="fas fa-chalkboard-teacher me-2 text-primary"></i>
                     Scheduled Classes <span class="badge bg-primary ms-2">{{ classes.count }}</span>
                 </h5>
-                <a href="{% url 'academics:class_add' %}" class="btn btn-sm btn-primary">
+                <a href="{% url 'academics:class_add' %}?course={{ course.pk }}" class="btn btn-sm btn-primary">
                     <i class="fas fa-plus me-1"></i>Add Class
                 </a>
             </div>
@@ -231,7 +268,7 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <a href="#" class="btn btn-outline-primary btn-sm">
+                                            <a href="{% url 'academics:class_detail' class.id %}" class="btn btn-outline-primary btn-sm">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             <a href="#" class="btn btn-outline-secondary btn-sm">
@@ -256,71 +293,40 @@
                 {% endif %}
             </div>
         </div>
-    </div>
-
-    <!-- Sidebar -->
-    <div class="col-lg-4">
-        <!-- Quick Stats -->
-        <div class="card course-meta-card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-bar me-2 text-primary"></i>Quick Stats</h5>
-            </div>
-            <div class="card-body text-center">
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3 p-3">
-                            <h4 class="text-primary mb-1">{{ enrollments.count }}</h4>
-                            <small class="text-muted">Enrolments</small>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="bg-info bg-opacity-10 border border-info border-opacity-25 rounded-3 p-3">
-                            <h4 class="text-info mb-1">{{ classes.count }}</h4>
-                            <small class="text-muted">Classes</small>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 p-3">
-                            <h4 class="text-success mb-1">{{ course.vacancy }}</h4>
-                            <small class="text-muted">Available</small>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="bg-warning bg-opacity-10 border border-warning border-opacity-25 rounded-3 p-3">
-                            <h4 class="text-warning mb-1">${{ course.price }}</h4>
-                            <small class="text-muted">Price</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Recent Enrolments -->
-        <div class="card course-meta-card mb-4">
-            <div class="card-header">
+        <div class="card course-meta-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-users me-2 text-primary"></i>Recent Enrolments</h5>
+                <a href="{% url 'enrollment:enrollment_list' %}?course={{ course.pk }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-list me-1"></i>View All Enrolments
+                </a>
             </div>
             <div class="card-body">
                 {% if enrollments %}
-                    {% for enrollment in enrollments|slice:":5" %}
-                    <div class="d-flex align-items-center mb-3 {% if not forloop.last %}border-bottom pb-3{% endif %}">
-                        <div class="avatar-circle bg-primary bg-opacity-10 text-primary me-3">
-                            {{ enrollment.student.first_name|first }}{{ enrollment.student.last_name|first }}
+                    <div class="row">
+                        {% for enrollment in enrollments|slice:":6" %}
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-center p-2 border rounded">
+                                <div class="avatar-circle bg-primary bg-opacity-10 text-primary me-3">
+                                    {{ enrollment.student.first_name|first }}{{ enrollment.student.last_name|first }}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-medium">{{ enrollment.student.first_name }} {{ enrollment.student.last_name }}</div>
+                                    <small class="text-muted">{{ enrollment.created_at|timesince }} ago</small>
+                                </div>
+                                <span class="status-badge status-{{ enrollment.status }} ms-2">
+                                    {{ enrollment.get_status_display }}
+                                </span>
+                            </div>
                         </div>
-                        <div class="flex-grow-1">
-                            <div class="fw-medium">{{ enrollment.student.first_name }} {{ enrollment.student.last_name }}</div>
-                            <small class="text-muted">{{ enrollment.created_at|timesince }} ago</small>
-                        </div>
-                        <span class="status-badge status-{{ enrollment.status }}">
-                            {{ enrollment.get_status_display }}
-                        </span>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                     
-                    {% if enrollments.count > 5 %}
-                    <div class="text-center mt-3">
-                        <a href="{% url 'enrollment:enrollment_list' %}?course={{ course.pk }}" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-arrow-right me-1"></i>View All ({{ enrollments.count }})
+                    {% if enrollments.count > 6 %}
+                    <div class="text-center mt-3 pt-3 border-top">
+                        <a href="{% url 'enrollment:enrollment_list' %}?course={{ course.pk }}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-right me-1"></i>View All Enrolments ({{ enrollments.count }})
                         </a>
                     </div>
                     {% endif %}
@@ -332,49 +338,7 @@
                 {% endif %}
             </div>
         </div>
-
-        <!-- Course Actions -->
-        <div class="card course-meta-card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-tools me-2 text-primary"></i>Course Actions</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-primary">
-                        <i class="fas fa-edit me-2"></i>Edit Course Details
-                    </a>
-                    {% if course.status == 'draft' %}
-                        <button class="btn btn-success" onclick="publishCourse({{ course.pk }})">
-                            <i class="fas fa-rocket me-2"></i>Publish Course
-                        </button>
-                    {% endif %}
-                    <a href="{% url 'academics:class_add' %}?course={{ course.pk }}" class="btn btn-outline-primary">
-                        <i class="fas fa-plus me-2"></i>Add New Class
-                    </a>
-                    <button class="btn btn-outline-info" onclick="generateClasses({{ course.pk }})">
-                        <i class="fas fa-magic me-2"></i>Generate Classes
-                    </button>
-                    <hr class="my-2">
-                    <a href="{% url 'enrollment:enrollment_list' %}?course={{ course.pk }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-list me-2"></i>View All Enrolments
-                    </a>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
-{% block extra_js %}
-<script>
-function publishCourse(courseId) {
-    // Implement publish course functionality
-    alert('Publish course functionality would be implemented here');
-}
-
-function generateClasses(courseId) {
-    // Implement generate classes functionality  
-    alert('Generate classes functionality would be implemented here');
-}
-</script>
-{% endblock %}
 {% endblock %}

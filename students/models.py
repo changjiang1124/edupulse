@@ -27,7 +27,10 @@ class Student(models.Model):
     phone = models.CharField(
         max_length=20,
         blank=True,
-        validators=[RegexValidator(r'^\+?1?\d{9,15}$', 'Please enter a valid phone number')],
+        validators=[RegexValidator(
+            r'^(0[4-5]\d{2}\s?\d{3}\s?\d{3}|0[2,3,7-9]\d?\s?\d{4}\s?\d{4}|0[2,3,7-9]\d{8})$', 
+            'Please enter a valid Australian phone number (e.g., 0412 345 678, 02 1234 5678)'
+        )],
         verbose_name='Phone Number'
     )
     address = models.TextField(
@@ -44,7 +47,10 @@ class Student(models.Model):
     guardian_phone = models.CharField(
         max_length=20,
         blank=True,
-        validators=[RegexValidator(r'^\+?1?\d{9,15}$', 'Please enter a valid phone number')],
+        validators=[RegexValidator(
+            r'^(0[4-5]\d{2}\s?\d{3}\s?\d{3}|0[2,3,7-9]\d?\s?\d{4}\s?\d{4}|0[2,3,7-9]\d{8})$', 
+            'Please enter a valid Australian phone number (e.g., 0412 345 678, 02 1234 5678)'
+        )],
         verbose_name='Guardian Phone'
     )
     guardian_email = models.EmailField(

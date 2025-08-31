@@ -61,7 +61,7 @@ class PublicEnrollmentForm(forms.Form):
         label='Phone Number',
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': '+61 4xx xxx xxx'
+            'placeholder': '0412 345 678'
         })
     )
     
@@ -109,7 +109,7 @@ class PublicEnrollmentForm(forms.Form):
         label='Guardian Phone',
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': '+61 4xx xxx xxx'
+            'placeholder': '0412 345 678'
         })
     )
     
@@ -130,7 +130,7 @@ class PublicEnrollmentForm(forms.Form):
         label='Emergency Contact Phone',
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': '+61 4xx xxx xxx'
+            'placeholder': '0412 345 678'
         })
     )
     

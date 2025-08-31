@@ -30,7 +30,7 @@ class StaffForm(forms.ModelForm):
             }),
             'phone': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': '+61 xxx xxx xxx'
+                'placeholder': '0412 345 678'
             }),
             'role': forms.Select(attrs={
                 'class': 'form-select'
