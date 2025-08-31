@@ -13,6 +13,7 @@ urlpatterns = [
     
     # Public Enrollment (no authentication required)
     path('', views.PublicEnrollmentView.as_view(), name='public_enrollment'),
+    path('course/<int:course_id>/', views.PublicEnrollmentView.as_view(), name='public_enrollment_with_course'),
     path('success/<int:enrollment_id>/', views.EnrollmentSuccessView.as_view(), name='enrollment_success'),
     
     # Attendance URLs

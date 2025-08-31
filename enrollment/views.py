@@ -141,17 +141,52 @@ class PublicEnrollmentView(TemplateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Get course_id from URL if present
+        course_id = self.kwargs.get('course_id')
+        selected_course = None
+        
         # Only show published courses that allow online bookings
-        context['courses'] = Course.objects.filter(
+        courses = Course.objects.filter(
             status='published', 
             is_online_bookable=True
         ).order_by('name')
-        context['form'] = PublicEnrollmentForm()
+        context['courses'] = courses
+        
+        # Handle pre-selected course
+        if course_id:
+            try:
+                selected_course = courses.get(pk=course_id)
+                context['selected_course'] = selected_course
+            except Course.DoesNotExist:
+                # If course doesn't exist or isn't bookable, redirect to main enrollment
+                from django.shortcuts import redirect
+                return redirect('enrollment:public_enrollment')
+        
+        # Initialize form with selected course if available
+        initial_data = {}
+        if selected_course:
+            initial_data['course_id'] = selected_course.pk
+            
+        context['form'] = PublicEnrollmentForm(initial=initial_data)
         return context
     
     def post(self, request, *args, **kwargs):
         form = PublicEnrollmentForm(request.POST)
+        
+        # Get course_id from URL if present
+        course_id = self.kwargs.get('course_id')
+        selected_course = None
+        
         courses = Course.objects.filter(status='published', is_online_bookable=True).order_by('name')
+        
+        # Handle pre-selected course
+        if course_id:
+            try:
+                selected_course = courses.get(pk=course_id)
+            except Course.DoesNotExist:
+                from django.shortcuts import redirect
+                return redirect('enrollment:public_enrollment')
         
         if form.is_valid():
             # Create or get student
@@ -208,19 +243,26 @@ class PublicEnrollmentView(TemplateView):
                     request, 
                     f'Enrollment already exists for {student.get_full_name()} in {course.name}. Status: {existing_enrollment.get_status_display()}'
                 )
-                return redirect('public_enrollment_success', enrollment_id=existing_enrollment.pk)
+                return redirect('enrollment:enrollment_success', enrollment_id=existing_enrollment.pk)
             else:
                 enrollment = Enrollment.objects.create(**enrollment_data)
                 messages.success(
                     request, 
                     f'Enrollment submitted successfully for {student.get_full_name()} in {course.name}. Reference ID: {enrollment.pk}'
                 )
-                return redirect('public_enrollment_success', enrollment_id=enrollment.pk)
+                return redirect('enrollment:enrollment_success', enrollment_id=enrollment.pk)
         
-        return render(request, self.template_name, {
+        # Form validation failed - prepare context for re-rendering
+        context = {
             'form': form,
             'courses': courses
-        })
+        }
+        
+        # Add selected course context if applicable
+        if selected_course:
+            context['selected_course'] = selected_course
+            
+        return render(request, self.template_name, context)
 
 
 class EnrollmentSuccessView(TemplateView):

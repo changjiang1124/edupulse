@@ -55,7 +55,19 @@
     <div class="row align-items-start">
         <div class="col-12">
             <!-- Action Buttons Row -->
-            <div class="d-flex justify-content-end mb-1">
+            <div class="d-flex justify-content-between mb-1">
+                <!-- Enrollment Button (Left) -->
+                {% if course.status == 'published' and course.is_online_bookable and course.get_current_bookable_state == 'bookable' %}
+                <div>
+                    <a href="{% url 'enrollment:public_enrollment_with_course' course.pk %}" class="btn btn-success">
+                        <i class="fas fa-user-plus me-2"></i>Enrol Now
+                    </a>
+                </div>
+                {% else %}
+                <div></div>
+                {% endif %}
+                
+                <!-- Admin Actions (Right) -->
                 <div class="btn-group">
                     <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-light">
                         <i class="fas fa-edit me-2"></i>Edit Course

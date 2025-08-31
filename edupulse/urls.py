@@ -10,15 +10,10 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from core.views import DashboardView
-from enrollment.views import PublicEnrollmentView, EnrollmentSuccessView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', DashboardView.as_view(), name='dashboard'),
-    
-    # Public enrollment (no authentication required)
-    path('enroll/', PublicEnrollmentView.as_view(), name='public_enrollment'),
-    path('enroll/success/<int:enrollment_id>/', EnrollmentSuccessView.as_view(), name='public_enrollment_success'),
     
     # Core application (Dashboard, Clock, etc.)
     path('core/', include('core.urls')),
@@ -28,7 +23,12 @@ urlpatterns = [
     path('students/', include('students.urls')),
     path('academics/', include('academics.urls')),
     path('facilities/', include('facilities.urls')),
-    path('enrollment/', include('enrollment.urls')),
+    
+    # Public enrollment URLs (accessible at /enroll/)
+    path('enroll/', include('enrollment.urls')),
+    
+    # Staff enrollment management URLs (accessible at /enrollment/)  
+    path('enrollment/', include('enrollment.urls', namespace='staff_enrollment')),
     
     # TinyMCE URL
     path('tinymce/', include('tinymce.urls')),
