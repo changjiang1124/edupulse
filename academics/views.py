@@ -80,59 +80,40 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
         
         # Handle class updates if requested
         update_existing = form.cleaned_data.get('update_existing_classes', False)
-        update_fields = form.cleaned_data.get('class_update_fields', [])
         selected_classes = form.cleaned_data.get('selected_classes', [])
-        from_date = form.cleaned_data.get('update_classes_from_date')
         
-        if update_existing and update_fields:
-            # Determine which classes to update
-            if selected_classes:
-                # Use specifically selected classes
-                classes_to_update = self.object.classes.filter(
-                    is_active=True,
-                    id__in=[int(class_id) for class_id in selected_classes]
-                )
-                update_method = "selected"
-            else:
-                # Use date range filter as before
-                classes_queryset = self.object.classes.filter(is_active=True)
-                
-                if from_date:
-                    classes_queryset = classes_queryset.filter(date__gte=from_date)
-                
-                classes_to_update = classes_queryset.all()
-                update_method = "date_range"
+        if update_existing and selected_classes:
+            # Get the selected classes to update
+            classes_to_update = self.object.classes.filter(
+                is_active=True,
+                id__in=[int(class_id) for class_id in selected_classes]
+            )
             
             updated_count = 0
             
-            # Update each class with selected fields
+            # Apply all course changes to selected classes
             for class_instance in classes_to_update:
                 updated = False
+                
+                # Update all relevant fields from course
+                update_fields = ['teacher', 'start_time', 'duration_minutes', 'facility', 'classroom']
                 for field in update_fields:
-                    if field in ['teacher', 'facility', 'classroom', 'start_time', 'duration_minutes']:
-                        new_value = getattr(self.object, field)
-                        current_value = getattr(class_instance, field)
-                        if current_value != new_value:
-                            setattr(class_instance, field, new_value)
-                            updated = True
+                    new_value = getattr(self.object, field)
+                    current_value = getattr(class_instance, field)
+                    if current_value != new_value:
+                        setattr(class_instance, field, new_value)
+                        updated = True
                 
                 if updated:
                     class_instance.save()
                     updated_count += 1
             
-            # Provide appropriate success message
+            # Provide success message
             if updated_count > 0:
-                field_names = ', '.join([dict(form.fields['class_update_fields'].choices)[f] for f in update_fields])
-                if update_method == "selected":
-                    messages.success(
-                        self.request,
-                        f'Course updated successfully! {updated_count} selected class(es) updated with new {field_names}.'
-                    )
-                else:
-                    messages.success(
-                        self.request,
-                        f'Course updated successfully! {updated_count} class(es) updated with new {field_names}.'
-                    )
+                messages.success(
+                    self.request,
+                    f'Course updated successfully! Course changes applied to {updated_count} selected class(es).'
+                )
             else:
                 messages.success(self.request, f'Course updated successfully! No classes needed updates.')
         else:

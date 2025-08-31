@@ -317,7 +317,7 @@
                     {% if form.instance.pk %}
                     <div class="mb-4">
                         <h6 class="text-muted mb-3">
-                            <i class="fas fa-cogs me-2"></i>Class Update Options
+                            <i class="fas fa-sync-alt me-2"></i>Apply Changes to Existing Classes
                             {% if existing_classes %}
                                 <span class="badge bg-info ms-2">{{ existing_classes }} upcoming class(es)</span>
                             {% endif %}
@@ -328,43 +328,12 @@
                                 <div class="form-check mb-3">
                                     {{ form.update_existing_classes }}
                                     <label class="form-check-label" for="{{ form.update_existing_classes.id_for_label }}">
-                                        <strong>Update Existing Classes</strong>
+                                        <strong>{{ form.update_existing_classes.label }}</strong>
                                     </label>
-                                    <div class="form-text">Apply changes to existing class sessions</div>
+                                    <div class="form-text">{{ form.update_existing_classes.help_text }}</div>
                                 </div>
                                 
                                 <div id="classUpdateOptions" style="display: none;">
-                                    <div class="mb-3">
-                                        <label class="form-label">{{ form.class_update_fields.label }}</label>
-                                        <div class="row">
-                                            {% for choice in form.class_update_fields %}
-                                            <div class="col-md-6">
-                                                <div class="form-check">
-                                                    {{ choice.tag }}
-                                                    <label class="form-check-label" for="{{ choice.id_for_label }}">
-                                                        {{ choice.choice_label }}
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                        <div class="form-text">{{ form.class_update_fields.help_text }}</div>
-                                        {% if form.class_update_fields.errors %}
-                                            <div class="invalid-feedback d-block">{{ form.class_update_fields.errors.0 }}</div>
-                                        {% endif %}
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="{{ form.update_classes_from_date.id_for_label }}" class="form-label">
-                                            {{ form.update_classes_from_date.label }}
-                                        </label>
-                                        {{ form.update_classes_from_date }}
-                                        <div class="form-text">{{ form.update_classes_from_date.help_text }}</div>
-                                        {% if form.update_classes_from_date.errors %}
-                                            <div class="invalid-feedback d-block">{{ form.update_classes_from_date.errors.0 }}</div>
-                                        {% endif %}
-                                    </div>
-                                    
                                     <!-- Individual Class Selection -->
                                     {% if form.selected_classes %}
                                     <div class="mb-3">
@@ -396,6 +365,11 @@
                                         {% if form.selected_classes.errors %}
                                             <div class="invalid-feedback d-block">{{ form.selected_classes.errors.0 }}</div>
                                         {% endif %}
+                                        
+                                        <div class="alert alert-info mt-3">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <small><strong>Note:</strong> All course changes (teacher, time, duration, location) will be applied to the selected classes.</small>
+                                        </div>
                                     </div>
                                     {% else %}
                                     <div class="alert alert-info">
@@ -403,12 +377,6 @@
                                         No upcoming classes found for this course.
                                     </div>
                                     {% endif %}
-                                    
-                                    <div class="alert alert-warning">
-                                        <i class="fas fa-exclamation-triangle me-2"></i>
-                                        <strong>Warning:</strong> This will update the selected fields in existing classes. 
-                                        Students will be notified of any changes that affect them.
-                                    </div>
                                 </div>
                             </div>
                         </div>

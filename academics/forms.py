@@ -126,40 +126,12 @@ class CourseUpdateForm(CourseForm):
     # Additional fields for class update control
     update_existing_classes = forms.BooleanField(
         required=False,
-        initial=True,
-        label='Update Existing Classes',
-        help_text='Apply changes to existing class sessions',
+        initial=False,
+        label='Apply Changes to Existing Classes',
+        help_text='Update existing class sessions with the course changes',
         widget=forms.CheckboxInput(attrs={
             'class': 'form-check-input',
             'id': 'updateExistingClasses'
-        })
-    )
-    
-    # Field to select which classes to update
-    class_update_fields = forms.MultipleChoiceField(
-        required=False,
-        label='Fields to Update in Classes',
-        help_text='Select which fields should be updated in existing classes',
-        widget=forms.CheckboxSelectMultiple(attrs={
-            'class': 'form-check-input'
-        }),
-        choices=[
-            ('teacher', 'Teacher'),
-            ('start_time', 'Start Time'),
-            ('duration_minutes', 'Duration'),
-            ('facility', 'Facility'),
-            ('classroom', 'Classroom'),
-        ]
-    )
-    
-    # Date range for selective updates
-    update_classes_from_date = forms.DateField(
-        required=False,
-        label='Update Classes From Date',
-        help_text='Only update classes from this date onwards (leave blank for all)',
-        widget=forms.DateInput(attrs={
-            'class': 'form-control',
-            'type': 'date'
         })
     )
     
@@ -168,15 +140,10 @@ class CourseUpdateForm(CourseForm):
         super().__init__(*args, **kwargs)
         
         if self.instance and self.instance.pk:
-            # Set default date to today for future updates
+            # Add individual class selection field for upcoming classes
             from django.utils import timezone
             today = timezone.now().date()
-            self.fields['update_classes_from_date'].initial = today
             
-            # Pre-select commonly changed fields
-            self.fields['class_update_fields'].initial = ['teacher', 'classroom']
-            
-            # Add individual class selection field
             upcoming_classes = self.instance.classes.filter(
                 is_active=True,
                 date__gte=today
@@ -206,8 +173,8 @@ class CourseUpdateForm(CourseForm):
                 self.fields['selected_classes'] = forms.MultipleChoiceField(
                     choices=class_choices,
                     required=False,
-                    label='Select Specific Classes',
-                    help_text='Choose which classes to update (leave blank to use date range filter)',
+                    label='Select Classes to Update',
+                    help_text='Choose which classes should receive the course changes',
                     widget=forms.CheckboxSelectMultiple(attrs={
                         'class': 'form-check-input'
                     })
@@ -216,11 +183,11 @@ class CourseUpdateForm(CourseForm):
     def clean(self):
         cleaned_data = super().clean()
         update_existing = cleaned_data.get('update_existing_classes')
-        update_fields = cleaned_data.get('class_update_fields')
+        selected_classes = cleaned_data.get('selected_classes', [])
         
-        if update_existing and not update_fields:
-            self.add_error('class_update_fields', 
-                          'Please select which fields to update in existing classes.')
+        if update_existing and not selected_classes:
+            self.add_error('selected_classes', 
+                          'Please select which classes to update.')
         
         return cleaned_data
 
