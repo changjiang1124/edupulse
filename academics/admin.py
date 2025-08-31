@@ -4,8 +4,8 @@ from .models import Course, Class
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ('name', 'status', 'course_type', 'teacher', 'price', 'get_period_display', 'vacancy', 'is_bookable', 'is_active')
-    list_filter = ('status', 'course_type', 'teacher', 'is_bookable', 'is_active', 'start_date')
+    list_display = ('name', 'status', 'course_type', 'teacher', 'price', 'get_period_display', 'vacancy', 'is_online_bookable', 'bookable_state')
+    list_filter = ('status', 'course_type', 'teacher', 'is_online_bookable', 'bookable_state', 'start_date')
     search_fields = ('name', 'description', 'short_description', 'teacher__first_name', 'teacher__last_name')
     ordering = ('-start_date',)
     actions = ['generate_classes_action', 'publish_courses', 'unpublish_courses']
@@ -18,13 +18,13 @@ class CourseAdmin(admin.ModelAdmin):
             'fields': ('start_date', 'end_date', 'repeat_pattern', 'start_time', 'duration_minutes')
         }),
         ('Capacity & Booking', {
-            'fields': ('vacancy', 'is_bookable')
+            'fields': ('vacancy', 'is_online_bookable', 'enrollment_deadline')
         }),
         ('Location', {
             'fields': ('facility', 'classroom')
         }),
         ('WooCommerce Integration', {
-            'fields': ('external_id', 'is_active'),
+            'fields': ('external_id',),
             'classes': ('collapse',)
         })
     )

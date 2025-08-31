@@ -18,7 +18,7 @@ class CourseListView(LoginRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        queryset = Course.objects.filter(is_active=True)
+        queryset = Course.objects.filter(status='published')
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(

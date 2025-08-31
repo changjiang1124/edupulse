@@ -12,7 +12,7 @@ class CourseForm(forms.ModelForm):
         fields = [
             'name', 'short_description', 'description', 'price', 'course_type', 'status', 'teacher',
             'start_date', 'end_date', 'repeat_pattern', 'repeat_weekday', 'repeat_day_of_month', 
-            'start_time', 'duration_minutes', 'vacancy', 'facility', 'classroom', 'is_bookable',
+            'start_time', 'duration_minutes', 'vacancy', 'facility', 'classroom', 'is_online_bookable',
             'enrollment_deadline'
         ]
         widgets = {
@@ -77,7 +77,7 @@ class CourseForm(forms.ModelForm):
             'classroom': forms.Select(attrs={
                 'class': 'form-select'
             }),
-            'is_bookable': forms.CheckboxInput(attrs={
+            'is_online_bookable': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
             'enrollment_deadline': forms.DateInput(attrs={
@@ -112,12 +112,9 @@ class CourseUpdateForm(CourseForm):
     """Course update form with class update options"""
     
     class Meta(CourseForm.Meta):
-        fields = CourseForm.Meta.fields + ['is_active', 'bookable_state']
+        fields = CourseForm.Meta.fields + ['bookable_state']
         widgets = CourseForm.Meta.widgets.copy()
         widgets.update({
-            'is_active': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
-            }),
             'bookable_state': forms.Select(attrs={
                 'class': 'form-select'
             })
@@ -140,6 +137,19 @@ class CourseUpdateForm(CourseForm):
         super().__init__(*args, **kwargs)
         
         if self.instance and self.instance.pk:
+            # Disable fields that shouldn't be changed in edit mode to avoid complications
+            readonly_fields = ['repeat_pattern', 'course_type', 'start_date', 'end_date']
+            for field_name in readonly_fields:
+                if field_name in self.fields:
+                    self.fields[field_name].disabled = True
+                    # Add help text to explain why it's disabled
+                    if field_name == 'repeat_pattern':
+                        self.fields[field_name].help_text = "Cannot be changed after course creation to avoid affecting existing classes"
+                    elif field_name in ['start_date', 'end_date']:
+                        self.fields[field_name].help_text = "Cannot be changed after course creation to avoid affecting class schedules"  
+                    elif field_name == 'course_type':
+                        self.fields[field_name].help_text = "Cannot be changed after course creation"
+            
             # Add individual class selection field for upcoming classes
             from django.utils import timezone
             today = timezone.now().date()

@@ -45,7 +45,7 @@ class EnrollmentListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         # Add filter options
         context['students'] = Student.objects.all().order_by('first_name', 'last_name')
-        context['courses'] = Course.objects.filter(is_active=True).order_by('name')
+        context['courses'] = Course.objects.filter(status='published').order_by('name')
         return context
 
 
@@ -141,13 +141,17 @@ class PublicEnrollmentView(TemplateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['courses'] = Course.objects.filter(is_active=True).order_by('name')
+        # Only show published courses that allow online bookings
+        context['courses'] = Course.objects.filter(
+            status='published', 
+            is_online_bookable=True
+        ).order_by('name')
         context['form'] = PublicEnrollmentForm()
         return context
     
     def post(self, request, *args, **kwargs):
         form = PublicEnrollmentForm(request.POST)
-        courses = Course.objects.filter(is_active=True).order_by('name')
+        courses = Course.objects.filter(status='published', is_online_bookable=True).order_by('name')
         
         if form.is_valid():
             # Create or get student

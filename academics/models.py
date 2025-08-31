@@ -129,9 +129,10 @@ class Course(models.Model):
         default=1,
         verbose_name='Vacancy'
     )
-    is_bookable = models.BooleanField(
+    is_online_bookable = models.BooleanField(
         default=True,
-        verbose_name='Bookable'
+        verbose_name='Allow Online Bookings',
+        help_text='Enable students to enroll in this course through the online form'
     )
     bookable_state = models.CharField(
         max_length=20,
@@ -170,11 +171,6 @@ class Course(models.Model):
         unique=True,
         null=True,
         verbose_name='WooCommerce Product ID'
-    )
-    
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name='Active'
     )
     
     created_at = models.DateTimeField(
@@ -427,8 +423,8 @@ class Course(models.Model):
         if end_date < today:
             return 'closed'
         
-        # Check if course is published and bookable
-        if self.status != 'published' or not self.is_bookable:
+        # Check if course is published and online bookable
+        if self.status != 'published' or not self.is_online_bookable:
             return 'closed'
         
         # Check enrollment count vs vacancy
