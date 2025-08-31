@@ -253,6 +253,35 @@
                             {% endif %}
                         </div>
                     </div>
+                    
+                    <!-- Booking Settings -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">Booking Settings</h6>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.enrollment_deadline.id_for_label }}" class="form-label">Enrollment Deadline</label>
+                                    {{ form.enrollment_deadline }}
+                                    {% if form.enrollment_deadline.help_text %}
+                                        <div class="form-text">{{ form.enrollment_deadline.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.enrollment_deadline.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.enrollment_deadline.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-3 mt-4">
+                                    {{ form.is_bookable }}
+                                    <label class="form-check-label" for="{{ form.is_bookable.id_for_label }}">
+                                        Allow Online Bookings
+                                    </label>
+                                    <div class="form-text">Enable students to enroll in this course online</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Advanced Options for Edit Form -->
                     {% if form.instance.pk %}
@@ -262,18 +291,22 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-check mb-3">
-                                    {{ form.is_bookable }}
-                                    <label class="form-check-label" for="{{ form.is_bookable.id_for_label }}">
-                                        Bookable
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check mb-3">
                                     {{ form.is_active }}
                                     <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
                                         Active
                                     </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.bookable_state.id_for_label }}" class="form-label">Bookable State</label>
+                                    {{ form.bookable_state }}
+                                    {% if form.bookable_state.help_text %}
+                                        <div class="form-text">{{ form.bookable_state.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.bookable_state.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.bookable_state.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>

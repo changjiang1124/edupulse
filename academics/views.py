@@ -53,6 +53,10 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Update computed status fields before displaying
+        self.object.update_computed_fields()
+        
         # Use the correct related_name 'classes'
         context['classes'] = self.object.classes.filter(is_active=True).order_by('date', 'start_time')
         # Add enrollment information with try/except to avoid errors

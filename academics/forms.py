@@ -12,7 +12,8 @@ class CourseForm(forms.ModelForm):
         fields = [
             'name', 'short_description', 'description', 'price', 'course_type', 'status', 'teacher',
             'start_date', 'end_date', 'repeat_pattern', 'repeat_weekday', 'repeat_day_of_month', 
-            'start_time', 'duration_minutes', 'vacancy', 'facility', 'classroom', 'is_bookable'
+            'start_time', 'duration_minutes', 'vacancy', 'facility', 'classroom', 'is_bookable',
+            'enrollment_deadline'
         ]
         widgets = {
             'name': forms.TextInput(attrs={
@@ -79,6 +80,10 @@ class CourseForm(forms.ModelForm):
             'is_bookable': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
+            'enrollment_deadline': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
         }
         
     def __init__(self, *args, **kwargs):
@@ -107,10 +112,15 @@ class CourseUpdateForm(CourseForm):
     """Course update form with class update options"""
     
     class Meta(CourseForm.Meta):
-        fields = CourseForm.Meta.fields + ['is_active']
+        fields = CourseForm.Meta.fields + ['is_active', 'bookable_state']
         widgets = CourseForm.Meta.widgets.copy()
-        widgets['is_active'] = forms.CheckboxInput(attrs={
-            'class': 'form-check-input'
+        widgets.update({
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'bookable_state': forms.Select(attrs={
+                'class': 'form-select'
+            })
         })
     
     # Additional fields for class update control

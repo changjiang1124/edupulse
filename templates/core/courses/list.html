@@ -59,9 +59,16 @@
                                         <span class="badge bg-info">{{ course.get_course_type_display }}</span>
                                     </td>
                                     <td>
-                                        <span class="status-badge status-{{ course.status }}">
-                                            {{ course.get_status_display }}
-                                        </span>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            <span class="status-badge status-{{ course.status }}">
+                                                {{ course.get_status_display }}
+                                            </span>
+                                            {% if course.get_current_bookable_state != 'bookable' %}
+                                            <span class="badge bg-warning text-dark">
+                                                {{ course.get_bookable_state_display }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                     <td>
                                         {% if course.teacher %}

@@ -35,6 +35,13 @@ class Course(models.Model):
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('published', 'Published'),
+        ('expired', 'Expired'),
+    ]
+    
+    BOOKABLE_STATE_CHOICES = [
+        ('bookable', 'Bookable'),
+        ('fully_booked', 'Fully Booked'),
+        ('closed', 'Closed'),
     ]
     
     name = models.CharField(
@@ -125,6 +132,19 @@ class Course(models.Model):
     is_bookable = models.BooleanField(
         default=True,
         verbose_name='Bookable'
+    )
+    bookable_state = models.CharField(
+        max_length=20,
+        choices=BOOKABLE_STATE_CHOICES,
+        default='bookable',
+        verbose_name='Bookable State',
+        help_text='Current booking availability status'
+    )
+    enrollment_deadline = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Enrollment Deadline',
+        help_text='Last date to accept enrollments (leave blank for no deadline)'
     )
     
     # Facilities and classroom
@@ -377,6 +397,75 @@ class Course(models.Model):
         elif self.repeat_pattern == 'once':
             return "Single session"
         return self.get_repeat_pattern_display()
+    
+    def get_current_status(self):
+        """Calculate current course status based on dates"""
+        from django.utils import timezone
+        today = timezone.now().date()
+        
+        if self.status == 'draft':
+            return 'draft'
+        elif self.status == 'published':
+            # Check if course has expired (past end date)
+            end_date = self.end_date or self.start_date
+            if end_date < today:
+                return 'expired'
+            return 'published'
+        return self.status
+    
+    def get_current_bookable_state(self):
+        """Calculate current bookable state based on enrollments and conditions"""
+        from django.utils import timezone
+        today = timezone.now().date()
+        
+        # Check if enrollment deadline has passed
+        if self.enrollment_deadline and self.enrollment_deadline < today:
+            return 'closed'
+        
+        # Check if course has expired
+        end_date = self.end_date or self.start_date
+        if end_date < today:
+            return 'closed'
+        
+        # Check if course is published and bookable
+        if self.status != 'published' or not self.is_bookable:
+            return 'closed'
+        
+        # Check enrollment count vs vacancy
+        try:
+            from enrollment.models import Enrollment
+            confirmed_enrollments = Enrollment.objects.filter(
+                course=self,
+                status='confirmed'
+            ).count()
+            
+            if confirmed_enrollments >= self.vacancy:
+                return 'fully_booked'
+        except ImportError:
+            # If enrollment app not available, just check base conditions
+            pass
+        
+        return 'bookable'
+    
+    def update_computed_fields(self):
+        """Update computed status fields"""
+        current_status = self.get_current_status()
+        current_bookable_state = self.get_current_bookable_state()
+        
+        # Only update if changed to avoid unnecessary saves
+        updated = False
+        if self.status != current_status and current_status == 'expired':
+            self.status = current_status
+            updated = True
+        
+        if self.bookable_state != current_bookable_state:
+            self.bookable_state = current_bookable_state
+            updated = True
+        
+        if updated:
+            self.save(update_fields=['status', 'bookable_state'])
+        
+        return updated
 
 
 class Class(models.Model):
