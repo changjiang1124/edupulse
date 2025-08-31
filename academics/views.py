@@ -81,16 +81,28 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
         # Handle class updates if requested
         update_existing = form.cleaned_data.get('update_existing_classes', False)
         update_fields = form.cleaned_data.get('class_update_fields', [])
+        selected_classes = form.cleaned_data.get('selected_classes', [])
         from_date = form.cleaned_data.get('update_classes_from_date')
         
         if update_existing and update_fields:
-            # Get classes to update
-            classes_queryset = self.object.classes.filter(is_active=True)
+            # Determine which classes to update
+            if selected_classes:
+                # Use specifically selected classes
+                classes_to_update = self.object.classes.filter(
+                    is_active=True,
+                    id__in=[int(class_id) for class_id in selected_classes]
+                )
+                update_method = "selected"
+            else:
+                # Use date range filter as before
+                classes_queryset = self.object.classes.filter(is_active=True)
+                
+                if from_date:
+                    classes_queryset = classes_queryset.filter(date__gte=from_date)
+                
+                classes_to_update = classes_queryset.all()
+                update_method = "date_range"
             
-            if from_date:
-                classes_queryset = classes_queryset.filter(date__gte=from_date)
-            
-            classes_to_update = classes_queryset.all()
             updated_count = 0
             
             # Update each class with selected fields
@@ -108,12 +120,19 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
                     class_instance.save()
                     updated_count += 1
             
+            # Provide appropriate success message
             if updated_count > 0:
                 field_names = ', '.join([dict(form.fields['class_update_fields'].choices)[f] for f in update_fields])
-                messages.success(
-                    self.request,
-                    f'Course updated successfully! {updated_count} class(es) updated with new {field_names}.'
-                )
+                if update_method == "selected":
+                    messages.success(
+                        self.request,
+                        f'Course updated successfully! {updated_count} selected class(es) updated with new {field_names}.'
+                    )
+                else:
+                    messages.success(
+                        self.request,
+                        f'Course updated successfully! {updated_count} class(es) updated with new {field_names}.'
+                    )
             else:
                 messages.success(self.request, f'Course updated successfully! No classes needed updates.')
         else:

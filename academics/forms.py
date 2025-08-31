@@ -170,10 +170,48 @@ class CourseUpdateForm(CourseForm):
         if self.instance and self.instance.pk:
             # Set default date to today for future updates
             from django.utils import timezone
-            self.fields['update_classes_from_date'].initial = timezone.now().date()
+            today = timezone.now().date()
+            self.fields['update_classes_from_date'].initial = today
             
             # Pre-select commonly changed fields
             self.fields['class_update_fields'].initial = ['teacher', 'classroom']
+            
+            # Add individual class selection field
+            upcoming_classes = self.instance.classes.filter(
+                is_active=True,
+                date__gte=today
+            ).order_by('date', 'start_time')
+            
+            if upcoming_classes.exists():
+                class_choices = []
+                for class_instance in upcoming_classes:
+                    label = f"{class_instance.date.strftime('%a %d/%m/%Y')} at {class_instance.start_time.strftime('%I:%M %p')}"
+                    
+                    # Add teacher info if available
+                    teacher = class_instance.teacher or self.instance.teacher
+                    if teacher and (teacher.first_name or teacher.last_name):
+                        teacher_name = f"{teacher.first_name} {teacher.last_name}".strip()
+                        label += f" - {teacher_name}"
+                    elif teacher:
+                        label += f" - {teacher.username}"
+                    
+                    # Add location info if available
+                    if class_instance.classroom:
+                        label += f" [{class_instance.classroom.name}]"
+                    elif class_instance.facility:
+                        label += f" [{class_instance.facility.name}]"
+                    
+                    class_choices.append((class_instance.id, label))
+                
+                self.fields['selected_classes'] = forms.MultipleChoiceField(
+                    choices=class_choices,
+                    required=False,
+                    label='Select Specific Classes',
+                    help_text='Choose which classes to update (leave blank to use date range filter)',
+                    widget=forms.CheckboxSelectMultiple(attrs={
+                        'class': 'form-check-input'
+                    })
+                )
     
     def clean(self):
         cleaned_data = super().clean()
