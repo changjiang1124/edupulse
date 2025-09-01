@@ -87,6 +87,8 @@
                             <h5 class="text-primary mb-3">
                                 <i class="fas fa-user me-2"></i>Student Information
                             </h5>
+                            
+                            <!-- Name Fields -->
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-3">
@@ -120,39 +122,7 @@
                                 </div>
                             </div>
                             
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="{{ form.email.id_for_label }}" class="form-label">
-                                            Email Address <span class="text-danger">*</span>
-                                        </label>
-                                        {{ form.email }}
-                                        {% if form.email.errors %}
-                                            <div class="invalid-feedback d-block">
-                                                {% for error in form.email.errors %}
-                                                    {{ error }}
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="{{ form.phone.id_for_label }}" class="form-label">
-                                            Phone Number <span class="text-danger">*</span>
-                                        </label>
-                                        {{ form.phone }}
-                                        {% if form.phone.errors %}
-                                            <div class="invalid-feedback d-block">
-                                                {% for error in form.phone.errors %}
-                                                    {{ error }}
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            
+                            <!-- Date of Birth - MUST come first to determine contact type -->
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-3">
@@ -167,6 +137,9 @@
                                                 {% endfor %}
                                             </div>
                                         {% endif %}
+                                        <div class="form-text">
+                                            This determines if guardian information is required
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -189,17 +162,25 @@
 
                         <hr class="my-4">
 
-                        <!-- Guardian Information -->
-                        <div class="mb-4" id="guardianSection">
+                        <!-- Contact Information Section - Dynamic based on age -->
+                        <div class="mb-4">
                             <h5 class="text-primary mb-3">
-                                <i class="fas fa-users me-2"></i>Parent/Guardian Information
-                                <small class="text-muted">(Required for students under 18)</small>
+                                <i class="fas fa-address-book me-2"></i>
+                                <span id="contactSectionTitle">Contact Information</span>
                             </h5>
-                            <div class="row">
+                            
+                            <!-- Age-based information alert -->
+                            <div id="ageAlert" class="alert d-none mb-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <span id="ageAlertText"></span>
+                            </div>
+                            
+                            <!-- Guardian Name (conditional) -->
+                            <div class="row" id="guardianNameRow" style="display: none;">
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="{{ form.guardian_name.id_for_label }}" class="form-label">
-                                            Guardian Name
+                                            Parent/Guardian Name <span class="text-danger">*</span>
                                         </label>
                                         {{ form.guardian_name }}
                                         {% if form.guardian_name.errors %}
@@ -211,10 +192,62 @@
                                         {% endif %}
                                     </div>
                                 </div>
+                            </div>
+                            
+                            <!-- Primary Contact Information -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.email.id_for_label }}" class="form-label">
+                                            <span id="emailLabel">Contact Email Address</span> <span class="text-danger">*</span>
+                                        </label>
+                                        {{ form.email }}
+                                        {% if form.email.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.email.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        <div class="form-text" id="emailHelp">
+                                            {{ form.email.help_text }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.phone.id_for_label }}" class="form-label">
+                                            <span id="phoneLabel">Contact Phone Number</span> <span class="text-danger">*</span>
+                                        </label>
+                                        {{ form.phone }}
+                                        {% if form.phone.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.phone.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        <div class="form-text" id="phoneHelp">
+                                            {{ form.phone.help_text }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Additional Guardian Information (optional) -->
+                        <div class="mb-4" id="additionalGuardianSection" style="display: none;">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-users me-2"></i>Additional Guardian Information
+                                <small class="text-muted">(Optional secondary contact)</small>
+                            </h5>
+                            <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="{{ form.guardian_email.id_for_label }}" class="form-label">
-                                            Guardian Email
+                                            Additional Guardian Email
                                         </label>
                                         {{ form.guardian_email }}
                                         {% if form.guardian_email.errors %}
@@ -224,14 +257,15 @@
                                                 {% endfor %}
                                             </div>
                                         {% endif %}
+                                        <div class="form-text">
+                                            If there's a second parent/guardian to notify
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="{{ form.guardian_phone.id_for_label }}" class="form-label">
-                                            Guardian Phone
+                                            Additional Guardian Phone
                                         </label>
                                         {{ form.guardian_phone }}
                                         {% if form.guardian_phone.errors %}
@@ -345,16 +379,29 @@
 </div>
 
 <script>
-// Auto-populate guardian fields based on student age
+// Dynamic contact information collection based on student age
 document.addEventListener('DOMContentLoaded', function() {
     const dobField = document.getElementById('{{ form.date_of_birth.id_for_label }}');
-    const guardianSection = document.getElementById('guardianSection');
+    const guardianNameField = document.getElementById('{{ form.guardian_name.id_for_label }}');
+    
+    // UI Elements
+    const contactSectionTitle = document.getElementById('contactSectionTitle');
+    const ageAlert = document.getElementById('ageAlert');
+    const ageAlertText = document.getElementById('ageAlertText');
+    const guardianNameRow = document.getElementById('guardianNameRow');
+    const additionalGuardianSection = document.getElementById('additionalGuardianSection');
+    
+    // Labels and help text
+    const emailLabel = document.getElementById('emailLabel');
+    const phoneLabel = document.getElementById('phoneLabel');
+    const emailHelp = document.getElementById('emailHelp');
+    const phoneHelp = document.getElementById('phoneHelp');
     
     function checkAge() {
         if (dobField.value) {
             const dob = new Date(dobField.value);
             const today = new Date();
-            const age = today.getFullYear() - dob.getFullYear();
+            let age = today.getFullYear() - dob.getFullYear();
             const monthDiff = today.getMonth() - dob.getMonth();
             
             if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
@@ -362,12 +409,56 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (age < 18) {
-                guardianSection.querySelector('h5 small').innerHTML = '(Required - Student is under 18)';
-                guardianSection.querySelector('h5 small').className = 'text-danger';
+                // Student is under 18 - collect guardian information
+                contactSectionTitle.textContent = 'Parent/Guardian Contact Information';
+                ageAlert.className = 'alert alert-info mb-3';
+                ageAlertText.textContent = `Student is ${age} years old (under 18). Parent/Guardian contact information is required.`;
+                
+                // Show guardian name field as required
+                guardianNameRow.style.display = 'block';
+                guardianNameField.required = true;
+                
+                // Update contact labels to indicate they're for guardian
+                emailLabel.textContent = 'Parent/Guardian Email';
+                phoneLabel.textContent = 'Parent/Guardian Phone';
+                emailHelp.textContent = 'Primary guardian\'s email for enrollment communications';
+                phoneHelp.textContent = 'Primary guardian\'s phone number';
+                
+                // Show additional guardian section
+                additionalGuardianSection.style.display = 'block';
+                
             } else {
-                guardianSection.querySelector('h5 small').innerHTML = '(Required for students under 18)';
-                guardianSection.querySelector('h5 small').className = 'text-muted';
+                // Student is 18 or over - collect student information
+                contactSectionTitle.textContent = 'Student Contact Information';
+                ageAlert.className = 'alert alert-success mb-3';
+                ageAlertText.textContent = `Student is ${age} years old (adult). Student contact information will be collected.`;
+                
+                // Hide guardian name field
+                guardianNameRow.style.display = 'none';
+                guardianNameField.required = false;
+                
+                // Update contact labels to indicate they're for student
+                emailLabel.textContent = 'Student Email Address';
+                phoneLabel.textContent = 'Student Phone Number';
+                emailHelp.textContent = 'Student\'s email for enrollment communications';
+                phoneHelp.textContent = 'Student\'s phone number';
+                
+                // Hide additional guardian section for adults
+                additionalGuardianSection.style.display = 'none';
             }
+        } else {
+            // No DOB selected - reset to neutral state
+            contactSectionTitle.textContent = 'Contact Information';
+            ageAlert.className = 'alert d-none mb-3';
+            guardianNameRow.style.display = 'none';
+            guardianNameField.required = false;
+            additionalGuardianSection.style.display = 'none';
+            
+            // Neutral labels
+            emailLabel.textContent = 'Contact Email Address';
+            phoneLabel.textContent = 'Contact Phone Number';
+            emailHelp.textContent = 'Main contact email for enrollment communications';
+            phoneHelp.textContent = 'Main contact phone number';
         }
     }
     

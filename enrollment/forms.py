@@ -49,20 +49,22 @@ class PublicEnrollmentForm(forms.Form):
     )
     
     email = forms.EmailField(
-        label='Email Address',
+        label='Contact Email Address',
         widget=forms.EmailInput(attrs={
             'class': 'form-control',
-            'placeholder': 'student@example.com'
-        })
+            'placeholder': 'Primary contact email'
+        }),
+        help_text='This will be the main contact email for enrollment communications'
     )
     
     phone = forms.CharField(
         max_length=20,
-        label='Phone Number',
+        label='Contact Phone Number',
         widget=forms.TextInput(attrs={
             'class': 'form-control',
             'placeholder': '0412 345 678'
-        })
+        }),
+        help_text='Primary contact phone number'
     )
     
     date_of_birth = forms.DateField(
@@ -166,7 +168,24 @@ class PublicEnrollmentForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Populate course choices
-        courses = Course.objects.filter(is_active=True).order_by('name')
+        courses = Course.objects.filter(status='published').order_by('name')
         self.fields['course_id'].choices = [('', 'Select a course...')] + [
             (course.pk, f"{course.name} - ${course.price}") for course in courses
         ]
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        date_of_birth = cleaned_data.get('date_of_birth')
+        guardian_name = cleaned_data.get('guardian_name')
+        
+        if date_of_birth:
+            from datetime import date
+            today = date.today()
+            age = today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
+            
+            if age < 18:
+                # Student is under 18, guardian name is required
+                if not guardian_name:
+                    self.add_error('guardian_name', 'Guardian name is required for students under 18.')
+        
+        return cleaned_data
