@@ -1,7 +1,7 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, TemplateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
 from django.urls import reverse_lazy
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -267,3 +267,63 @@ class ClassUpdateView(LoginRequiredMixin, UpdateView):
         
         messages.success(self.request, f'Class updated successfully!')
         return super().form_valid(form)
+
+
+class ClassDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete class with confirmation and safety checks"""
+    model = Class
+    template_name = 'core/classes/delete.html'
+    
+    def get_success_url(self):
+        # Return to course detail page after deletion
+        return reverse_lazy('academics:course_detail', kwargs={'pk': self.object.course.pk})
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Get deletion impact information
+        try:
+            from enrollment.models import Attendance
+            attendance_count = Attendance.objects.filter(class_instance=self.object).count()
+            context['attendance_count'] = attendance_count
+            context['has_attendance'] = attendance_count > 0
+        except ImportError:
+            context['attendance_count'] = 0
+            context['has_attendance'] = False
+        
+        # Get enrolled students for this course
+        enrolled_count = self.object.course.enrollments.filter(status='confirmed').count()
+        context['enrolled_students_count'] = enrolled_count
+        
+        return context
+    
+    def delete(self, request, *args, **kwargs):
+        """Override delete to add safety checks and logging"""
+        self.object = self.get_object()
+        course_name = self.object.course.name
+        class_date = self.object.date
+        
+        try:
+            # Check if user has permission (admin only)
+            if not request.user.is_superuser and request.user.role != 'admin':
+                messages.error(request, 'Only administrators can delete classes.')
+                return redirect('academics:class_detail', pk=self.object.pk)
+            
+            # Delete related attendance records (CASCADE should handle this, but being explicit)
+            from enrollment.models import Attendance
+            attendance_deleted = Attendance.objects.filter(class_instance=self.object).count()
+            
+            # Perform the deletion
+            response = super().delete(request, *args, **kwargs)
+            
+            # Success message with impact information
+            message = f'Class on {class_date.strftime("%d %B %Y")} for "{course_name}" has been deleted.'
+            if attendance_deleted > 0:
+                message += f' {attendance_deleted} attendance record(s) were also removed.'
+            
+            messages.success(request, message)
+            return response
+            
+        except Exception as e:
+            messages.error(request, f'Error deleting class: {str(e)}')
+            return redirect('academics:class_detail', pk=self.object.pk)

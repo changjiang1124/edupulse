@@ -41,5 +41,5 @@ students related to a certain class should be edited manually as well, due to so
 - [] classes under a course, should be able to be deleted
 
 - [] email with Google workspace account. but can google support SMTP to send? if yes, i would like to make the admin of the orgnaisation able to configure this in the front portal, e.g. having a email configuration item under their avatar in the top right
-- [] SMS sending 
+- [] SMS sending with twilio
 - [] Clients list

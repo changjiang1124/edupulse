@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Class - {{ class.course.name }} - {{ class.date }} - EduPulse{% endblock %}
+
+{% block extra_css %}
+<style>
+.delete-warning {
+    border: 2px solid #dc3545;
+    border-radius: 12px;
+    background: #fdf2f2;
+}
+.impact-section {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+.danger-icon {
+    color: #dc3545;
+    font-size: 3rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card delete-warning">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Delete Class Confirmation
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-trash-alt danger-icon mb-3"></i>
+                        <h5>Are you sure you want to delete this class?</h5>
+                    </div>
+
+                    <!-- Class Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Class Details</h6>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-sm">
+                                        <tr>
+                                            <td><strong>Course:</strong></td>
+                                            <td>{{ class.course.name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Date:</strong></td>
+                                            <td>{{ class.date|date:"l, d F Y" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Time:</strong></td>
+                                            <td>{{ class.start_time|time:"g:i A" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Duration:</strong></td>
+                                            <td>{{ class.get_duration_display }}</td>
+                                        </tr>
+                                        {% if class.teacher %}
+                                        <tr>
+                                            <td><strong>Teacher:</strong></td>
+                                            <td>{{ class.teacher.first_name }} {{ class.teacher.last_name }}</td>
+                                        </tr>
+                                        {% endif %}
+                                        {% if class.classroom %}
+                                        <tr>
+                                            <td><strong>Classroom:</strong></td>
+                                            <td>{{ class.classroom.name }}</td>
+                                        </tr>
+                                        {% endif %}
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-exclamation-circle me-2"></i>Deletion Impact</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% if has_attendance %}
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-warning me-2"></i>
+                                        <strong>Warning:</strong> This class has {{ attendance_count }} attendance record(s) that will also be deleted.
+                                    </div>
+                                    {% else %}
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        No attendance records found for this class.
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if enrolled_students_count > 0 %}
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-users me-2"></i>
+                                        <strong>Note:</strong> {{ enrolled_students_count }} student(s) are enrolled in this course. Consider notifying them about the class cancellation.
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="text-muted">
+                                        <small>
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            This action cannot be undone. All associated data will be permanently removed.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <a href="{% url 'academics:class_detail' class.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                        </div>
+                        
+                        <div>
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger" 
+                                        onclick="return confirm('Are you absolutely sure you want to delete this class? This action cannot be undone.')">
+                                    <i class="fas fa-trash-alt me-2"></i>Yes, Delete Class
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Alternative Actions -->
+                    <div class="text-center">
+                        <h6 class="text-muted mb-3">Alternative Actions</h6>
+                        <div class="btn-group" role="group">
+                            <a href="{% url 'academics:class_edit' class.pk %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-edit me-1"></i>Edit Class Instead
+                            </a>
+                            <a href="{% url 'academics:course_detail' class.course.pk %}" class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-eye me-1"></i>View Course
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -95,9 +95,14 @@
         </div>
         <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
             <div class="d-flex flex-column gap-2">
-                <a href="{% url 'academics:class_edit' class.pk %}" class="btn btn-light">
-                    <i class="fas fa-edit me-2"></i>Edit Class
-                </a>
+                <div class="btn-group">
+                    <a href="{% url 'academics:class_edit' class.pk %}" class="btn btn-light">
+                        <i class="fas fa-edit me-2"></i>Edit Class
+                    </a>
+                    <a href="{% url 'academics:class_delete' class.pk %}" class="btn btn-outline-danger">
+                        <i class="fas fa-trash-alt me-2"></i>Delete
+                    </a>
+                </div>
                 <a href="{% url 'academics:class_list' %}" class="btn btn-outline-light">
                     <i class="fas fa-arrow-left me-2"></i>Back to Classes
                 </a>
