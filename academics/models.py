@@ -44,6 +44,12 @@ class Course(models.Model):
         ('closed', 'Closed'),
     ]
     
+    CATEGORY_CHOICES = [
+        ('term_courses', 'Term Courses'),
+        ('holiday_program', 'Holiday Program'),
+        ('day_courses', 'Day Courses'),
+    ]
+    
     name = models.CharField(
         max_length=200,
         verbose_name='Course Name'
@@ -68,6 +74,13 @@ class Course(models.Model):
         choices=COURSE_TYPE_CHOICES,
         default='group',
         verbose_name='Course Type'
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        default='term_courses',
+        verbose_name='Category',
+        help_text='Course category for organization and WooCommerce sync'
     )
     status = models.CharField(
         max_length=20,

@@ -240,6 +240,9 @@
             <div class="card-body">
                 <div class="d-grid gap-2">
                     <a href="{% url 'students:student_edit' student.pk %}" class="btn btn-primary">Edit Student</a>
+                    <button type="button" class="btn btn-success" onclick="openNotificationModal([{{ student.pk }}])">
+                        <i class="fas fa-paper-plane me-2"></i>Send Notification
+                    </button>
                     <a href="{% url 'enrollment:enrollment_list' %}?student={{ student.pk }}" class="btn btn-outline-info">View Enrollments</a>
                     <a href="{% url 'enrollment:attendance_list' %}?student={{ student.pk }}" class="btn btn-outline-success">View Attendance</a>
                 </div>
@@ -247,4 +250,277 @@
         </div>
     </div>
 </div>
+
+<!-- Notification Modal -->
+<div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="notificationModalLabel">Send Notification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Quota Information -->
+                <div class="row mb-3" id="quotaInfo" style="display: none;">
+                    <div class="col-md-6">
+                        <div class="quota-display">
+                            <strong>Email Quota:</strong>
+                            <span id="emailQuota">Loading...</span>
+                            <div class="progress mt-1">
+                                <div class="progress-bar" id="emailProgressBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="quota-display">
+                            <strong>SMS Quota:</strong>
+                            <span id="smsQuota">Loading...</span>
+                            <div class="progress mt-1">
+                                <div class="progress-bar" id="smsProgressBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recipient Information -->
+                <div class="alert alert-info" id="recipientInfo">
+                    <h6><i class="fas fa-users me-2"></i>Recipients</h6>
+                    <div id="recipientList">Loading recipient information...</div>
+                </div>
+                
+                <!-- Notification Form -->
+                <form id="notificationForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="studentIds" name="student_ids">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="notificationType" class="form-label">Notification Type</label>
+                                <select class="form-select" id="notificationType" name="notification_type" onchange="toggleEmailFields()">
+                                    <option value="email">Email Only</option>
+                                    <option value="sms">SMS Only</option>
+                                    <option value="both">Both Email & SMS</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="messageType" class="form-label">Message Type</label>
+                                <select class="form-select" id="messageType" name="message_type">
+                                    <option value="general">General Message</option>
+                                    <option value="course_reminder">Course Reminder</option>
+                                    <option value="attendance_notice">Attendance Notice</option>
+                                    <option value="welcome">Welcome Message</option>
+                                    <option value="enrollment_confirm">Enrollment Confirmation</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Email Subject Field -->
+                    <div class="mb-3" id="subjectField">
+                        <label for="subject" class="form-label">Email Subject</label>
+                        <input type="text" class="form-control" id="subject" name="subject" placeholder="Enter email subject">
+                    </div>
+                    
+                    <!-- Message Content -->
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Message Content</label>
+                        <textarea class="form-control" id="message" name="message" rows="5" placeholder="Enter your message here..."></textarea>
+                        <div class="form-text">
+                            <span id="charCount">0</span>/160 characters (SMS limit)
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="sendNotificationBtn" onclick="sendNotification()">
+                    <i class="fas fa-paper-plane me-2"></i>Send Notification
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Notification Modal JavaScript
+let selectedStudentIds = [];
+
+async function openNotificationModal(studentIds) {
+    selectedStudentIds = studentIds;
+    document.getElementById('studentIds').value = studentIds.join(',');
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
+    modal.show();
+    
+    // Load quota information
+    await loadQuotaInfo();
+    
+    // Load recipient information
+    loadRecipientInfo(studentIds);
+    
+    // Reset form
+    document.getElementById('notificationForm').reset();
+    document.getElementById('studentIds').value = studentIds.join(',');
+    toggleEmailFields();
+    updateCharCount();
+}
+
+async function loadQuotaInfo() {
+    try {
+        const response = await fetch('{% url "core:get_notification_quotas" %}');
+        const data = await response.json();
+        
+        if (data.success) {
+            const quotas = data.quotas;
+            
+            // Update email quota display
+            document.getElementById('emailQuota').textContent = 
+                `${quotas.email.used}/${quotas.email.limit} (${quotas.email.remaining} remaining)`;
+            document.getElementById('emailProgressBar').style.width = `${quotas.email.percentage}%`;
+            document.getElementById('emailProgressBar').className = 
+                `progress-bar ${quotas.email.percentage > 90 ? 'bg-danger' : quotas.email.percentage > 70 ? 'bg-warning' : 'bg-success'}`;
+            
+            // Update SMS quota display
+            document.getElementById('smsQuota').textContent = 
+                `${quotas.sms.used}/${quotas.sms.limit} (${quotas.sms.remaining} remaining)`;
+            document.getElementById('smsProgressBar').style.width = `${quotas.sms.percentage}%`;
+            document.getElementById('smsProgressBar').className = 
+                `progress-bar ${quotas.sms.percentage > 90 ? 'bg-danger' : quotas.sms.percentage > 70 ? 'bg-warning' : 'bg-success'}`;
+            
+            // Show quota info
+            document.getElementById('quotaInfo').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Failed to load quota information:', error);
+    }
+}
+
+function loadRecipientInfo(studentIds) {
+    // For single student, we can show the current student info
+    if (studentIds.length === 1 && studentIds[0] === {{ student.pk }}) {
+        const contactInfo = getStudentContactDisplay();
+        document.getElementById('recipientList').innerHTML = contactInfo;
+    } else {
+        document.getElementById('recipientList').innerHTML = 
+            `<strong>${studentIds.length}</strong> student(s) selected for notification.`;
+    }
+}
+
+function getStudentContactDisplay() {
+    // Display contact information based on enrollment logic
+    const name = '{{ student.first_name }} {{ student.last_name }}';
+    let contactInfo = `<strong>${name}</strong><br>`;
+    
+    // Check if we have guardian info (under 18 logic)
+    {% if student.guardian_name or student.guardian_email or student.guardian_phone %}
+        contactInfo += '<i class="fas fa-user-friends me-1"></i>Guardian Contact: ';
+        {% if student.guardian_name %}
+            contactInfo += '{{ student.guardian_name }}';
+        {% endif %}
+        {% if student.guardian_email %}
+            contactInfo += ' ({{ student.guardian_email }})';
+        {% endif %}
+        {% if student.guardian_phone %}
+            contactInfo += ' - {{ student.guardian_phone }}';
+        {% endif %}
+    {% else %}
+        contactInfo += '<i class="fas fa-user me-1"></i>Direct Contact: ';
+        {% if student.email %}
+            contactInfo += '{{ student.email }}';
+        {% endif %}
+        {% if student.phone %}
+            contactInfo += ' - {{ student.phone }}';
+        {% endif %}
+    {% endif %}
+    
+    return contactInfo;
+}
+
+function toggleEmailFields() {
+    const notificationType = document.getElementById('notificationType').value;
+    const subjectField = document.getElementById('subjectField');
+    
+    if (notificationType === 'email' || notificationType === 'both') {
+        subjectField.style.display = 'block';
+        document.getElementById('subject').required = true;
+    } else {
+        subjectField.style.display = 'none';
+        document.getElementById('subject').required = false;
+    }
+}
+
+function updateCharCount() {
+    const message = document.getElementById('message').value;
+    const charCount = document.getElementById('charCount');
+    charCount.textContent = message.length;
+    
+    if (message.length > 160) {
+        charCount.parentElement.classList.add('text-danger');
+    } else {
+        charCount.parentElement.classList.remove('text-danger');
+    }
+}
+
+async function sendNotification() {
+    const form = document.getElementById('notificationForm');
+    const formData = new FormData(form);
+    const sendBtn = document.getElementById('sendNotificationBtn');
+    
+    // Disable send button
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+    
+    try {
+        const response = await fetch('{% url "core:send_notification" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Show success message
+            alert(`Success! ${data.message}`);
+            
+            // Hide modal
+            bootstrap.Modal.getInstance(document.getElementById('notificationModal')).hide();
+            
+            // Reload quota info
+            await loadQuotaInfo();
+        } else {
+            // Show error
+            let errorMsg = 'Failed to send notification:';
+            if (data.error) {
+                errorMsg += ' ' + data.error;
+            }
+            if (data.errors && Object.keys(data.errors).length > 0) {
+                errorMsg += ' ' + Object.values(data.errors).flat().join(', ');
+            }
+            alert(errorMsg);
+        }
+    } catch (error) {
+        console.error('Error sending notification:', error);
+        alert('An error occurred while sending the notification. Please try again.');
+    } finally {
+        // Re-enable send button
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Notification';
+    }
+}
+
+// Event listeners
+document.getElementById('message').addEventListener('input', updateCharCount);
+document.addEventListener('DOMContentLoaded', function() {
+    toggleEmailFields();
+    updateCharCount();
+});
+</script>
+
 {% endblock %}

@@ -38,8 +38,24 @@ students related to a certain class should be edited manually as well, due to so
   those logics. and I think to avoid confusing bookable status with this, we should make allowing online book with indicator
    is_online_bookable. do you agree? 3. i think we should remove the old is_active, and use status for the matter.
 
-- [] classes under a course, should be able to be deleted
+- [x] classes should be able to be deleted for management, including under a course, or in detail page? and should have confirmation mechanism? 
 
-- [] email with Google workspace account. but can google support SMTP to send? if yes, i would like to make the admin of the orgnaisation able to configure this in the front portal, e.g. having a email configuration item under their avatar in the top right
-- [] SMS sending with twilio
-- [] Clients list
+- [x] email with Google workspace account. but can google support SMTP to send? if yes, i would like to make the admin of the orgnaisation able to configure this in the front portal, e.g. having a email configuration item under their avatar in the top right
+- [x] i want to follow the practice of email, to implement SMS sending with twilio.
+  ==tested email sending.fine==
+
+- [x] in student page, we should have a notification function, to allow send SMS/email in batch or individual (you should think harder on the UX design here). in email, you should add reply-to in case others reply the email. SMS should be no-reply (is this configured at twilio portal?). SMS and email should have monthly limitation, and configured by me in django admin (not visible for frontend) . as the contact information, or information like whether you should use guardian's name or student's name, you should review by the enrolment design.
+
+- [] attendance for staff/teacher, in a public url. 
+
+- [x] enrolment, only show hint if student under 18. and check if you are using the only one contact email and phone number. as if student under 18, this should be their guardian, but dont need to have separate guardiant email or student email, as for phone number. otherwise when sending notification, we need to identify which contact email / sms we should send. for under 18, the only difference should be the guardian name is provided or not. and for validation, before DOB is specified, the contact information section should be disabled. do you agree such interaction?
+
+- [x] woocommernce API prototype test. I include information in .env for woocommerce API. to test the connection, we should use a test course infomration with external product(?) to create a post? i also prefer the edit will update the content in woocommerce as well. 
+  ```
+  WC_CONSUMER_KEY
+  WC_CONSUMER_SECRET
+  WC_BASE_URL
+  ```
+
+
+- [x] course should support category (which is also a mapping to WooCommerce): 1. Term Courses; 2. Holiday Program; 3. Day Courses. when create / edit course, and sync course with woocommerce, this should be supported as well.

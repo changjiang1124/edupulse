@@ -64,7 +64,7 @@ class FacilityDetailView(AdminRequiredMixin, DetailView):
         # Add courses for this facility - with try/except to avoid errors
         try:
             from academics.models import Course
-            context['courses'] = Course.objects.filter(facility=self.object, is_active=True)
+            context['courses'] = Course.objects.filter(facility=self.object, status='published')
         except ImportError:
             context['courses'] = []
         return context
@@ -134,7 +134,7 @@ class ClassroomDetailView(AdminRequiredMixin, DetailView):
         # Add courses and classes using this classroom - with try/except to avoid errors
         try:
             from academics.models import Course, Class
-            context['courses'] = Course.objects.filter(classroom=self.object, is_active=True)
+            context['courses'] = Course.objects.filter(classroom=self.object, status='published')
             context['classes'] = Class.objects.filter(
                 classroom=self.object, is_active=True
             ).select_related('course').order_by('-date')[:10]

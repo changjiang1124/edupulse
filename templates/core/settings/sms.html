@@ -1,0 +1,483 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}SMS Settings - EduPulse{% endblock %}
+
+{% block extra_css %}
+<style>
+.settings-header {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+.settings-card {
+    border: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border-radius: 12px;
+}
+.preset-btn {
+    margin-bottom: 10px;
+}
+.connection-status {
+    padding: 10px;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+.status-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+.status-failed {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+.status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+.stats-card {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 10px;
+}
+.backend-section {
+    display: none;
+}
+.backend-section.active {
+    display: block;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Settings Header -->
+    <div class="settings-header">
+        <div class="d-flex align-items-center">
+            <div class="me-3">
+                <i class="fas fa-sms fa-3x"></i>
+            </div>
+            <div>
+                <h1 class="h2 mb-0">SMS Configuration</h1>
+                <p class="mb-0 opacity-75">Configure SMS messaging settings for automated notifications</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Configuration Form -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card settings-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cog me-2 text-primary"></i>SMS Service Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" id="smsSettingsForm">
+                        {% csrf_token %}
+                        
+                        <!-- Service Type Selection -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">SMS Service Provider</label>
+                            {{ form.sms_backend_type }}
+                            <div class="form-text">Choose your SMS service provider</div>
+                        </div>
+
+                        <!-- Twilio Configuration -->
+                        <div id="twilio-config" class="backend-section">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-comment-sms me-2"></i>Twilio Configuration
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ form.account_sid.label }}</label>
+                                    {{ form.account_sid }}
+                                    <div class="form-text">{{ form.account_sid.help_text }}</div>
+                                    {% if form.account_sid.errors %}
+                                        <div class="text-danger small">{{ form.account_sid.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ form.auth_token.label }}</label>
+                                    {{ form.auth_token }}
+                                    <div class="form-text">{{ form.auth_token.help_text }}</div>
+                                    {% if form.auth_token.errors %}
+                                        <div class="text-danger small">{{ form.auth_token.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.from_number.label }}</label>
+                                {{ form.from_number }}
+                                <div class="form-text">{{ form.from_number.help_text }}</div>
+                                {% if form.from_number.errors %}
+                                    <div class="text-danger small">{{ form.from_number.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Custom SMS Gateway Configuration -->
+                        <div id="custom-config" class="backend-section">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-server me-2"></i>Custom SMS Gateway
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ form.api_url.label }}</label>
+                                    {{ form.api_url }}
+                                    {% if form.api_url.errors %}
+                                        <div class="text-danger small">{{ form.api_url.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ form.api_key.label }}</label>
+                                    {{ form.api_key }}
+                                    {% if form.api_key.errors %}
+                                        <div class="text-danger small">{{ form.api_key.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sender Information -->
+                        <div class="mb-4">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-user me-2"></i>Sender Information
+                            </h6>
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.sender_name.label }}</label>
+                                {{ form.sender_name }}
+                                <div class="form-text">{{ form.sender_name.help_text }}</div>
+                                {% if form.sender_name.errors %}
+                                    <div class="text-danger small">{{ form.sender_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Activation -->
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                {{ form.is_active }}
+                                <label class="form-check-label fw-bold" for="{{ form.is_active.id_for_label }}">
+                                    {{ form.is_active.label }}
+                                </label>
+                            </div>
+                            <div class="form-text">{{ form.is_active.help_text }}</div>
+                        </div>
+
+                        <!-- Connection Test Section -->
+                        {% if sms_settings.id %}
+                        <div class="border-top pt-4 mt-4">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-plug me-2"></i>Connection Test
+                            </h6>
+                            
+                            <div id="connection-status" class="connection-status d-none">
+                                <!-- Status will be updated by JavaScript -->
+                            </div>
+
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-outline-primary" onclick="testConnection()">
+                                    <i class="fas fa-plug me-1"></i>Test Connection
+                                </button>
+                                <button type="button" class="btn btn-outline-success" onclick="showTestSMSModal()">
+                                    <i class="fas fa-paper-plane me-1"></i>Send Test SMS
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="border-top pt-4 mt-4">
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i>Save Configuration
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Sidebar -->
+        <div class="col-xl-4 col-lg-5">
+            <!-- Configuration Status -->
+            {% if sms_settings.id %}
+            <div class="card settings-card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2 text-info"></i>Current Configuration
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <strong>Service:</strong> {{ sms_settings.get_sms_backend_type_display }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>From Number:</strong> {{ sms_settings.from_number|default:"Not set" }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Status:</strong> 
+                        {% if sms_settings.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </div>
+                    {% if sms_settings.last_test_date %}
+                    <div class="mb-2">
+                        <strong>Last Test:</strong> {{ sms_settings.last_test_date|date:"M d, Y H:i" }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Test Status:</strong>
+                        {% if sms_settings.test_status == 'success' %}
+                            <span class="badge bg-success">Success</span>
+                        {% elif sms_settings.test_status == 'failed' %}
+                            <span class="badge bg-danger">Failed</span>
+                        {% else %}
+                            <span class="badge bg-warning">Pending</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Statistics -->
+            <div class="card settings-card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-bar me-2 text-success"></i>SMS Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="stats-card bg-light">
+                                <div class="h3 text-success mb-0">{{ stats.total_sent }}</div>
+                                <small class="text-muted">Sent</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stats-card bg-light">
+                                <div class="h3 text-danger mb-0">{{ stats.total_failed }}</div>
+                                <small class="text-muted">Failed</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stats-card bg-light">
+                                <div class="h3 text-info mb-0">{{ stats.recent_count }}</div>
+                                <small class="text-muted">This Week</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent SMS Logs -->
+            <div class="card settings-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-list me-2 text-primary"></i>Recent SMS
+                    </h6>
+                    <a href="{% url 'core:sms_logs' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_logs %}
+                        <div class="list-group list-group-flush">
+                            {% for log in recent_logs %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold">{{ log.recipient_phone }}</div>
+                                        <div class="text-muted small">{{ log.get_sms_type_display }}</div>
+                                        <div class="small text-truncate" style="max-width: 200px;">
+                                            {{ log.content|truncatechars:50 }}
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        {% if log.status == 'sent' %}
+                                            <span class="badge bg-success">Sent</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Failed</span>
+                                        {% endif %}
+                                        <div class="text-muted small">{{ log.sent_at|date:"M d, H:i" }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>No SMS sent yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test SMS Modal -->
+<div class="modal fade" id="testSMSModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Send Test SMS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Recipient Phone Number</label>
+                    <input type="text" class="form-control" id="testPhoneNumber" placeholder="+61400123456">
+                    <div class="form-text">Enter phone number in E.164 format (e.g., +61400123456)</div>
+                </div>
+                <div id="test-sms-status" class="d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="sendTestSMS()">Send Test SMS</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Show appropriate backend configuration based on selection
+    handleSMSBackendTypeChange($('#id_sms_backend_type').val());
+    
+    $('#id_sms_backend_type').change(function() {
+        handleSMSBackendTypeChange($(this).val());
+    });
+});
+
+function handleSMSBackendTypeChange(backendType) {
+    $('.backend-section').removeClass('active');
+    
+    if (backendType === 'twilio') {
+        $('#twilio-config').addClass('active');
+    } else if (backendType === 'custom_sms') {
+        $('#custom-config').addClass('active');
+    }
+}
+
+function testConnection() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Testing...';
+    
+    $.ajax({
+        url: '{% url "core:test_sms_connection" %}',
+        method: 'POST',
+        data: {
+            'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val(),
+            {% if sms_settings.id %}'config_id': {{ sms_settings.id }}{% endif %}
+        },
+        success: function(response) {
+            showConnectionStatus(response.success, response.message);
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON?.error || 'Connection test failed';
+            showConnectionStatus(false, errorMsg);
+        },
+        complete: function() {
+            // Restore button state
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+}
+
+function showConnectionStatus(success, message) {
+    const statusDiv = $('#connection-status');
+    statusDiv.removeClass('d-none status-success status-failed status-pending');
+    
+    if (success) {
+        statusDiv.addClass('status-success');
+        statusDiv.html('<i class="fas fa-check-circle me-2"></i>' + message);
+    } else {
+        statusDiv.addClass('status-failed');
+        statusDiv.html('<i class="fas fa-times-circle me-2"></i>' + message);
+    }
+}
+
+function showTestSMSModal() {
+    $('#testSMSModal').modal('show');
+    $('#test-sms-status').addClass('d-none');
+}
+
+function sendTestSMS() {
+    const phoneNumber = $('#testPhoneNumber').val().trim();
+    const statusDiv = $('#test-sms-status');
+    
+    if (!phoneNumber) {
+        statusDiv.removeClass('d-none alert-success').addClass('alert-danger');
+        statusDiv.html('Please enter a phone number');
+        return;
+    }
+    
+    if (!phoneNumber.startsWith('+')) {
+        statusDiv.removeClass('d-none alert-success').addClass('alert-danger');
+        statusDiv.html('Phone number must be in E.164 format (start with +)');
+        return;
+    }
+    
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Sending...';
+    statusDiv.addClass('d-none');
+    
+    $.ajax({
+        url: '{% url "core:send_test_sms" %}',
+        method: 'POST',
+        data: {
+            'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val(),
+            'recipient_phone': phoneNumber
+        },
+        success: function(response) {
+            statusDiv.removeClass('d-none alert-danger').addClass('alert-success');
+            statusDiv.html('<i class="fas fa-check-circle me-2"></i>' + response.message);
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON?.error || 'Failed to send test SMS';
+            statusDiv.removeClass('d-none alert-success').addClass('alert-danger');
+            statusDiv.html('<i class="fas fa-times-circle me-2"></i>' + errorMsg);
+        },
+        complete: function() {
+            // Restore button state
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+}
+</script>
+{% endblock %}

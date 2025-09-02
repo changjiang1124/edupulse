@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
     # Third-party applications
     'tinymce',
     # Local applications - modular architecture
@@ -137,14 +138,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # 默认主键字段类型
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# 邮件配置 (Amazon SES)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# Email settings - Dynamic backend with environment variable fallback
+EMAIL_BACKEND = 'core.backends.DynamicEmailBackend'
+EMAIL_HOST = os.getenv('SMTP_SERVER', 'localhost')
+EMAIL_PORT = int(os.getenv('SMTP_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('SMTP_USERNAME', '')
+EMAIL_HOST_PASSWORD = os.getenv('SMTP_PASSWORD', '')
 EMAIL_USE_TLS = True
-EMAIL_HOST = 'email-smtp.us-east-1.amazonaws.com'
-EMAIL_PORT = 587
-EMAIL_HOST_USER = os.getenv('AWS_ACCESS_KEY_ID')
-EMAIL_HOST_PASSWORD = os.getenv('AWS_SECRET_ACCESS_KEY')
-DEFAULT_FROM_EMAIL = os.getenv('AWS_SES_FROM_EMAIL', 'noreply@perthartschool.com.au')
+EMAIL_USE_SSL = False
+DEFAULT_FROM_EMAIL = os.getenv('SMTP_USERNAME', 'noreply@perthartschool.com.au')
 
 # Twilio 短信配置
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
@@ -158,6 +160,9 @@ LOGOUT_REDIRECT_URL = '/auth/login/'
 
 # Custom user model
 AUTH_USER_MODEL = 'accounts.Staff'
+
+# Sites framework
+SITE_ID = 1
 
 # TinyMCE 配置 - WordPress兼容的简化版本
 TINYMCE_DEFAULT_CONFIG = {

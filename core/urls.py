@@ -13,4 +13,20 @@ urlpatterns = [
     
     # TinyMCE Image Upload
     path('tinymce/upload/', views.tinymce_upload_image, name='tinymce_upload'),
+    
+    # Email configuration URLs
+    path('settings/email/', views.email_settings_view, name='email_settings'),
+    path('settings/email/test-connection/', views.test_email_connection, name='test_email_connection'),
+    path('settings/email/send-test/', views.send_test_email, name='send_test_email'),
+    path('settings/email/logs/', views.email_logs_view, name='email_logs'),
+    
+    # SMS configuration URLs
+    path('settings/sms/', views.sms_settings_view, name='sms_settings'),
+    path('settings/sms/test-connection/', views.test_sms_connection, name='test_sms_connection'),
+    path('settings/sms/send-test/', views.send_test_sms, name='send_test_sms'),
+    path('settings/sms/logs/', views.sms_logs_view, name='sms_logs'),
+    
+    # Notification system URLs
+    path('notifications/send/', views.send_notification_view, name='send_notification'),
+    path('notifications/quotas/', views.get_notification_quotas, name='get_notification_quotas'),
 ]

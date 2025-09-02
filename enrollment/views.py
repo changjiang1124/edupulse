@@ -189,28 +189,63 @@ class PublicEnrollmentView(TemplateView):
                 return redirect('enrollment:public_enrollment')
         
         if form.is_valid():
-            # Create or get student
+            # Calculate age to determine contact information mapping
+            date_of_birth = form.cleaned_data['date_of_birth']
+            age = form.get_student_age() or form.cleaned_data.get('calculated_age')
+            
+            # Determine contact information mapping based on age
+            if age and age < 18:
+                # Student is under 18 - contact info is guardian's
+                guardian_email = form.cleaned_data['email']
+                guardian_phone = form.cleaned_data['phone']
+                student_email = ''  # No separate student email for under 18
+                student_phone = ''  # No separate student phone for under 18
+            else:
+                # Student is 18+ - contact info is student's
+                guardian_email = ''  # No guardian email for 18+
+                guardian_phone = ''  # No guardian phone for 18+
+                student_email = form.cleaned_data['email']
+                student_phone = form.cleaned_data['phone']
+            
+            # Create student data with proper contact mapping
             student_data = {
                 'first_name': form.cleaned_data['first_name'],
                 'last_name': form.cleaned_data['last_name'],
-                'email': form.cleaned_data['email'],
-                'phone': form.cleaned_data['phone'],
-                'date_of_birth': form.cleaned_data['date_of_birth'],
+                'birth_date': form.cleaned_data['date_of_birth'],
+                'address': form.cleaned_data.get('address', ''),
+                
+                # Contact information (mapped based on age)
+                'email': student_email,
+                'phone': student_phone,
+                
+                # Guardian information (only for under 18)
                 'guardian_name': form.cleaned_data.get('guardian_name', ''),
-                'guardian_email': form.cleaned_data.get('guardian_email', ''),
-                'guardian_phone': form.cleaned_data.get('guardian_phone', ''),
+                'guardian_email': guardian_email,
+                'guardian_phone': guardian_phone,
+                
+                # Emergency contact
                 'emergency_contact_name': form.cleaned_data.get('emergency_contact_name', ''),
                 'emergency_contact_phone': form.cleaned_data.get('emergency_contact_phone', ''),
+                
+                # Medical information
                 'medical_conditions': form.cleaned_data.get('medical_conditions', ''),
                 'special_requirements': form.cleaned_data.get('special_requirements', ''),
-                'address': form.cleaned_data.get('address', ''),
             }
             
-            # Check if student exists by email
+            # Determine primary contact email for student lookup and notifications
+            primary_contact_email = guardian_email if age and age < 18 else student_email
+            
+            # Check if student exists by primary contact email
             student = None
-            if form.cleaned_data['email']:
+            if primary_contact_email:
                 try:
-                    student = Student.objects.get(email=form.cleaned_data['email'])
+                    # For under 18: look up by guardian email
+                    # For 18+: look up by student email
+                    if age and age < 18:
+                        student = Student.objects.get(guardian_email=primary_contact_email)
+                    else:
+                        student = Student.objects.get(email=primary_contact_email)
+                    
                     # Update existing student data
                     for key, value in student_data.items():
                         if value:  # Only update non-empty fields
@@ -223,14 +258,27 @@ class PublicEnrollmentView(TemplateView):
             if not student:
                 student = Student.objects.create(**student_data)
             
-            # Create enrollment
+            # Store contact information metadata for notifications
+            contact_info = {
+                'primary_email': primary_contact_email,
+                'primary_phone': guardian_phone if age and age < 18 else student_phone,
+                'contact_type': 'guardian' if age and age < 18 else 'student',
+                'student_age': age
+            }
+            
+            # Create enrollment with enhanced form data including contact info
             course = Course.objects.get(pk=form.cleaned_data['course_id'])
+            
+            # Enhanced form data with contact metadata
+            enhanced_form_data = dict(form.cleaned_data)
+            enhanced_form_data.update(contact_info)
+            
             enrollment_data = {
                 'student': student,
                 'course': course,
                 'status': 'pending',
                 'source_channel': 'form',
-                'form_data': form.cleaned_data
+                'form_data': enhanced_form_data
             }
             
             # Check if enrollment already exists

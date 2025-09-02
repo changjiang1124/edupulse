@@ -27,7 +27,7 @@ class EnrollmentForm(forms.ModelForm):
 
 
 class PublicEnrollmentForm(forms.Form):
-    """Public enrollment form for students/guardians"""
+    """Public enrollment form for students/guardians with age-based dynamic fields"""
     
     # Student Information
     first_name = forms.CharField(
@@ -48,6 +48,26 @@ class PublicEnrollmentForm(forms.Form):
         })
     )
     
+    date_of_birth = forms.DateField(
+        label='Date of Birth',
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date'
+        }),
+        help_text='Please select date of birth first - this determines contact requirements'
+    )
+    
+    address = forms.CharField(
+        required=False,
+        label='Address',
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Full residential address'
+        })
+    )
+    
+    # Contact Information (unified - will be labeled dynamically based on age)
     email = forms.EmailField(
         label='Contact Email Address',
         widget=forms.EmailInput(attrs={
@@ -64,55 +84,19 @@ class PublicEnrollmentForm(forms.Form):
             'class': 'form-control',
             'placeholder': '0412 345 678'
         }),
-        help_text='Primary contact phone number'
+        help_text='Primary contact phone number for SMS notifications'
     )
     
-    date_of_birth = forms.DateField(
-        label='Date of Birth',
-        widget=forms.DateInput(attrs={
-            'class': 'form-control',
-            'type': 'date'
-        })
-    )
-    
-    address = forms.CharField(
-        required=False,
-        label='Address',
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 3,
-            'placeholder': 'Full residential address'
-        })
-    )
-    
-    # Guardian Information (for minors)
+    # Guardian Information (only for students under 18)
     guardian_name = forms.CharField(
         required=False,
         max_length=100,
-        label='Guardian/Parent Name',
+        label='Parent/Guardian Name',
         widget=forms.TextInput(attrs={
             'class': 'form-control',
             'placeholder': 'Full name of parent or guardian'
-        })
-    )
-    
-    guardian_email = forms.EmailField(
-        required=False,
-        label='Guardian Email',
-        widget=forms.EmailInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'guardian@example.com'
-        })
-    )
-    
-    guardian_phone = forms.CharField(
-        required=False,
-        max_length=20,
-        label='Guardian Phone',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': '0412 345 678'
-        })
+        }),
+        help_text='Required for students under 18 years of age'
     )
     
     # Emergency Contact
@@ -183,9 +167,21 @@ class PublicEnrollmentForm(forms.Form):
             today = date.today()
             age = today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
             
+            # Store calculated age for use in views/templates
+            cleaned_data['calculated_age'] = age
+            
             if age < 18:
                 # Student is under 18, guardian name is required
-                if not guardian_name:
+                if not guardian_name or guardian_name.strip() == '':
                     self.add_error('guardian_name', 'Guardian name is required for students under 18.')
         
         return cleaned_data
+    
+    def get_student_age(self):
+        """Helper method to calculate student age"""
+        if hasattr(self, 'cleaned_data') and self.cleaned_data.get('date_of_birth'):
+            from datetime import date
+            birth_date = self.cleaned_data['date_of_birth']
+            today = date.today()
+            return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+        return None

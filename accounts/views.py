@@ -61,7 +61,7 @@ class StaffDetailView(AdminRequiredMixin, DetailView):
         try:
             # Import here to avoid circular imports
             from academics.models import Course, Class
-            context['taught_courses'] = Course.objects.filter(teacher=self.object, is_active=True)
+            context['taught_courses'] = Course.objects.filter(teacher=self.object, status='published')
             context['taught_classes'] = Class.objects.filter(
                 course__teacher=self.object
             ).select_related('course').order_by('-date')[:5]
