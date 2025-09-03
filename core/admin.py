@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import ClockInOut, EmailSettings, SMSSettings, EmailLog, SMSLog, NotificationQuota
+from django.utils.html import format_html
+from django.urls import reverse
+from django.utils.safestring import mark_safe
+from .models import (
+    ClockInOut, EmailSettings, SMSSettings, EmailLog, SMSLog, 
+    NotificationQuota, WooCommerceSyncLog, WooCommerceSyncQueue
+)
+import json
 
 
 @admin.register(EmailSettings)
@@ -146,6 +153,257 @@ class NotificationQuotaAdmin(admin.ModelAdmin):
             readonly.remove('is_quota_exceeded')
             readonly.remove('remaining_quota')
             return readonly
+
+
+@admin.register(WooCommerceSyncLog)
+class WooCommerceSyncLogAdmin(admin.ModelAdmin):
+    list_display = (
+        'course_name', 'sync_type', 'status_display', 'wc_product_id', 
+        'duration_display', 'retry_count', 'created_at'
+    )
+    list_filter = (
+        'sync_type', 'status', 'created_at', 'retry_count'
+    )
+    search_fields = (
+        'course__name', 'course_name', 'wc_product_id', 'error_message'
+    )
+    ordering = ('-created_at',)
+    readonly_fields = (
+        'course', 'sync_type', 'status', 'wc_product_id', 'wc_category_id', 
+        'wc_category_name', 'duration_ms', 'retry_count', 'created_at', 
+        'last_attempt_at', 'completed_at', 'request_data_display', 
+        'response_data_display', 'error_message'
+    )
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('course', 'course_name', 'sync_type', 'status')
+        }),
+        ('WooCommerce Data', {
+            'fields': ('wc_product_id', 'wc_category_id', 'wc_category_name')
+        }),
+        ('Performance & Timing', {
+            'fields': ('duration_ms', 'retry_count', 'created_at', 'last_attempt_at', 'completed_at')
+        }),
+        ('Request/Response Data', {
+            'fields': ('request_data_display', 'response_data_display'),
+            'classes': ('collapse',)
+        }),
+        ('Error Information', {
+            'fields': ('error_message',),
+            'classes': ('collapse',)
+        })
+    )
+    
+    actions = ['retry_failed_syncs', 'mark_as_success']
+    
+    def status_display(self, obj):
+        """Display status with color coding"""
+        colors = {
+            'success': 'green',
+            'failed': 'red',
+            'processing': 'orange',
+            'pending': 'blue',
+            'retrying': 'purple'
+        }
+        color = colors.get(obj.status, 'black')
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+    status_display.short_description = 'Status'
+    
+    def request_data_display(self, obj):
+        """Pretty display for request data"""
+        if obj.request_data:
+            return format_html(
+                '<pre style="white-space: pre-wrap;">{}</pre>',
+                json.dumps(obj.request_data, indent=2)
+            )
+        return 'No request data'
+    request_data_display.short_description = 'Request Data'
+    
+    def response_data_display(self, obj):
+        """Pretty display for response data"""
+        if obj.response_data:
+            return format_html(
+                '<pre style="white-space: pre-wrap;">{}</pre>',
+                json.dumps(obj.response_data, indent=2)
+            )
+        return 'No response data'
+    response_data_display.short_description = 'Response Data'
+    
+    def retry_failed_syncs(self, request, queryset):
+        """Admin action to retry failed syncs"""
+        from core.woocommerce_api import WooCommerceSyncService
+        
+        failed_logs = queryset.filter(status='failed', course__isnull=False)
+        success_count = 0
+        
+        sync_service = WooCommerceSyncService()
+        
+        for log in failed_logs:
+            if log.can_retry:
+                try:
+                    result = sync_service.sync_course_to_woocommerce(log.course)
+                    if result['status'] == 'success':
+                        success_count += 1
+                except Exception:
+                    continue
+        
+        self.message_user(
+            request,
+            f"Retried {failed_logs.count()} failed syncs. {success_count} succeeded."
+        )
+    retry_failed_syncs.short_description = "Retry failed synchronizations"
+    
+    def mark_as_success(self, request, queryset):
+        """Admin action to manually mark syncs as successful"""
+        updated = queryset.update(status='success')
+        self.message_user(
+            request,
+            f"Marked {updated} sync logs as successful."
+        )
+    mark_as_success.short_description = "Mark selected syncs as successful"
+
+
+@admin.register(WooCommerceSyncQueue)
+class WooCommerceSyncQueueAdmin(admin.ModelAdmin):
+    list_display = (
+        'course', 'action', 'priority_display', 'status_display', 
+        'attempts', 'scheduled_for', 'created_at'
+    )
+    list_filter = (
+        'action', 'status', 'priority', 'created_at', 'scheduled_for'
+    )
+    search_fields = (
+        'course__name', 'last_error'
+    )
+    ordering = ('priority', 'scheduled_for')
+    readonly_fields = (
+        'course', 'created_at', 'updated_at', 'started_at', 
+        'completed_at', 'duration_display'
+    )
+    
+    fieldsets = (
+        ('Task Information', {
+            'fields': ('course', 'action', 'priority', 'scheduled_for')
+        }),
+        ('Status & Progress', {
+            'fields': ('status', 'attempts', 'max_retries', 'sync_log')
+        }),
+        ('Error Information', {
+            'fields': ('last_error',),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at', 'started_at', 'completed_at', 'duration_display'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    actions = ['process_queued_items', 'cancel_queued_items', 'retry_failed_items']
+    
+    def priority_display(self, obj):
+        """Display priority with color coding"""
+        colors = {
+            1: 'red',      # Critical
+            3: 'orange',   # High  
+            5: 'blue',     # Normal
+            7: 'green',    # Low
+            9: 'gray'      # Background
+        }
+        color = colors.get(obj.priority, 'black')
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            obj.get_priority_display()
+        )
+    priority_display.short_description = 'Priority'
+    
+    def status_display(self, obj):
+        """Display status with color coding"""
+        colors = {
+            'completed': 'green',
+            'failed': 'red',
+            'processing': 'orange',
+            'queued': 'blue',
+            'cancelled': 'gray'
+        }
+        color = colors.get(obj.status, 'black')
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+    status_display.short_description = 'Status'
+    
+    def process_queued_items(self, request, queryset):
+        """Admin action to process queued items"""
+        from core.woocommerce_api import WooCommerceSyncService
+        
+        queued_items = queryset.filter(status='queued')
+        processed_count = 0
+        
+        sync_service = WooCommerceSyncService()
+        
+        for item in queued_items:
+            if item.is_ready:
+                item.status = 'processing'
+                item.save()
+                
+                try:
+                    if item.action == 'sync':
+                        result = sync_service.sync_course_to_woocommerce(item.course)
+                    elif item.action == 'delete':
+                        result = sync_service.remove_course_from_woocommerce(item.course)
+                    
+                    if result['status'] == 'success':
+                        item.status = 'completed'
+                        processed_count += 1
+                    else:
+                        item.status = 'failed'
+                        item.last_error = result.get('message', 'Unknown error')
+                    
+                    item.attempts += 1
+                    item.save()
+                    
+                except Exception as e:
+                    item.status = 'failed'
+                    item.last_error = str(e)
+                    item.attempts += 1
+                    item.save()
+        
+        self.message_user(
+            request,
+            f"Processed {queued_items.count()} queue items. {processed_count} succeeded."
+        )
+    process_queued_items.short_description = "Process selected queue items"
+    
+    def cancel_queued_items(self, request, queryset):
+        """Admin action to cancel queued items"""
+        updated = queryset.filter(status='queued').update(status='cancelled')
+        self.message_user(
+            request,
+            f"Cancelled {updated} queued items."
+        )
+    cancel_queued_items.short_description = "Cancel selected queue items"
+    
+    def retry_failed_items(self, request, queryset):
+        """Admin action to retry failed items"""
+        failed_items = queryset.filter(status='failed')
+        retryable_items = [item for item in failed_items if item.can_retry]
+        
+        for item in retryable_items:
+            item.status = 'queued'
+            item.save()
+        
+        self.message_user(
+            request,
+            f"Reset {len(retryable_items)} failed items to queued status for retry."
+        )
+    retry_failed_items.short_description = "Retry failed queue items"
 
 
 # Custom Admin Site Configuration

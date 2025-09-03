@@ -2,15 +2,17 @@
 
 ## 項目概述
 
-EduPulse 是一個基於 Django 的藝術學校管理系統，用於替代 Perth Art School 當前的 WordPress + WooCommerce 系統，主要處理課程管理和學生註冊功能。
+EduPulse 是一個基於 Django 的藝術學校管理系統，用於替代 Perth Art School 當前的 WordPress + WooCommerce 系統 (https://perthartschool.com.au)，主要處理課程管理和學生註冊功能。
+
+The instance of url of EduPulse for PerthArtSchool is: 
 
 ## 技術架構
 
 ### 後端技術棧
 - **框架**: Django 5.2.5
-- **資料庫**: SQLite (開發環境)
+- **資料庫**: SQLite (開發環境和线上环境)
 - **認證**: 自定義 Staff 用戶模型
-- **郵件服務**: Amazon SES
+- **郵件服務**: SMTP configuration 
 - **簡訊服務**: Twilio
 - **環境變量**: python-dotenv
 
@@ -243,6 +245,14 @@ WC_CONSUMER_KEY: WooCommerce API 消費者金鑰
 WC_CONSUMER_SECRET: WooCommerce API 消費者密鑰
 WC_BASE_URL: WooCommerce API 基礎 URL
 ```
+
+#### 7.6 同步監控系統 ✅ 已完成
+- [x] **WooCommerceSyncLog模型**: 完整的同步活動日志記錄，包含請求/響應數據、執行時間、重試次數
+- [x] **WooCommerceSyncQueue模型**: 同步任務隊列管理，支援優先級和調度
+- [x] **增強的同步服務**: 集成詳細日志記錄和性能監控
+- [x] **Django Admin集成**: 彩色狀態顯示、批量操作、重試功能
+- [x] **管理命令工具**: `woocommerce_monitor`命令支援狀態檢查、健康檢查、報告生成
+- [x] **錯誤追踪和重試**: 自動錯誤記錄、智能重試機制、失敗原因分析
 
 ### 第八階段：系統重構 ✅ 已完成
 
@@ -618,3 +628,281 @@ sendNotification(): AJAX發送處理
 6. **完整的管理後台**: Django Admin配置界面
 
 這個實施為Perth Art School提供了professional級別的學生通信管理系統，既滿足了immediate需求，也為future擴展奠定了solid foundation。
+
+## 🖼️ 課程功能圖片系統實施完成記錄 (2025-09-02)
+
+### 系統架構與核心功能
+
+**完整實施的課程圖片支持系統**按照既定架構成功完成：
+
+#### 1. Course 模型增強 ✅ 已完成
+- **featured_image 字段**: 添加 ImageField 支持課程主要圖片
+- **圖片存儲**: 按年月組織的目錄結構 (`course_images/YYYY/MM/`)
+- **數據庫遷移**: academics.0006_course_featured_image 成功應用
+- **Pillow 集成**: 安裝 Pillow 庫支持圖片處理和驗證
+
+#### 2. 表單系統增強 ✅ 已完成
+- **CourseForm 擴展**: 添加 featured_image 字段到課程創建表單
+- **圖片驗證**: 文件大小限制(5MB)和格式驗證(JPEG,PNG,WEBP)
+- **Bootstrap 整合**: 響應式圖片上傳組件
+- **錯誤處理**: 完整的前端和後端圖片驗證錯誤顯示
+
+#### 3. WooCommerce 同步增強 ✅ 已完成
+- **產品圖片支持**: WooCommerce API 支持產品圖片同步
+- **圖片 URL 生成**: 自動生成完整的圖片 URL 供 WooCommerce 使用
+- **create_external_product**: 創建產品時包含圖片數據
+- **update_external_product**: 更新產品時同步圖片變更
+- **自動觸發**: Django signals 自動觸發圖片同步
+
+#### 4. 前端界面增強 ✅ 已完成
+- **表單模板**: 課程創建/編輯表單添加圖片上傳字段
+- **詳情頁面**: 課程詳情頁面響應式圖片顯示
+- **圖片預覽**: 編輯表單中顯示當前圖片縮略圖
+- **佈局適應**: 有圖片時自動調整佈局為雙欄顯示
+
+### 技術實施詳情
+
+#### 後端實施
+```python
+# Course 模型
+class Course(models.Model):
+    featured_image = models.ImageField(
+        upload_to='course_images/%Y/%m/',
+        blank=True, null=True,
+        verbose_name='Featured Image',
+        help_text='Main image for course display and WooCommerce product'
+    )
+
+# WooCommerce 同步
+def sync_course_to_woocommerce(self, course, log_sync=True):
+    featured_image_url = None
+    if course.featured_image:
+        featured_image_url = f"https://{site.domain}{course.featured_image.url}"
+    
+    course_data = {
+        # ... 其他字段
+        'featured_image_url': featured_image_url,
+    }
+```
+
+#### 前端實施
+```html
+<!-- 課程表單圖片字段 -->
+<div class="mb-3">
+    <label for="{{ form.featured_image.id_for_label }}" class="form-label">Featured Image</label>
+    {{ form.featured_image }}
+    {% if form.instance.featured_image %}
+        <img src="{{ form.instance.featured_image.url }}" class="img-thumbnail" 
+             style="max-width: 200px; max-height: 150px;">
+    {% endif %}
+</div>
+
+<!-- 課程詳情頁面圖片顯示 -->
+{% if course.featured_image %}
+<div class="col-12 col-lg-4">
+    <img src="{{ course.featured_image.url }}" class="img-fluid rounded-3 shadow-lg" 
+         style="max-height: 300px; object-fit: cover; width: 100%;">
+</div>
+{% endif %}
+```
+
+### 驗證測試結果
+
+#### 功能測試 ✅ 已通過
+- **課程創建**: 成功創建課程 ID 21 "Test Course with Featured Image"
+- **WooCommerce 同步**: 自動同步到 WooCommerce，external_id: 2758
+- **同步狀態**: 20個已發布課程全部同步成功，今日3次同步操作全部成功
+- **數據庫結構**: featured_image 字段正常工作，支持空值
+
+#### 架構驗證 ✅ 已確認
+- **Django 信號**: post_save 自動觸發 WooCommerce 同步
+- **圖片處理**: Pillow 庫正常工作，支持格式驗證
+- **媒體文件**: Django 媒體文件配置正確，支持開發環境圖片服務
+- **URL 生成**: 完整圖片 URL 正確生成供 WooCommerce 使用
+
+### 新增功能特性
+
+#### 圖片管理功能
+- **自動目錄組織**: 圖片按年月自動分類存儲
+- **格式限制**: 支持 JPEG、PNG、WEBP 格式
+- **大小控制**: 最大文件大小 5MB 限制
+- **響應式顯示**: 圖片自動適應不同設備螢幕
+
+#### WooCommerce 產品增強
+- **產品圖片**: WooCommerce 產品自動包含課程特色圖片
+- **圖片 URL**: 完整域名的圖片鏈接確保 WooCommerce 正確顯示
+- **同步日誌**: 圖片 URL 包含在同步日誌的 request_data 中
+- **更新支持**: 課程圖片更改時自動更新 WooCommerce 產品圖片
+
+### 實施成果
+
+通過本次實施，EduPulse 課程管理系統獲得了：
+
+1. **完整的圖片支持**: 課程可以上傳和管理特色圖片
+2. **WooCommerce 圖片同步**: 課程圖片自動同步到 WooCommerce 產品
+3. **響應式圖片顯示**: 課程詳情頁面美觀的圖片展示
+4. **圖片驗證系統**: 文件格式和大小的完整驗證
+5. **現代化用戶界面**: Bootstrap 風格的圖片上傳和預覽
+6. **自動化同步**: Django signals 確保圖片變更自動同步
+
+這個實施進一步增強了 Perth Art School 的課程展示能力，提供了與 WooCommerce 完全整合的圖片管理系統，既滿足了immediate的視覺展示需求，也為future的營銷和課程推廣提供了solid foundation。
+
+---
+*版本: v4.0*
+*當前階段: 課程功能圖片系統完成，WooCommerce 同步支持產品圖片，包含完整的圖片上傳、驗證、顯示和同步功能*
+
+## 🏷️ 學生批量通知系統實施完成記錄 (2025-09-02)
+
+### 系統架構與核心功能
+
+**完整實施的學生批量通知系統**按照既定架構成功完成：
+
+#### 1. 學生標籤系統 ✅ 已完成
+- **StudentTag 模型**: 完整的標籤管理系統，支援名稱、顏色、描述配置
+- **多對多關聯**: Student 模型與標籤的 many-to-many 關係
+- **預設標籤**: 6個預設標籤 (新學生、活躍學生、需跟進、VIP學生、候補、校友)
+- **Django Admin 整合**: 完整的標籤管理界面，支援顏色預覽和橫向選擇器
+
+#### 2. 學生列表頁面增強 ✅ 已完成
+- **多選複選框**: 全選/反選功能，支援批量學生選擇
+- **標籤篩選**: 下拉選單按標籤快速篩選學生
+- **批量操作工具欄**: 動態顯示選中學生數量和操作按鈕
+- **標籤顯示**: 學生列表中顯示彩色標籤徽章
+- **互動式選擇**: 選中行高亮顯示，複選框狀態管理
+
+#### 3. 批量通知表單系統 ✅ 已完成
+- **BulkNotificationForm**: 擴展版通知表單，支援多種發送模式
+- **發送目標選擇**: 
+  - 選定學生、全部活躍學生、按標籤群組
+  - 待處理註冊學生、最近註冊學生 (30天內)
+- **通知類型**: 支援郵件、簡訊、混合發送
+- **消息分類**: 一般消息、課程提醒、出席通知、歡迎消息、註冊確認
+- **智能驗證**: 郵件主題必填檢查、簡訊 160 字符限制
+
+#### 4. 批量通知視圖邏輯 ✅ 已完成
+- **收件人智能選擇**: 根據發送模式自動篩選目標學生
+- **配額檢查系統**: 發送前檢查郵件/簡訊月度配額
+- **批量發送邏輯**: 循環處理每個學生，支援混合通知類型
+- **聯繫人優先級**: 優先使用學生聯繫方式，降級到監護人聯繫方式
+- **錯誤處理**: 個別發送失敗不影響整體流程，完整錯誤記錄
+
+#### 5. 前端用戶界面 ✅ 已完成
+- **響應式批量通知模態框**: Bootstrap 5 驅動的大型模態框
+- **即時選擇反饋**: JavaScript 即時更新選中學生計數
+- **動態表單控制**: 通知類型變更時自動顯示/隱藏相關欄位
+- **字符計數器**: 即時顯示消息字符數，簡訊超限警告
+- **發送狀態管理**: 提交時顯示載入狀態，防止重複提交
+
+#### 6. 集成現有通知系統 ✅ 已完成
+- **複用通知後端**: 利用既有的 EmailSettings、SMSSettings 配置
+- **統一日誌記錄**: 使用 EmailLog、SMSLog 記錄所有發送活動
+- **配額系統整合**: 集成 NotificationQuota 進行使用量控制
+- **錯誤處理統一**: 統一的錯誤處理和用戶反饋機制
+
+### 技術實施詳情
+
+#### 後端實施
+```python
+# 核心模型
+StudentTag: 標籤管理，支援顏色和描述
+Student.tags: ManyToMany 關聯到 StudentTag
+
+# 核心表單
+BulkNotificationForm: 批量通知表單驗證
+- send_to: 發送目標選擇
+- selected_tags: 標籤多選
+- notification_type: 郵件/簡訊/混合
+- 智能驗證邏輯
+
+# 核心視圖
+StudentListView: 增強的學生列表，支援標籤篩選
+bulk_notification: 批量通知處理視圖
+_send_email_notification: 郵件發送邏輯
+_send_sms_notification: 簡訊發送邏輯
+```
+
+#### 前端實施
+```javascript
+// 核心 JavaScript 功能
+selectedStudents: Set 管理選中學生
+toggleStudentSelection(): 單個學生選擇切換
+toggleAllStudents(): 全選/反選功能
+updateBulkActionsToolbar(): 工具欄狀態更新
+openBulkNotificationModal(): 模態框管理
+updateFormVisibility(): 動態表單控制
+updateCharacterCount(): 字符計數和警告
+```
+
+#### URL 路由
+```python
+# students/urls.py
+path('bulk-notification/', views.bulk_notification, name='bulk_notification')
+
+# 批量通知處理端點
+POST /students/bulk-notification/
+```
+
+### 管理命令和初始數據
+
+#### 預設標籤創建
+```bash
+python manage.py create_default_tags
+```
+
+創建 6 個預設標籤：
+- 🟢 New Student (新學生)
+- 🔵 Active Student (活躍學生)  
+- 🟡 Needs Follow-up (需跟進)
+- 🟣 VIP Student (VIP學生)
+- 🟠 Waitlist (候補)
+- ⚫ Alumni (校友)
+
+### 功能特性亮點
+
+#### 智能批量選擇
+- **多種選擇模式**: 手動選擇、全選、按標籤、按狀態篩選
+- **視覺化反饋**: 選中行高亮、工具欄動態顯示
+- **跨頁面選擇**: 分頁環境下保持選擇狀態
+
+#### 靈活通知發送
+- **混合通知支持**: 單次操作同時發送郵件和簡訊
+- **智能收件人選擇**: 自動選擇最佳聯繫方式
+- **配額保護**: 發送前檢查使用量，避免超限
+
+#### 現代化用戶體驗
+- **響應式設計**: 完美適應各種設備螢幕
+- **即時反饋**: 所有操作提供即時視覺反饋
+- **錯誤處理**: 友好的錯誤提示和處理
+
+### 使用案例演示
+
+#### 典型批量通知流程
+1. 進入學生管理頁面 (`/students/`)
+2. 使用複選框選擇目標學生或按標籤篩選
+3. 點擊"Send Notification"按鈕開啟批量通知模態框
+4. 選擇通知類型 (郵件/簡訊/混合)
+5. 選擇消息類型和輸入內容
+6. 系統顯示收件人數量確認
+7. 發送並獲得即時成功/失敗反饋
+
+#### 管理員標籤管理
+- Django Admin 中管理學生標籤
+- 支援標籤顏色預覽和批量操作
+- 學生頁面支援標籤篩選和顯示
+
+### 系統整合成果
+
+通過本次實施，EduPulse 獲得了：
+
+1. **完整的批量通知系統**: 支援多選學生、多種發送模式、混合通知類型
+2. **靈活的標籤管理**: 學生分組和快速篩選功能
+3. **現代化批量操作界面**: Bootstrap 5 驅動的響應式用戶界面
+4. **智能配額控制**: 防止通知使用量超限的保護機制
+5. **完整的日誌記錄**: 所有批量通知活動的詳細記錄
+6. **無縫系統集成**: 與現有通知、配額、日誌系統完美整合
+
+這個實施為 Perth Art School 提供了企業級的學生批量通信管理系統，顯著提升了管理員與學生群組溝通的效率，既滿足了immediate的批量通知需求，也為future的精準營銷和學生管理奠定了solid foundation。
+
+---
+*版本: v4.1*
+*當前階段: 學生批量通知系統完成，包含標籤管理、多選界面、批量發送邏輯和現代化用戶體驗*

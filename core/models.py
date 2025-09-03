@@ -736,3 +736,318 @@ class NotificationQuota(models.Model):
         quota.save(update_fields=['used_count'])
         quota.refresh_from_db()
         return quota
+
+
+class WooCommerceSyncLog(models.Model):
+    """
+    Log model for tracking WooCommerce synchronization activities
+    """
+    SYNC_TYPE_CHOICES = [
+        ('create', 'Create Product'),
+        ('update', 'Update Product'),
+        ('delete', 'Delete Product'),
+        ('category', 'Create/Update Category'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+        ('retrying', 'Retrying'),
+    ]
+    
+    # Basic information
+    sync_type = models.CharField(
+        max_length=20,
+        choices=SYNC_TYPE_CHOICES,
+        verbose_name='Sync Type'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name='Status'
+    )
+    
+    # Course reference (nullable for category operations)
+    course = models.ForeignKey(
+        'academics.Course',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='sync_logs',
+        verbose_name='Course'
+    )
+    course_name = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='Course Name',
+        help_text='Cached course name for reference'
+    )
+    
+    # WooCommerce data
+    wc_product_id = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='WooCommerce Product ID'
+    )
+    wc_category_id = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='WooCommerce Category ID'
+    )
+    wc_category_name = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='WooCommerce Category Name'
+    )
+    
+    # Sync results
+    error_message = models.TextField(
+        blank=True,
+        verbose_name='Error Message'
+    )
+    response_data = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Response Data',
+        help_text='Raw response from WooCommerce API'
+    )
+    request_data = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Request Data',
+        help_text='Data sent to WooCommerce API'
+    )
+    
+    # Retry and timing information
+    retry_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Retry Count'
+    )
+    max_retries = models.PositiveIntegerField(
+        default=3,
+        verbose_name='Max Retries'
+    )
+    duration_ms = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Duration (ms)',
+        help_text='Time taken for the API call in milliseconds'
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Created At'
+    )
+    last_attempt_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Last Attempt At'
+    )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Completed At'
+    )
+    
+    class Meta:
+        verbose_name = 'WooCommerce Sync Log'
+        verbose_name_plural = 'WooCommerce Sync Logs'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'created_at']),
+            models.Index(fields=['course', 'sync_type']),
+            models.Index(fields=['wc_product_id']),
+        ]
+    
+    def __str__(self):
+        if self.course:
+            return f"{self.get_sync_type_display()} - {self.course.name} ({self.get_status_display()})"
+        return f"{self.get_sync_type_display()} - Category {self.wc_category_name} ({self.get_status_display()})"
+    
+    def save(self, *args, **kwargs):
+        # Cache course name for easier reference
+        if self.course and not self.course_name:
+            self.course_name = self.course.name
+        
+        # Set completed timestamp when status becomes success or failed (final states)
+        if self.status in ['success', 'failed'] and not self.completed_at:
+            self.completed_at = timezone.now()
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def is_completed(self):
+        """Check if sync is in final state"""
+        return self.status in ['success', 'failed']
+    
+    @property
+    def can_retry(self):
+        """Check if sync can be retried"""
+        return self.status == 'failed' and self.retry_count < self.max_retries
+    
+    @property
+    def duration_display(self):
+        """Human-friendly duration display"""
+        if self.duration_ms is None:
+            return "N/A"
+        if self.duration_ms < 1000:
+            return f"{self.duration_ms}ms"
+        else:
+            return f"{self.duration_ms / 1000:.1f}s"
+
+
+class WooCommerceSyncQueue(models.Model):
+    """
+    Queue model for managing WooCommerce synchronization tasks
+    """
+    ACTION_CHOICES = [
+        ('sync', 'Sync Product'),
+        ('delete', 'Delete Product'),
+        ('category_sync', 'Sync Category'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('queued', 'Queued'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    PRIORITY_CHOICES = [
+        (1, 'Critical'),
+        (3, 'High'),
+        (5, 'Normal'),
+        (7, 'Low'),
+        (9, 'Background'),
+    ]
+    
+    # Task definition
+    course = models.ForeignKey(
+        'academics.Course',
+        on_delete=models.CASCADE,
+        related_name='sync_queue_items',
+        verbose_name='Course'
+    )
+    action = models.CharField(
+        max_length=20,
+        choices=ACTION_CHOICES,
+        verbose_name='Action'
+    )
+    priority = models.IntegerField(
+        choices=PRIORITY_CHOICES,
+        default=5,
+        verbose_name='Priority'
+    )
+    
+    # Scheduling
+    scheduled_for = models.DateTimeField(
+        default=timezone.now,
+        verbose_name='Scheduled For'
+    )
+    
+    # Status tracking
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='queued',
+        verbose_name='Status'
+    )
+    attempts = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Attempts'
+    )
+    max_retries = models.PositiveIntegerField(
+        default=3,
+        verbose_name='Max Retries'
+    )
+    
+    # References
+    sync_log = models.ForeignKey(
+        WooCommerceSyncLog,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Related Sync Log'
+    )
+    
+    # Error tracking
+    last_error = models.TextField(
+        blank=True,
+        verbose_name='Last Error'
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Created At'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Updated At'
+    )
+    started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Started At'
+    )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Completed At'
+    )
+    
+    class Meta:
+        verbose_name = 'WooCommerce Sync Queue Item'
+        verbose_name_plural = 'WooCommerce Sync Queue'
+        ordering = ['priority', 'scheduled_for']
+        indexes = [
+            models.Index(fields=['status', 'priority', 'scheduled_for']),
+            models.Index(fields=['course', 'action']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_action_display()} - {self.course.name} ({self.get_status_display()})"
+    
+    def save(self, *args, **kwargs):
+        # Set completed timestamp when status becomes completed, failed, or cancelled
+        if self.status in ['completed', 'failed', 'cancelled'] and not self.completed_at:
+            self.completed_at = timezone.now()
+        
+        # Set started timestamp when status becomes processing
+        if self.status == 'processing' and not self.started_at:
+            self.started_at = timezone.now()
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def can_retry(self):
+        """Check if queue item can be retried"""
+        return self.status == 'failed' and self.attempts < self.max_retries
+    
+    @property
+    def is_ready(self):
+        """Check if queue item is ready for processing"""
+        return (
+            self.status == 'queued' and 
+            self.scheduled_for <= timezone.now()
+        )
+    
+    @property
+    def duration_display(self):
+        """Human-friendly duration display"""
+        if not self.started_at or not self.completed_at:
+            return "N/A"
+        
+        duration = self.completed_at - self.started_at
+        total_seconds = duration.total_seconds()
+        
+        if total_seconds < 60:
+            return f"{total_seconds:.1f}s"
+        else:
+            minutes = int(total_seconds // 60)
+            seconds = int(total_seconds % 60)
+            return f"{minutes}m {seconds}s"

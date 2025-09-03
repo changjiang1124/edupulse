@@ -2,6 +2,43 @@ from django.db import models
 from django.core.validators import RegexValidator
 
 
+class StudentTag(models.Model):
+    """
+    Student tag model for grouping and categorising students
+    """
+    name = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name='Tag Name'
+    )
+    colour = models.CharField(
+        max_length=7,
+        default='#007bff',
+        verbose_name='Tag Colour',
+        help_text='Hex colour code (e.g., #007bff)'
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name='Description'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='Active Status'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Created At'
+    )
+    
+    class Meta:
+        verbose_name = 'Student Tag'
+        verbose_name_plural = 'Student Tags'
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+
+
 class Student(models.Model):
     """
     Student model - Enhanced student management
@@ -63,6 +100,14 @@ class Student(models.Model):
         max_length=100,
         blank=True,
         verbose_name='Reference'
+    )
+    
+    # Tags for grouping and batch operations
+    tags = models.ManyToManyField(
+        StudentTag,
+        blank=True,
+        related_name='students',
+        verbose_name='Tags'
     )
     
     # Status

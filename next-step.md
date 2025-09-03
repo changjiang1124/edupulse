@@ -59,3 +59,17 @@ students related to a certain class should be edited manually as well, due to so
 
 
 - [x] course should support category (which is also a mapping to WooCommerce): 1. Term Courses; 2. Holiday Program; 3. Day Courses. when create / edit course, and sync course with woocommerce, this should be supported as well.
+
+- [x] should we keep a table for monitoring the status of course synchronisation? to understand what have not been synced yet, and when changed, which post on woocommernnce should be changed (mapping)
+
+- [x] whether we should add feature image in course create & edit? this is to map woocommerce product fields. and check if the course create and edit can both trigger sync create and changes to woocommerce product, and include button with link to enrolment url with parameter of the right course id for preselection of course from select dropdown.
+  - [x] tested - Course featured_image field added successfully
+  - [x] tested - WooCommerce API updated to support product images
+  - [x] tested - Course creation/editing automatically syncs with WooCommerce including images
+  - [x] tested - Enrollment URL with course preselection works correctly
+  - [x] tested - All functionality verified: created test course (ID: 21), synced to WooCommerce (external_id: 2758)
+
+
+- [x] in student page, add a batch notification feature. they can multi select student from list to send notifiaation (email or sms). to facilitate this, should we have tags for students, so they can be groupped and send by select premarked tags.
+
+- [] the student create and edit page, should be aligned with Enrolment, since most of the information is from enrolment. so please check both of them and align them. we can add some fields for student edited in the system, e.g. notes for teachers/operators, without showing them to frontend. and the form should have tag fields 

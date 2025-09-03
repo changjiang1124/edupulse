@@ -53,7 +53,7 @@
 <!-- Course Hero Section -->
 <div class="course-hero">
     <div class="row align-items-start">
-        <div class="col-12">
+        <div class="col-12 {% if course.featured_image %}col-lg-8{% endif %}">
             <!-- Action Buttons Row -->
             <div class="d-flex justify-content-between mb-1">
                 <!-- Enrollment Button (Left) -->
@@ -109,6 +109,17 @@
                 {% endif %}
             </div>
         </div>
+        
+        <!-- Featured Image Column -->
+        {% if course.featured_image %}
+        <div class="col-12 col-lg-4 mt-4 mt-lg-0">
+            <div class="text-center">
+                <img src="{{ course.featured_image.url }}" alt="{{ course.name }} featured image" 
+                     class="img-fluid rounded-3 shadow-lg" 
+                     style="max-height: 300px; object-fit: cover; width: 100%;">
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 

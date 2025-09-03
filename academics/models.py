@@ -177,6 +177,15 @@ class Course(models.Model):
         verbose_name='Classroom'
     )
     
+    # Course featured image for WooCommerce product display
+    featured_image = models.ImageField(
+        upload_to='course_images/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name='Featured Image',
+        help_text='Main image for course display and WooCommerce product'
+    )
+    
     # External system ID for WooCommerce sync
     external_id = models.CharField(
         max_length=100,

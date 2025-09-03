@@ -6,8 +6,10 @@ import os
 import requests
 import json
 import logging
+import time
 from typing import Dict, Any, Optional
 from django.conf import settings
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +95,14 @@ class WooCommerceAPI:
         Create an external product in WooCommerce for a course
         External products redirect to external URL (EduPulse enrollment form)
         """
+        # Prepare product images for WooCommerce
+        images = []
+        if course_data.get('featured_image_url'):
+            images.append({
+                'src': course_data['featured_image_url'],
+                'alt': f"{course_data['name']} featured image"
+            })
+        
         product_data = {
             'name': course_data['name'],
             'type': 'external',  # External/Affiliate product type
@@ -104,6 +114,7 @@ class WooCommerceAPI:
             'regular_price': str(course_data.get('price', '0')),
             'external_url': course_data.get('enrollment_url', ''),
             'button_text': 'Enrol Now',  # Australian English
+            'images': images,  # Add images to product data
             'meta_data': [
                 {
                     'key': '_edupulse_course_id',
@@ -138,6 +149,14 @@ class WooCommerceAPI:
         """
         Update an existing external product in WooCommerce
         """
+        # Prepare product images for WooCommerce
+        images = []
+        if course_data.get('featured_image_url'):
+            images.append({
+                'src': course_data['featured_image_url'],
+                'alt': f"{course_data['name']} featured image"
+            })
+        
         product_data = {
             'name': course_data['name'],
             'status': 'publish' if course_data.get('status') == 'published' else 'draft',
@@ -146,6 +165,7 @@ class WooCommerceAPI:
             'regular_price': str(course_data.get('price', '0')),
             'external_url': course_data.get('enrollment_url', ''),
             'button_text': 'Enrol Now',
+            'images': images,  # Add images to product data
             'categories': course_data.get('categories', []),
             'tags': course_data.get('tags', []),
         }
@@ -269,17 +289,36 @@ class WooCommerceSyncService:
     def __init__(self):
         self.api = WooCommerceAPI()
     
-    def sync_course_to_woocommerce(self, course):
+    def sync_course_to_woocommerce(self, course, log_sync=True):
         """
-        Sync a course to WooCommerce as external product
+        Sync a course to WooCommerce as external product with comprehensive logging
         """
         from django.urls import reverse
         from django.contrib.sites.models import Site
+        from core.models import WooCommerceSyncLog
+        
+        # Create sync log entry
+        sync_log = None
+        start_time = time.time()
+        
+        if log_sync:
+            sync_type = 'update' if course.external_id else 'create'
+            sync_log = WooCommerceSyncLog.objects.create(
+                course=course,
+                sync_type=sync_type,
+                status='processing',
+                wc_product_id=course.external_id or '',
+            )
         
         try:
             # Prepare course data for WooCommerce
             site = Site.objects.get_current()
             enrollment_url = f"https://{site.domain}{reverse('enrollment:public_enrollment')}?course={course.id}"
+            
+            # Handle featured image URL
+            featured_image_url = None
+            if course.featured_image:
+                featured_image_url = f"https://{site.domain}{course.featured_image.url}"
             
             # Map category to WooCommerce category
             category_mapping = {
@@ -294,6 +333,10 @@ class WooCommerceSyncService:
             categories = []
             if category_result['status'] == 'success':
                 categories = [{'id': category_result['category_id']}]
+                # Log category info in sync log
+                if sync_log:
+                    sync_log.wc_category_id = str(category_result['category_id'])
+                    sync_log.wc_category_name = category_name
             else:
                 logger.warning(f"Failed to create/get category {category_name}, using default")
                 categories = [{'name': category_name}]  # Fallback to name-based
@@ -306,9 +349,15 @@ class WooCommerceSyncService:
                 'price': float(course.price),
                 'status': course.status,
                 'enrollment_url': enrollment_url,
+                'featured_image_url': featured_image_url,  # Add image URL
                 'categories': categories,
                 'tags': [{'name': course.get_category_display()}]  # Add category as tag too
             }
+            
+            # Store request data in log
+            if sync_log:
+                sync_log.request_data = course_data
+                sync_log.save()
             
             # Check if course already has WooCommerce product
             if course.external_id:
@@ -317,40 +366,91 @@ class WooCommerceSyncService:
                 result = self.api.update_external_product(wc_product_id, course_data)
                 if result['status'] == 'success':
                     logger.info(f"Successfully updated WooCommerce product for course {course.id}")
-                    return result
+                    success_result = {
+                        'status': 'success',
+                        'wc_product_id': wc_product_id,
+                        'data': result.get('data', {})
+                    }
                 else:
                     logger.error(f"Failed to update WooCommerce product for course {course.id}: {result.get('message')}")
-                    return result
+                    success_result = result
             else:
                 # Create new product
                 result = self.api.create_external_product(course_data)
                 if result['status'] == 'success':
                     # Save WooCommerce product ID to course
-                    course.external_id = str(result['wc_product_id'])
+                    wc_product_id = result['wc_product_id']
+                    course.external_id = str(wc_product_id)
                     course.save(update_fields=['external_id'])
                     logger.info(f"Successfully created WooCommerce product for course {course.id}")
-                    return result
+                    success_result = result
                 else:
                     logger.error(f"Failed to create WooCommerce product for course {course.id}: {result.get('message')}")
-                    return result
+                    success_result = result
+            
+            # Update sync log with results
+            if sync_log:
+                end_time = time.time()
+                duration_ms = int((end_time - start_time) * 1000)
+                
+                if success_result['status'] == 'success':
+                    sync_log.status = 'success'
+                    sync_log.wc_product_id = str(success_result.get('wc_product_id', course.external_id))
+                    sync_log.response_data = success_result.get('data', {})
+                    sync_log.completed_at = timezone.now()
+                else:
+                    sync_log.status = 'failed'
+                    sync_log.error_message = success_result.get('message', 'Unknown error')
+                    sync_log.response_data = success_result.get('data', {})
+                
+                sync_log.duration_ms = duration_ms
+                sync_log.save()
+            
+            return success_result
                     
         except Exception as e:
             logger.error(f"Error syncing course {course.id} to WooCommerce: {str(e)}")
+            
+            # Update sync log with error
+            if sync_log:
+                end_time = time.time()
+                duration_ms = int((end_time - start_time) * 1000)
+                
+                sync_log.status = 'failed'
+                sync_log.error_message = str(e)
+                sync_log.duration_ms = duration_ms
+                sync_log.retry_count += 1
+                sync_log.save()
+            
             return {
                 'status': 'error',
                 'message': str(e),
                 'data': None
             }
     
-    def remove_course_from_woocommerce(self, course):
+    def remove_course_from_woocommerce(self, course, log_sync=True):
         """
-        Remove course product from WooCommerce
+        Remove course product from WooCommerce with comprehensive logging
         """
+        from core.models import WooCommerceSyncLog
+        
         if not course.external_id:
             return {
                 'status': 'success',
                 'message': 'Course not synced to WooCommerce'
             }
+        
+        # Create sync log entry
+        sync_log = None
+        start_time = time.time()
+        
+        if log_sync:
+            sync_log = WooCommerceSyncLog.objects.create(
+                course=course,
+                sync_type='delete',
+                status='processing',
+                wc_product_id=course.external_id,
+            )
         
         try:
             wc_product_id = int(course.external_id)
@@ -362,10 +462,38 @@ class WooCommerceSyncService:
                 course.save(update_fields=['external_id'])
                 logger.info(f"Successfully removed WooCommerce product for course {course.id}")
             
+            # Update sync log with results
+            if sync_log:
+                end_time = time.time()
+                duration_ms = int((end_time - start_time) * 1000)
+                
+                if result['status'] == 'success':
+                    sync_log.status = 'success'
+                    sync_log.completed_at = timezone.now()
+                else:
+                    sync_log.status = 'failed'
+                    sync_log.error_message = result.get('message', 'Unknown error')
+                
+                sync_log.response_data = result.get('data', {})
+                sync_log.duration_ms = duration_ms
+                sync_log.save()
+            
             return result
             
         except Exception as e:
             logger.error(f"Error removing course {course.id} from WooCommerce: {str(e)}")
+            
+            # Update sync log with error
+            if sync_log:
+                end_time = time.time()
+                duration_ms = int((end_time - start_time) * 1000)
+                
+                sync_log.status = 'failed'
+                sync_log.error_message = str(e)
+                sync_log.duration_ms = duration_ms
+                sync_log.retry_count += 1
+                sync_log.save()
+            
             return {
                 'status': 'error',
                 'message': str(e),

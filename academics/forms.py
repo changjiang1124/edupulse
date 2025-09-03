@@ -10,7 +10,7 @@ class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
         fields = [
-            'name', 'short_description', 'description', 'price', 'course_type', 'category', 'status', 'teacher',
+            'name', 'short_description', 'description', 'featured_image', 'price', 'course_type', 'category', 'status', 'teacher',
             'start_date', 'end_date', 'repeat_pattern', 'repeat_weekday', 'repeat_day_of_month', 
             'start_time', 'duration_minutes', 'vacancy', 'facility', 'classroom', 'is_online_bookable',
             'enrollment_deadline'
@@ -26,6 +26,11 @@ class CourseForm(forms.ModelForm):
                 'maxlength': 500
             }),
             'description': TinyMCE(attrs={'cols': 80, 'rows': 30}),
+            'featured_image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*',
+                'title': 'Select course feature image'
+            }),
             'price': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'step': '0.01',
@@ -99,6 +104,28 @@ class CourseForm(forms.ModelForm):
             required=False,
             widget=forms.Select(attrs={'class': 'form-select'})
         )
+        
+    def clean_featured_image(self):
+        """Validate featured image file"""
+        image = self.cleaned_data.get('featured_image')
+        if image:
+            # Check file size (max 5MB)
+            if image.size > 5 * 1024 * 1024:
+                raise forms.ValidationError('Image file size must be less than 5MB.')
+            
+            # Check file format
+            valid_formats = ['JPEG', 'JPG', 'PNG', 'WEBP']
+            try:
+                from PIL import Image
+                img = Image.open(image)
+                if img.format not in valid_formats:
+                    raise forms.ValidationError(
+                        f'Invalid image format. Supported formats: {", ".join(valid_formats)}'
+                    )
+            except Exception as e:
+                raise forms.ValidationError('Invalid image file.')
+                
+        return image
         
     def clean_repeat_weekday(self):
         """Clean repeat_weekday field to convert empty string to None"""
