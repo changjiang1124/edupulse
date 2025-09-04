@@ -52,6 +52,46 @@ class Enrollment(models.Model):
         verbose_name='Form Data'
     )
     
+    # Fee Management
+    course_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name='Course Fee',
+        help_text='Fee for the course at time of enrollment'
+    )
+    registration_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name='Registration Fee',
+        help_text='Registration fee for new students'
+    )
+    registration_fee_paid = models.BooleanField(
+        default=False,
+        verbose_name='Registration Fee Paid'
+    )
+    
+    # Student Identification
+    is_new_student = models.BooleanField(
+        default=True,
+        verbose_name='Is New Student',
+        help_text='Whether student was new at time of enrollment'
+    )
+    matched_existing_student = models.BooleanField(
+        default=False,
+        verbose_name='Matched Existing Student',
+        help_text='Whether an existing student was matched during enrollment'
+    )
+    
+    # Original form data preservation
+    original_form_data = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name='Original Form Data',
+        help_text='Backup of original enrollment form data for audit purposes'
+    )
+    
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name='Enrolment Date'
@@ -68,6 +108,22 @@ class Enrollment(models.Model):
     
     def __str__(self):
         return f"{self.student} - {self.course} ({self.get_status_display()})"
+    
+    def get_total_fee(self):
+        """Calculate total fee for this enrollment"""
+        return self.course_fee + self.registration_fee
+    
+    def get_outstanding_fee(self):
+        """Calculate outstanding fee amount"""
+        outstanding = self.course_fee  # Course fee always outstanding until separately tracked
+        if not self.registration_fee_paid:
+            outstanding += self.registration_fee
+        return outstanding
+    
+    def is_fully_paid(self):
+        """Check if all fees are paid (currently only tracks registration fee)"""
+        # Note: Course fee payment would need separate tracking
+        return self.registration_fee_paid or self.registration_fee == 0
 
 
 class Attendance(models.Model):

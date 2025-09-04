@@ -189,115 +189,57 @@ class PublicEnrollmentView(TemplateView):
                 return redirect('enrollment:public_enrollment')
         
         if form.is_valid():
-            # Calculate age to determine contact information mapping
-            date_of_birth = form.cleaned_data['date_of_birth']
-            age = form.get_student_age() or form.cleaned_data.get('calculated_age')
+            from students.services import StudentMatchingService, EnrollmentFeeCalculator
             
-            # Determine contact information mapping based on age
-            if age and age < 18:
-                # Student is under 18 - contact info is guardian's
-                guardian_email = form.cleaned_data['email']
-                guardian_phone = form.cleaned_data['phone']
-                student_email = ''  # No separate student email for under 18
-                student_phone = ''  # No separate student phone for under 18
-            else:
-                # Student is 18+ - contact info is student's
-                guardian_email = ''  # No guardian email for 18+
-                guardian_phone = ''  # No guardian phone for 18+
-                student_email = form.cleaned_data['email']
-                student_phone = form.cleaned_data['phone']
-            
-            # Create student data with proper contact mapping
-            student_data = {
-                'first_name': form.cleaned_data['first_name'],
-                'last_name': form.cleaned_data['last_name'],
-                'birth_date': form.cleaned_data['date_of_birth'],
-                'address': form.cleaned_data.get('address', ''),
-                
-                # Contact information (mapped based on age)
-                'email': student_email,
-                'phone': student_phone,
-                
-                # Guardian information (only for under 18)
-                'guardian_name': form.cleaned_data.get('guardian_name', ''),
-                'guardian_email': guardian_email,
-                'guardian_phone': guardian_phone,
-                
-                # Emergency contact
-                'emergency_contact_name': form.cleaned_data.get('emergency_contact_name', ''),
-                'emergency_contact_phone': form.cleaned_data.get('emergency_contact_phone', ''),
-                
-                # Medical information
-                'medical_conditions': form.cleaned_data.get('medical_conditions', ''),
-                'special_requirements': form.cleaned_data.get('special_requirements', ''),
-            }
-            
-            # Determine primary contact email for student lookup and notifications
-            primary_contact_email = guardian_email if age and age < 18 else student_email
-            
-            # Check if student exists by primary contact email
-            student = None
-            if primary_contact_email:
-                try:
-                    # For under 18: look up by guardian email
-                    # For 18+: look up by student email
-                    if age and age < 18:
-                        student = Student.objects.get(guardian_email=primary_contact_email)
-                    else:
-                        student = Student.objects.get(email=primary_contact_email)
-                    
-                    # Update existing student data
-                    for key, value in student_data.items():
-                        if value:  # Only update non-empty fields
-                            setattr(student, key, value)
-                    student.save()
-                except Student.DoesNotExist:
-                    pass
-            
-            # Create student if not found
-            if not student:
-                student = Student.objects.create(**student_data)
-            
-            # Store contact information metadata for notifications
-            contact_info = {
-                'primary_email': primary_contact_email,
-                'primary_phone': guardian_phone if age and age < 18 else student_phone,
-                'contact_type': 'guardian' if age and age < 18 else 'student',
-                'student_age': age
-            }
-            
-            # Create enrollment with enhanced form data including contact info
+            # Get course
             course = Course.objects.get(pk=form.cleaned_data['course_id'])
             
-            # Enhanced form data with contact metadata
-            enhanced_form_data = dict(form.cleaned_data)
-            enhanced_form_data.update(contact_info)
+            # Create enrollment first for reference
+            enrollment = Enrollment.objects.create(
+                course=course,
+                status='pending',
+                source_channel='website',
+                original_form_data=form.cleaned_data
+            )
             
-            enrollment_data = {
-                'student': student,
-                'course': course,
-                'status': 'pending',
-                'source_channel': 'form',
-                'form_data': enhanced_form_data
-            }
+            # Use student matching service to create or find student
+            student, was_created = StudentMatchingService.create_or_update_student(
+                form.cleaned_data, enrollment
+            )
             
-            # Check if enrollment already exists
+            # Calculate and set enrollment fees
+            fees = EnrollmentFeeCalculator.update_enrollment_fees(
+                enrollment, course, enrollment.is_new_student
+            )
+            
+            # Check if enrollment already exists for this course
             existing_enrollment = Enrollment.objects.filter(
-                student=student, course=course
-            ).first()
+                student=student, 
+                course=course
+            ).exclude(pk=enrollment.pk).first()
             
             if existing_enrollment:
+                # Delete the temp enrollment we just created
+                enrollment.delete()
+                
                 messages.warning(
                     request, 
                     f'Enrollment already exists for {student.get_full_name()} in {course.name}. Status: {existing_enrollment.get_status_display()}'
                 )
                 return redirect('enrollment:enrollment_success', enrollment_id=existing_enrollment.pk)
             else:
-                enrollment = Enrollment.objects.create(**enrollment_data)
-                messages.success(
-                    request, 
-                    f'Enrollment submitted successfully for {student.get_full_name()} in {course.name}. Reference ID: {enrollment.pk}'
-                )
+                success_message = f'Enrollment submitted successfully for {student.get_full_name()} in {course.name}.'
+                if was_created:
+                    success_message += ' New student profile created.'
+                else:
+                    success_message += ' Existing student record updated.'
+                
+                if fees['has_registration_fee']:
+                    success_message += f' Total fee: ${fees["total_fee"]} (includes ${fees["registration_fee"]} registration fee).'
+                else:
+                    success_message += f' Course fee: ${fees["course_fee"]}.'
+                
+                messages.success(request, success_message)
                 return redirect('enrollment:enrollment_success', enrollment_id=enrollment.pk)
         
         # Form validation failed - prepare context for re-rendering

@@ -3,15 +3,30 @@ from .models import Student, StudentTag
 
 
 class StudentForm(forms.ModelForm):
-    """Student form with Bootstrap styling"""
+    """Student form with Bootstrap styling - aligned with enrollment form"""
     
     class Meta:
         model = Student
         fields = [
-            'first_name', 'last_name', 'birth_date', 'email', 'phone', 'address',
-            'guardian_name', 'guardian_phone', 'guardian_email', 'reference', 'tags', 'is_active'
+            # Basic Information
+            'first_name', 'last_name', 'birth_date', 'address',
+            # Primary Contact (unified from enrollment)
+            'primary_contact_email', 'primary_contact_phone', 'primary_contact_type',
+            # Student Personal Contact
+            'email', 'phone',
+            # Guardian Information
+            'guardian_name', 'guardian_phone', 'guardian_email',
+            # Emergency Contact
+            'emergency_contact_name', 'emergency_contact_phone',
+            # Medical & Special Requirements
+            'medical_conditions', 'special_requirements',
+            # Reference & Management
+            'reference', 'registration_status', 'enrollment_source',
+            # Staff Fields
+            'staff_notes', 'tags', 'is_active'
         ]
         widgets = {
+            # Basic Information
             'first_name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Enter first name'
@@ -24,6 +39,26 @@ class StudentForm(forms.ModelForm):
                 'class': 'form-control',
                 'type': 'date'
             }),
+            'address': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter full residential address',
+                'rows': 3
+            }),
+            
+            # Primary Contact Information
+            'primary_contact_email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'primary@email.com'
+            }),
+            'primary_contact_phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '0412 345 678'
+            }),
+            'primary_contact_type': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            
+            # Student Personal Contact
             'email': forms.EmailInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'student@email.com'
@@ -32,11 +67,8 @@ class StudentForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': '0412 345 678'
             }),
-            'address': forms.Textarea(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter full address',
-                'rows': 3
-            }),
+            
+            # Guardian Information
             'guardian_name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Guardian full name'
@@ -49,9 +81,47 @@ class StudentForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'guardian@email.com'
             }),
+            
+            # Emergency Contact
+            'emergency_contact_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Emergency contact name'
+            }),
+            'emergency_contact_phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '0412 345 678'
+            }),
+            
+            # Medical & Special Requirements
+            'medical_conditions': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Any medical conditions we should be aware of',
+                'rows': 3
+            }),
+            'special_requirements': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Any special requirements or accommodations needed',
+                'rows': 3
+            }),
+            
+            # Reference & Management
             'reference': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'How did you hear about us?'
+            }),
+            'registration_status': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'enrollment_source': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Where/how the student enrolled'
+            }),
+            
+            # Staff Fields
+            'staff_notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Internal notes for staff/teachers only',
+                'rows': 4
             }),
             'tags': forms.CheckboxSelectMultiple(attrs={
                 'class': 'form-check-input'
@@ -59,6 +129,18 @@ class StudentForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
+        }
+        
+        help_texts = {
+            'primary_contact_email': 'Main email address for course communications',
+            'primary_contact_phone': 'Main phone number for SMS notifications',
+            'primary_contact_type': 'Indicates if primary contact is the student or guardian',
+            'email': 'Student\'s personal email (if different from primary)',
+            'phone': 'Student\'s personal phone (if different from primary)',
+            'medical_conditions': 'Any medical conditions we should be aware of',
+            'special_requirements': 'Any special requirements or accommodations needed',
+            'staff_notes': 'Internal notes for staff/teachers only (not visible to students)',
+            'enrollment_source': 'Where/how the student enrolled (e.g., website, referral)',
         }
 
 

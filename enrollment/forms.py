@@ -29,6 +29,21 @@ class EnrollmentForm(forms.ModelForm):
 class PublicEnrollmentForm(forms.Form):
     """Public enrollment form for students/guardians with age-based dynamic fields"""
     
+    # Student Identification
+    student_status = forms.ChoiceField(
+        choices=[
+            ('', 'Please select...'),
+            ('new', 'New Student (First time enrolling)'),
+            ('returning', 'Returning Student (Previously enrolled)')
+        ],
+        label='Student Status',
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'id': 'id_student_status'
+        }),
+        help_text='Are you enrolling for the first time or returning?'
+    )
+    
     # Student Information
     first_name = forms.CharField(
         max_length=30,
@@ -54,7 +69,7 @@ class PublicEnrollmentForm(forms.Form):
             'class': 'form-control',
             'type': 'date'
         }),
-        help_text='Please select date of birth first - this determines contact requirements'
+        help_text='Used for student identification and determining contact requirements'
     )
     
     address = forms.CharField(
@@ -151,16 +166,29 @@ class PublicEnrollmentForm(forms.Form):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Populate course choices
+        # Populate course choices with pricing information
         courses = Course.objects.filter(status='published').order_by('name')
-        self.fields['course_id'].choices = [('', 'Select a course...')] + [
-            (course.pk, f"{course.name} - ${course.price}") for course in courses
-        ]
+        course_choices = [('', 'Select a course...')]
+        
+        for course in courses:
+            course_fee = f"${course.price}"
+            if course.has_registration_fee():
+                reg_fee_info = f" (+${course.registration_fee} registration fee for new students)"
+            else:
+                reg_fee_info = ""
+            
+            choice_label = f"{course.name} - {course_fee}{reg_fee_info}"
+            course_choices.append((course.pk, choice_label))
+        
+        self.fields['course_id'].choices = course_choices
     
     def clean(self):
         cleaned_data = super().clean()
         date_of_birth = cleaned_data.get('date_of_birth')
         guardian_name = cleaned_data.get('guardian_name')
+        student_status = cleaned_data.get('student_status')
+        first_name = cleaned_data.get('first_name')
+        last_name = cleaned_data.get('last_name')
         
         if date_of_birth:
             from datetime import date
@@ -174,6 +202,30 @@ class PublicEnrollmentForm(forms.Form):
                 # Student is under 18, guardian name is required
                 if not guardian_name or guardian_name.strip() == '':
                     self.add_error('guardian_name', 'Guardian name is required for students under 18.')
+        
+        # Validate student status selection
+        if not student_status:
+            self.add_error('student_status', 'Please select if you are a new or returning student.')
+        
+        # Check for existing student if returning student is selected
+        if student_status == 'returning' and first_name and last_name and date_of_birth:
+            from students.services import StudentMatchingService
+            existing_student, match_type = StudentMatchingService.find_existing_student({
+                'first_name': first_name,
+                'last_name': last_name,
+                'date_of_birth': date_of_birth
+            })
+            
+            if not existing_student or match_type == 'none':
+                self.add_error('student_status', 
+                    'No matching student record found. Please select "New Student" or verify the name and date of birth are correct.')
+            elif match_type == 'multiple_matches':
+                self.add_error('student_status', 
+                    'Multiple students found with this name. Please contact us directly for enrollment.')
+            else:
+                # Store matched student for use in views
+                cleaned_data['matched_student'] = existing_student
+                cleaned_data['match_type'] = match_type
         
         return cleaned_data
     

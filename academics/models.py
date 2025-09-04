@@ -67,7 +67,15 @@ class Course(models.Model):
     price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        verbose_name='Price'
+        verbose_name='Course Fee'
+    )
+    registration_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        blank=True,
+        verbose_name='Registration Fee',
+        help_text='Additional fee for new student registration. Leave blank if no registration fee required.'
     )
     course_type = models.CharField(
         max_length=20,
@@ -272,6 +280,18 @@ class Course(models.Model):
         else:
             end_date = self.end_date or self.start_date
             return f"Term: {self.start_date.strftime('%d %b')} - {end_date.strftime('%d %b %Y')}"
+    
+    def get_total_cost_for_new_student(self):
+        """Calculate total cost including registration fee for new students"""
+        return self.price + (self.registration_fee or 0)
+    
+    def get_total_cost_for_existing_student(self):
+        """Calculate total cost excluding registration fee for existing students"""
+        return self.price
+    
+    def has_registration_fee(self):
+        """Check if course has a registration fee"""
+        return self.registration_fee and self.registration_fee > 0
     
     def save(self, *args, **kwargs):
         # Auto-set end_date to start_date for single sessions
