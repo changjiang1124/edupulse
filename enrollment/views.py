@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.views.generic import (
-    ListView, DetailView, TemplateView, CreateView, UpdateView, DeleteView
+    ListView, DetailView, TemplateView, CreateView, UpdateView, DeleteView, View
 )
 from django.urls import reverse_lazy, reverse
 from django.db.models import Q
@@ -83,7 +83,7 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
 class AttendanceListView(LoginRequiredMixin, ListView):
     model = Attendance
     template_name = 'core/attendance/list.html'
-    context_object_name = 'attendances'
+    context_object_name = 'attendance_records'
     paginate_by = 30
     
     def get_queryset(self):
@@ -91,12 +91,46 @@ class AttendanceListView(LoginRequiredMixin, ListView):
             'student', 'class_instance__course'
         ).all()
         
+        # Filter by course if specified
+        course_id = self.request.GET.get('course')
+        if course_id:
+            queryset = queryset.filter(class_instance__course_id=course_id)
+        
+        # Filter by date range if specified
+        date_from = self.request.GET.get('date_from')
+        if date_from:
+            queryset = queryset.filter(class_instance__date__gte=date_from)
+            
+        date_to = self.request.GET.get('date_to')
+        if date_to:
+            queryset = queryset.filter(class_instance__date__lte=date_to)
+            
         # Filter by student if specified
         student_id = self.request.GET.get('student')
         if student_id:
             queryset = queryset.filter(student_id=student_id)
             
-        return queryset.order_by('-attendance_time')
+        return queryset.order_by('-class_instance__date', '-attendance_time')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Add filter options
+        from academics.models import Course, Class
+        context['courses'] = Course.objects.filter(status='published').order_by('name')
+        
+        # Get upcoming classes for attendance marking
+        from django.utils import timezone
+        today = timezone.now().date()
+        next_week = today + timezone.timedelta(days=7)
+        
+        context['upcoming_classes'] = Class.objects.filter(
+            date__gte=today,
+            date__lte=next_week,
+            is_active=True
+        ).select_related('course').order_by('date', 'start_time')[:12]
+        
+        return context
 
 
 class EnrollmentCreateView(LoginRequiredMixin, CreateView):
@@ -267,28 +301,114 @@ class EnrollmentSuccessView(TemplateView):
         return context
 
 
-class AttendanceMarkView(LoginRequiredMixin, TemplateView):
+class AttendanceMarkView(LoginRequiredMixin, View):
+    """Enhanced attendance marking view with batch processing"""
     template_name = 'core/attendance/mark.html'
     
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        class_id = self.kwargs.get('class_id')
-        if class_id:
-            from academics.models import Class
-            class_instance = get_object_or_404(Class, pk=class_id)
-            context['class_instance'] = class_instance
-            
-            # Get enrolled students for this course
-            enrolled_students = class_instance.course.enrollments.filter(
-                status='confirmed'
-            ).select_related('student')
-            context['enrolled_students'] = enrolled_students
-            
-            # Get existing attendance records
-            existing_attendance = {
-                att.student.id: att for att in 
-                class_instance.attendances.select_related('student').all()
-            }
-            context['existing_attendance'] = existing_attendance
-            
+    def get_context_data(self, class_instance, form=None):
+        """Prepare context for both GET and POST requests"""
+        context = {
+            'class_instance': class_instance,
+            'course': class_instance.course,
+        }
+        
+        # Get enrolled students for this course
+        enrolled_students = class_instance.course.enrollments.filter(
+            status='confirmed'
+        ).select_related('student')
+        context['enrolled_students'] = enrolled_students
+        
+        # Get existing attendance records
+        existing_attendance = {
+            att.student.id: att for att in 
+            class_instance.attendances.select_related('student').all()
+        }
+        context['existing_attendance'] = existing_attendance
+        
+        # Add form to context
+        if form is None:
+            from .forms import BulkAttendanceForm
+            form = BulkAttendanceForm(class_instance=class_instance)
+        context['form'] = form
+        
+        # Add student field data for easier template rendering
+        context['student_fields'] = form.get_student_fields() if hasattr(form, 'get_student_fields') else []
+        
         return context
+    
+    def get(self, request, class_id):
+        """Display attendance marking form"""
+        from academics.models import Class
+        class_instance = get_object_or_404(Class, pk=class_id)
+        
+        context = self.get_context_data(class_instance)
+        return render(request, self.template_name, context)
+    
+    def post(self, request, class_id):
+        """Process bulk attendance form submission"""
+        from academics.models import Class
+        from .forms import BulkAttendanceForm
+        
+        class_instance = get_object_or_404(Class, pk=class_id)
+        form = BulkAttendanceForm(request.POST, class_instance=class_instance)
+        
+        if form.is_valid():
+            try:
+                created_count, updated_count = form.save_attendance(class_instance)
+                
+                success_msg = f'Attendance updated successfully! '
+                if created_count:
+                    success_msg += f'{created_count} new records created. '
+                if updated_count:
+                    success_msg += f'{updated_count} existing records updated.'
+                
+                messages.success(request, success_msg)
+                return redirect('enrollment:attendance_mark', class_id=class_id)
+                
+            except Exception as e:
+                messages.error(request, f'Error saving attendance: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors in the form.')
+        
+        context = self.get_context_data(class_instance, form)
+        return render(request, self.template_name, context)
+
+
+class StudentSearchView(LoginRequiredMixin, View):
+    """AJAX student search endpoint"""
+    
+    def get(self, request):
+        """Handle AJAX student search requests"""
+        from django.http import JsonResponse
+        from .forms import StudentSearchForm
+        
+        form = StudentSearchForm(request.GET)
+        
+        if form.is_valid():
+            results = form.search_students()
+            return JsonResponse({
+                'success': True,
+                'results': results,
+                'count': len(results)
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors
+            }, status=400)
+
+
+class AttendanceUpdateView(LoginRequiredMixin, UpdateView):
+    """Update individual attendance record"""
+    model = Attendance
+    template_name = 'core/attendance/update.html'
+    fields = ['status', 'attendance_time']
+    
+    def get_success_url(self):
+        return reverse('enrollment:attendance_mark', 
+                      kwargs={'class_id': self.object.class_instance.id})
+    
+    def form_valid(self, form):
+        messages.success(self.request, 
+                        f'Attendance updated for {self.object.student.get_full_name()}')
+        return super().form_valid(form)

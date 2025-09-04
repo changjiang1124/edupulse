@@ -46,7 +46,6 @@ students related to a certain class should be edited manually as well, due to so
 
 - [x] in student page, we should have a notification function, to allow send SMS/email in batch or individual (you should think harder on the UX design here). in email, you should add reply-to in case others reply the email. SMS should be no-reply (is this configured at twilio portal?). SMS and email should have monthly limitation, and configured by me in django admin (not visible for frontend) . as the contact information, or information like whether you should use guardian's name or student's name, you should review by the enrolment design.
 
-- [] attendance for staff/teacher, in a public url. 
 
 - [x] enrolment, only show hint if student under 18. and check if you are using the only one contact email and phone number. as if student under 18, this should be their guardian, but dont need to have separate guardiant email or student email, as for phone number. otherwise when sending notification, we need to identify which contact email / sms we should send. for under 18, the only difference should be the guardian name is provided or not. and for validation, before DOB is specified, the contact information section should be disabled. do you agree such interaction?
 
@@ -72,6 +71,19 @@ students related to a certain class should be edited manually as well, due to so
 
 - [x] in student page, add a batch notification feature. they can multi select student from list to send notifiaation (email or sms). to facilitate this, should we have tags for students, so they can be groupped and send by select premarked tags.
 
-- [] the student create and edit page, should be aligned with Enrolment, since most of the information is from enrolment. so please check both of them and align them. we can add some fields for student edited in the system, e.g. notes for teachers/operators, without showing them to frontend. and the form should have tag fields 
+- [x] the student create and edit page, should be aligned with Enrolment, since most of the information is from enrolment. so please check both of them and align them. we can add some fields for student edited in the system, e.g. notes for teachers/operators, without showing them to frontend. and the form should have tag fields 
   
-is contact email in enrolment sharing one for either student or guardian, depending on the student age? if they share the only one field, should you modify it in the student form to align it? and for the enrolment fields, since they are for courses, are they all can be included in Student information? should we distinguish what are for student and what are for course in the enrolment? especially considering the student needs to be identified by existing student or new student, because there might be a registeration fee (course create/edit price should include this additional field to indicate how much for registeration fee, leave blank means no fee). and what could be a good way to identify student is registered or not? a checkbox to indicate explicitly? or judge by information they provide (e.g. name + DOB)
+is contact email in enrolment sharing one for either student or guardian, depending on the student age? if they share the only one field, should you modify it in the student form to align it? and for the enrolment fields, since they are for courses, are they all can be included in Student information? should we distinguish what are for student and what are for course in the enrolment? especially considering the student needs to be identified by existing student or new student, because there might be a registration fee (course create/edit price should include this additional field to indicate how much for registration fee, leave blank means no fee). and what could be a good way to identify student is registered or not? a checkbox to indicate explicitly? or judge by information they provide (e.g. name + DOB)
+
+
+- [x] attendance for student, in class. searchable with suggestions when add student in class. attendance should be able to be marked for single or multiple students in the list, with time specified, and able to be marked as absent or other regular attendance features. note the reasonableness of the interaction of the page and list. 
+
+- [] help me refine the course detail page for interaction, UI and attendance. 
+- 1. make the title panel in white background instead of green, and back to classes button at the top left of the title panel. in the original place, remove delete action, and only keep edit action button. if the class is "deleted", they should be marked as inactive by uncheck the active checkbox in class edit page. 
+- 2. move `mark attendance` from student panel to attendance history panel to strengthen to correlations. 
+- 3. remove quick actions panel, and put view course action on the title panel next to class edit action. 
+- 4. check the information accuracy in Class Statistics 
+- 5. the poped action panel from 3 dots of student item, could be covered by the panels in its right. this could be a style error.
+- 6 the modal of `add student` doesn't have suggestions while typing student name or email. and in case this is a new student, below the search box, provide a `cannot find any? add new student` ( you can revise the message) with a link to add a new student. 
+
+- [] attendance for teacher, this is standalone page as i want to teacher scan a QRcode on the site, and fill a form to clock in and out. teachers need to sign in their account first for ID, and then clock in by specifying their class and time, class could be multiple checked, class options are today's class of the facility by detecting their current location. we also need to collect their GPS to calculate (does Google GEOAPI have such feature?) if they are near the facility (so the facility address will also collect GPS, could use google GEOAPI to suggest the location when editing facility). 

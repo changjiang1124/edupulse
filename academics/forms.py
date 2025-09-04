@@ -10,7 +10,7 @@ class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
         fields = [
-            'name', 'short_description', 'description', 'featured_image', 'price', 'course_type', 'category', 'status', 'teacher',
+            'name', 'short_description', 'description', 'featured_image', 'price', 'registration_fee', 'course_type', 'category', 'status', 'teacher',
             'start_date', 'end_date', 'repeat_pattern', 'repeat_weekday', 'repeat_day_of_month', 
             'start_time', 'duration_minutes', 'vacancy', 'facility', 'classroom', 'is_online_bookable',
             'enrollment_deadline'
@@ -35,6 +35,12 @@ class CourseForm(forms.ModelForm):
                 'class': 'form-control',
                 'step': '0.01',
                 'min': '0'
+            }),
+            'registration_fee': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Leave blank if no registration fee applies'
             }),
             'course_type': forms.Select(attrs={
                 'class': 'form-select'

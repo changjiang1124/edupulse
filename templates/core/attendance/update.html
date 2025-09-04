@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Update Attendance - EduPulse{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>Update Attendance Record
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Student and Class Info -->
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="student-avatar me-3">
+                            {{ object.student.first_name|slice:":1" }}{{ object.student.last_name|slice:":1" }}
+                        </div>
+                        <div>
+                            <h6 class="mb-1">{{ object.student.get_full_name }}</h6>
+                            <small>{{ object.student.primary_contact_email|default:object.student.email|default:"No email" }}</small>
+                        </div>
+                    </div>
+                    <hr class="my-2">
+                    <div>
+                        <strong>{{ object.class_instance.course.name }}</strong><br>
+                        <small>{{ object.class_instance.date|date:"l, F j, Y" }} at {{ object.class_instance.start_time|time:"g:i A" }}</small>
+                    </div>
+                </div>
+
+                <!-- Update Form -->
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.status.id_for_label }}" class="form-label">Attendance Status *</label>
+                        {{ form.status }}
+                        {% if form.status.errors %}
+                            <div class="invalid-feedback d-block">{{ form.status.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.attendance_time.id_for_label }}" class="form-label">Attendance Time *</label>
+                        {{ form.attendance_time }}
+                        {% if form.attendance_time.help_text %}
+                            <div class="form-text">{{ form.attendance_time.help_text }}</div>
+                        {% endif %}
+                        {% if form.attendance_time.errors %}
+                            <div class="invalid-feedback d-block">{{ form.attendance_time.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'enrollment:attendance_mark' object.class_instance.id %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Class Attendance
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Update Attendance
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.student-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.form-control, .form-select {
+    border-radius: 6px;
+}
+
+.alert {
+    border-radius: 8px;
+}
+
+.card {
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set form styling
+    const formControls = document.querySelectorAll('.form-control, .form-select');
+    formControls.forEach(control => {
+        control.classList.add('form-control');
+    });
+    
+    // Initialize datetime field
+    const attendanceTimeField = document.getElementById('{{ form.attendance_time.id_for_label }}');
+    if (attendanceTimeField && attendanceTimeField.type === 'datetime-local') {
+        // Ensure proper datetime formatting
+        if (!attendanceTimeField.value) {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            attendanceTimeField.value = now.toISOString().slice(0, 16);
+        }
+    }
+});
+</script>
+{% endblock %}

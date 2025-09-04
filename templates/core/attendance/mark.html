@@ -1,0 +1,438 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Mark Attendance - {{ class_instance.course.name }} - EduPulse{% endblock %}
+
+{% block extra_head %}
+<style>
+.attendance-table {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.student-row {
+    border-bottom: 1px solid #f0f0f0;
+    padding: 12px 0;
+    transition: background-color 0.2s;
+}
+
+.student-row:hover {
+    background-color: #f8f9fa;
+}
+
+.student-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.student-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.student-details h6 {
+    margin: 0;
+    color: #2d3748;
+    font-weight: 600;
+}
+
+.student-details small {
+    color: #718096;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-present {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-absent {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-late {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-early_leave {
+    background-color: #ffeaa7;
+    color: #6c5ce7;
+}
+
+.bulk-actions {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.class-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.search-container {
+    position: relative;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.search-result-item {
+    padding: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.search-result-item:hover {
+    background-color: #f8f9fa;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Class Information Header -->
+        <div class="class-header">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h2 class="mb-2">{{ class_instance.course.name }}</h2>
+                    <p class="mb-1">
+                        <i class="fas fa-calendar me-2"></i>
+                        {{ class_instance.date|date:"l, F j, Y" }} at {{ class_instance.start_time|time:"g:i A" }}
+                    </p>
+                    <p class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Duration: {{ class_instance.duration_minutes }} minutes
+                        {% if class_instance.teacher %}
+                            <span class="ms-3">
+                                <i class="fas fa-user me-2"></i>
+                                Teacher: {{ class_instance.teacher.get_full_name }}
+                            </span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-light text-dark fs-6">
+                        {{ enrolled_students.count }} Students Enrolled
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bulk Actions Panel -->
+        <div class="bulk-actions">
+            <form method="post" id="attendanceForm">
+                {% csrf_token %}
+                {{ form.class_instance }}
+                
+                <!-- Default Time Setting -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="{{ form.default_time.id_for_label }}" class="form-label">
+                            <i class="fas fa-clock me-2"></i>{{ form.default_time.label }}
+                        </label>
+                        {{ form.default_time }}
+                        {% if form.default_time.help_text %}
+                            <div class="form-text">{{ form.default_time.help_text }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Quick Actions</label>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-success btn-sm" onclick="markAllAs('present')">
+                                <i class="fas fa-check me-1"></i>Mark All Present
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="markAllAs('absent')">
+                                <i class="fas fa-times me-1"></i>Mark All Absent
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAllStatus()">
+                                <i class="fas fa-eraser me-1"></i>Clear All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student Search (for adding temporary students) -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            <i class="fas fa-search me-2"></i>Search Students
+                        </label>
+                        <div class="search-container">
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="studentSearch" 
+                                   placeholder="Search by name, email, or phone..." 
+                                   autocomplete="off">
+                            <div class="search-results" id="searchResults"></div>
+                        </div>
+                        <div class="form-text">Search for students not enrolled in this course to mark temporary attendance</div>
+                    </div>
+                </div>
+
+                <!-- Students Attendance List -->
+                <div class="attendance-table">
+                    <div class="p-3">
+                        <h5 class="mb-3">
+                            <i class="fas fa-users me-2"></i>Student Attendance
+                        </h5>
+                        
+                        {% if student_fields %}
+                            {% for student_data in student_fields %}
+                            <div class="student-row" data-student-id="{{ student_data.student_id }}">
+                                <div class="row align-items-center">
+                                    <div class="col-md-5">
+                                        <div class="student-info">
+                                            <div class="student-avatar">
+                                                {{ student_data.student_name|slice:":1"|upper }}
+                                            </div>
+                                            <div class="student-details">
+                                                <h6>{{ student_data.student_name }}</h6>
+                                                {% with student_id=student_data.student_id|add:0 %}
+                                                    {% for enrollment in enrolled_students %}
+                                                        {% if enrollment.student.id == student_id %}
+                                                            <small>{{ enrollment.student.primary_contact_email|default:enrollment.student.email|default:"No email" }}</small>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% endwith %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Status</label>
+                                        {{ student_data.status_field }}
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Time</label>
+                                        {{ student_data.time_field }}
+                                    </div>
+                                    <div class="col-md-1">
+                                        {% with student_id=student_data.student_id|add:0 %}
+                                            {% if student_id in existing_attendance %}
+                                                <span class="status-badge status-{{ existing_attendance|get_item:student_id.status }}">
+                                                    {{ existing_attendance|get_item:student_id.get_status_display }}
+                                                </span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No students enrolled in this course.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Submit Actions -->
+                <div class="mt-4 d-flex justify-content-between">
+                    <a href="{% url 'enrollment:attendance_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Attendance List
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Attendance
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Global variables
+let searchTimeout;
+const searchInput = document.getElementById('studentSearch');
+const searchResults = document.getElementById('searchResults');
+
+// Initialize attendance marking functionality
+document.addEventListener('DOMContentLoaded', function() {
+    initializeStudentSearch();
+    initializeFormValidation();
+    
+    // Set default time to current time if empty
+    const defaultTimeField = document.getElementById('{{ form.default_time.id_for_label }}');
+    if (!defaultTimeField.value) {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        defaultTimeField.value = now.toISOString().slice(0, 16);
+    }
+});
+
+// Student search functionality
+function initializeStudentSearch() {
+    if (!searchInput) return;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            hideSearchResults();
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            performStudentSearch(query);
+        }, 300);
+    });
+    
+    // Hide results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            hideSearchResults();
+        }
+    });
+}
+
+function performStudentSearch(query) {
+    const url = new URL('{% url "enrollment:student_search" %}', window.location.origin);
+    url.searchParams.append('query', query);
+    url.searchParams.append('course_id', '{{ class_instance.course.id }}');
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displaySearchResults(data.results);
+            } else {
+                console.error('Search error:', data.errors);
+            }
+        })
+        .catch(error => {
+            console.error('Network error:', error);
+        });
+}
+
+function displaySearchResults(results) {
+    if (!results || results.length === 0) {
+        hideSearchResults();
+        return;
+    }
+    
+    searchResults.innerHTML = results.map(student => `
+        <div class="search-result-item" onclick="selectStudent(${student.id}, '${student.name}')">
+            <div><strong>${student.name}</strong></div>
+            <div><small>${student.email}</small></div>
+        </div>
+    `).join('');
+    
+    searchResults.style.display = 'block';
+}
+
+function hideSearchResults() {
+    searchResults.style.display = 'none';
+    searchResults.innerHTML = '';
+}
+
+function selectStudent(studentId, studentName) {
+    // Here you would add logic to temporarily add the student to the attendance list
+    // For now, just show a message
+    alert(`Selected: ${studentName}\nThis feature will add temporary attendance for non-enrolled students.`);
+    searchInput.value = '';
+    hideSearchResults();
+}
+
+// Bulk actions
+function markAllAs(status) {
+    const statusSelects = document.querySelectorAll('.student-status');
+    statusSelects.forEach(select => {
+        select.value = status;
+        select.dispatchEvent(new Event('change'));
+    });
+}
+
+function clearAllStatus() {
+    const statusSelects = document.querySelectorAll('.student-status');
+    statusSelects.forEach(select => {
+        select.value = '';
+        select.dispatchEvent(new Event('change'));
+    });
+}
+
+// Form validation
+function initializeFormValidation() {
+    const form = document.getElementById('attendanceForm');
+    if (!form) return;
+    
+    form.addEventListener('submit', function(e) {
+        const hasAnyAttendance = Array.from(document.querySelectorAll('.student-status'))
+            .some(select => select.value);
+        
+        if (!hasAnyAttendance) {
+            e.preventDefault();
+            alert('Please mark attendance for at least one student before saving.');
+            return false;
+        }
+    });
+}
+
+// Status change visual feedback
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('student-status')) {
+        const studentRow = e.target.closest('.student-row');
+        const status = e.target.value;
+        
+        // Remove existing status classes
+        studentRow.classList.remove('status-present', 'status-absent', 'status-late', 'status-early_leave');
+        
+        // Add new status class
+        if (status) {
+            studentRow.classList.add(`status-${status}`);
+        }
+        
+        // Update time field if using default time
+        const timeField = studentRow.querySelector('.student-time');
+        if (timeField && !timeField.value) {
+            const defaultTime = document.getElementById('{{ form.default_time.id_for_label }}').value;
+            timeField.value = defaultTime;
+        }
+    }
+});
+</script>
+{% endblock %}

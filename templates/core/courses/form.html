@@ -102,13 +102,28 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="{{ form.price.id_for_label }}" class="form-label">Price ($) *</label>
+                                    <label for="{{ form.price.id_for_label }}" class="form-label">Course Fee ($) *</label>
                                     {{ form.price }}
                                     {% if form.price.errors %}
                                         <div class="invalid-feedback d-block">{{ form.price.errors.0 }}</div>
                                     {% endif %}
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.registration_fee.id_for_label }}" class="form-label">Registration Fee ($)</label>
+                                    {{ form.registration_fee }}
+                                    {% if form.registration_fee.help_text %}
+                                        <div class="form-text">{{ form.registration_fee.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.registration_fee.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.registration_fee.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.vacancy.id_for_label }}" class="form-label">Vacancy *</label>
@@ -447,7 +462,7 @@ tinymce.init({
     branding: false,
     promotion: false,
     license_key: 'gpl',
-    plugins: 'lists link paste code help wordcount image',
+    plugins: 'lists link code help wordcount image',
     toolbar: 'undo redo | bold italic underline | bullist numlist | link uploadimage | code | help',
     content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px } img { max-width: 100%; height: auto; }',
     

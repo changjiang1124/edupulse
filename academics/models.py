@@ -72,8 +72,9 @@ class Course(models.Model):
     registration_fee = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0,
+        null=True,
         blank=True,
+        default=None,
         verbose_name='Registration Fee',
         help_text='Additional fee for new student registration. Leave blank if no registration fee required.'
     )

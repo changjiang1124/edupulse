@@ -19,4 +19,6 @@ urlpatterns = [
     # Attendance URLs
     path('attendance/', views.AttendanceListView.as_view(), name='attendance_list'),
     path('attendance/mark/<int:class_id>/', views.AttendanceMarkView.as_view(), name='attendance_mark'),
+    path('attendance/update/<int:pk>/', views.AttendanceUpdateView.as_view(), name='attendance_update'),
+    path('attendance/search/students/', views.StudentSearchView.as_view(), name='student_search'),
 ]
