@@ -319,11 +319,14 @@ class AttendanceMarkView(LoginRequiredMixin, View):
         context['enrolled_students'] = enrolled_students
         
         # Get existing attendance records
-        existing_attendance = {
-            att.student.id: att for att in 
-            class_instance.attendances.select_related('student').all()
-        }
+        existing_attendance = class_instance.attendances.select_related('student').all()
         context['existing_attendance'] = existing_attendance
+        
+        # Also provide as dict for quick lookup
+        existing_attendance_dict = {
+            att.student.id: att for att in existing_attendance
+        }
+        context['existing_attendance_dict'] = existing_attendance_dict
         
         # Add form to context
         if form is None:

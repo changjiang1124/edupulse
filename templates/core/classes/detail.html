@@ -6,11 +6,13 @@
 {% block extra_css %}
 <style>
 .class-hero {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    color: white;
+    background: white;
+    color: #374151;
     border-radius: 12px;
     padding: 2rem;
     margin-bottom: 2rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
 .class-meta-card {
     border: none;
@@ -27,10 +29,12 @@
     border-radius: 8px;
     margin-bottom: 0.5rem;
     transition: all 0.2s ease;
+    position: relative;
 }
 .student-list-item:hover {
     background-color: #f8fafc;
     transform: translateX(4px);
+    z-index: 1;
 }
 .participation-badge {
     font-size: 0.75rem;
@@ -64,6 +68,10 @@
 .attendance-pending {
     background-color: #6b7280;
 }
+.dropdown-menu {
+    z-index: 1050 !important;
+    position: absolute !important;
+}
 </style>
 {% endblock %}
 
@@ -75,37 +83,37 @@
             <h1 class="display-6 fw-bold mb-2">{{ class.course.name }}</h1>
             <p class="lead mb-3">{{ class.date|date:"l, d F Y" }} at {{ class.start_time|time:"g:i A" }}</p>
             <div class="d-flex flex-wrap gap-2 mb-0">
-                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">
+                <span class="badge bg-primary text-white px-3 py-2">
                     <i class="fas fa-clock me-1"></i>{{ class.duration_minutes }} minutes
                 </span>
                 {% if class.teacher %}
-                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">
+                <span class="badge bg-info text-white px-3 py-2">
                     <i class="fas fa-user-tie me-1"></i>{{ class.teacher.first_name }} {{ class.teacher.last_name }}
                 </span>
                 {% endif %}
                 {% if class.classroom %}
-                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2">
+                <span class="badge bg-warning text-dark px-3 py-2">
                     <i class="fas fa-map-marker-alt me-1"></i>{{ class.classroom.name }}
                 </span>
                 {% endif %}
-                <span class="status-badge status-{{ class.is_active|yesno:'active,inactive' }} bg-white bg-opacity-25">
+                <span class="badge {{ class.is_active|yesno:'bg-success,bg-secondary' }} text-white px-3 py-2">
                     {{ class.is_active|yesno:'Active,Inactive' }}
                 </span>
             </div>
         </div>
         <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
             <div class="d-flex flex-column gap-2">
-                <div class="btn-group">
-                    <a href="{% url 'academics:class_edit' class.pk %}" class="btn btn-light">
-                        <i class="fas fa-edit me-2"></i>Edit Class
-                    </a>
-                    <a href="{% url 'academics:class_delete' class.pk %}" class="btn btn-outline-danger">
-                        <i class="fas fa-trash-alt me-2"></i>Delete
-                    </a>
-                </div>
-                <a href="{% url 'academics:class_list' %}" class="btn btn-outline-light">
+                <a href="{% url 'academics:class_list' %}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left me-2"></i>Back to Classes
                 </a>
+                <div class="btn-group">
+                    <a href="{% url 'academics:class_edit' class.pk %}" class="btn btn-primary">
+                        <i class="fas fa-edit me-2"></i>Edit Class
+                    </a>
+                    <a href="{% url 'academics:course_detail' class.course.pk %}" class="btn btn-outline-primary">
+                        <i class="fas fa-book me-2"></i>View Course
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -197,15 +205,12 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <i class="fas fa-users me-2 text-primary"></i>
-                    Students <span class="badge bg-primary ms-2">{{ class_students.count }}</span>
+                    Students <span class="badge bg-primary ms-2">{{ class_students|length }}</span>
                 </h5>
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
                         <i class="fas fa-user-plus me-1"></i>Add Student
                     </button>
-                    <a href="{% url 'enrollment:attendance_mark' class.pk %}" class="btn btn-outline-primary">
-                        <i class="fas fa-check me-1"></i>Mark Attendance
-                    </a>
                 </div>
             </div>
             <div class="card-body">
@@ -276,8 +281,11 @@
 
         <!-- Attendance History -->
         <div class="card class-meta-card mb-4">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-clipboard-check me-2 text-primary"></i>Attendance History</h5>
+                <a href="{% url 'enrollment:attendance_mark' class.pk %}" class="btn btn-sm btn-success">
+                    <i class="fas fa-check me-1"></i>Mark Attendance
+                </a>
             </div>
             <div class="card-body">
                 {% if attendances %}
@@ -318,33 +326,6 @@
 
     <!-- Sidebar -->
     <div class="col-lg-4">
-        <!-- Quick Actions -->
-        <div class="card class-meta-card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-bolt me-2 text-primary"></i>Quick Actions</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{% url 'academics:class_edit' class.pk %}" class="btn btn-primary">
-                        <i class="fas fa-edit me-2"></i>Edit Class Details
-                    </a>
-                    <a href="{% url 'enrollment:attendance_mark' class.pk %}" class="btn btn-success">
-                        <i class="fas fa-check me-2"></i>Mark Attendance
-                    </a>
-                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#addStudentModal">
-                        <i class="fas fa-user-plus me-2"></i>Add Student
-                    </button>
-                    <hr class="my-2">
-                    <a href="{% url 'academics:course_detail' class.course.pk %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-book me-2"></i>View Course
-                    </a>
-                    <a href="{% url 'academics:class_list' %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-list me-2"></i>All Classes
-                    </a>
-                </div>
-            </div>
-        </div>
-
         <!-- Class Stats -->
         <div class="card class-meta-card mb-4">
             <div class="card-header">
@@ -354,7 +335,7 @@
                 <div class="row g-3 text-center">
                     <div class="col-6">
                         <div class="bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3 p-3">
-                            <h4 class="text-primary mb-1">{{ class_students.count }}</h4>
+                            <h4 class="text-primary mb-1">{{ class_students|length }}</h4>
                             <small class="text-muted">Students</small>
                         </div>
                     </div>
@@ -418,10 +399,17 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label for="studentSearch" class="form-label">Search Students</label>
-                    <input type="text" class="form-control" id="studentSearch" placeholder="Type student name...">
+                    <input type="text" class="form-control" id="studentSearch" placeholder="Type student name or email...">
                 </div>
-                <div id="studentSearchResults">
+                <div id="studentSearchResults" class="mb-3">
                     <!-- Student search results will be populated here -->
+                </div>
+                <div class="text-center mb-3" id="addNewStudentOption" style="display: none;">
+                    <hr>
+                    <p class="text-muted">Can't find the student you're looking for?</p>
+                    <a href="{% url 'students:student_add' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-user-plus me-1"></i>Add New Student
+                    </a>
                 </div>
                 <div class="mt-3">
                     <label for="participationType" class="form-label">Participation Type</label>
@@ -444,6 +432,8 @@
 
 {% block extra_js %}
 <script>
+let selectedStudents = [];
+
 function removeStudent(studentId) {
     if (confirm('Are you sure you want to remove this student from the class?')) {
         // Implement remove student functionality
@@ -453,18 +443,119 @@ function removeStudent(studentId) {
 }
 
 function addSelectedStudents() {
-    // Implement add student functionality
-    // This would make an AJAX call to add selected students
-    console.log('Add selected students');
+    if (selectedStudents.length === 0) {
+        alert('Please select at least one student.');
+        return;
+    }
+    
+    const participationType = document.getElementById('participationType').value;
+    console.log('Add selected students:', selectedStudents, 'as', participationType);
+    
+    // Here you would make an AJAX call to add the students
+    // For now, we'll just close the modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentModal'));
+    modal.hide();
+    
+    // Reset selections
+    selectedStudents = [];
+    document.getElementById('studentSearchResults').innerHTML = '';
+    document.getElementById('studentSearch').value = '';
+    document.getElementById('addNewStudentOption').style.display = 'none';
 }
 
-// Student search functionality
+function toggleStudentSelection(studentId, studentName) {
+    const index = selectedStudents.findIndex(s => s.id === studentId);
+    if (index === -1) {
+        selectedStudents.push({id: studentId, name: studentName});
+    } else {
+        selectedStudents.splice(index, 1);
+    }
+    
+    // Update visual feedback
+    const checkbox = document.querySelector(`input[data-student-id="${studentId}"]`);
+    if (checkbox) {
+        checkbox.checked = index === -1;
+    }
+    
+    console.log('Selected students:', selectedStudents);
+}
+
+// Student search functionality with debouncing
+let searchTimeout;
 document.getElementById('studentSearch').addEventListener('input', function() {
-    const query = this.value;
+    const query = this.value.trim();
+    
+    clearTimeout(searchTimeout);
+    
     if (query.length >= 2) {
-        // Implement student search AJAX call
-        console.log('Search for:', query);
+        searchTimeout = setTimeout(() => {
+            searchStudents(query);
+        }, 300);
+    } else {
+        document.getElementById('studentSearchResults').innerHTML = '';
+        document.getElementById('addNewStudentOption').style.display = 'none';
     }
 });
+
+function searchStudents(query) {
+    // Make AJAX call to search for students
+    fetch(`/students/search/?q=${encodeURIComponent(query)}`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        displaySearchResults(data.students, query);
+    })
+    .catch(error => {
+        console.error('Search error:', error);
+        displaySearchResults([], query);
+    });
+}
+
+function displaySearchResults(students, query) {
+    const resultsContainer = document.getElementById('studentSearchResults');
+    const addNewOption = document.getElementById('addNewStudentOption');
+    
+    if (students.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-search me-2"></i>No students found matching "${query}"
+            </div>
+        `;
+        addNewOption.style.display = 'block';
+    } else {
+        let html = '<div class="list-group">';
+        students.forEach(student => {
+            const isSelected = selectedStudents.some(s => s.id === student.id);
+            html += `
+                <div class="list-group-item list-group-item-action">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               data-student-id="${student.id}" 
+                               ${isSelected ? 'checked' : ''}
+                               onchange="toggleStudentSelection(${student.id}, '${student.first_name} ${student.last_name}')">
+                        <label class="form-check-label w-100" style="cursor: pointer;">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-circle bg-primary bg-opacity-10 text-primary me-3">
+                                    ${student.first_name[0]}${student.last_name[0]}
+                                </div>
+                                <div>
+                                    <div class="fw-medium">${student.first_name} ${student.last_name}</div>
+                                    <small class="text-muted">${student.email || 'No email'}</small>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        resultsContainer.innerHTML = html;
+        addNewOption.style.display = 'block';
+    }
+}
 </script>
 {% endblock %}

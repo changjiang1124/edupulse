@@ -10,6 +10,9 @@ urlpatterns = [
     path('<int:pk>/', views.FacilityDetailView.as_view(), name='facility_detail'),
     path('<int:pk>/edit/', views.FacilityUpdateView.as_view(), name='facility_edit'),
     
+    # Address geocoding API
+    path('api/geocode/', views.AddressGeocodeView.as_view(), name='address_geocode'),
+    
     # Classroom URLs
     path('classrooms/', views.ClassroomListView.as_view(), name='classroom_list'),
     path('classrooms/add/', views.ClassroomCreateView.as_view(), name='classroom_add'),

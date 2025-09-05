@@ -2,7 +2,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, ListView
+from django.views import View
 from django.db.models import Count, Q
 from django.utils import timezone
 from django.http import JsonResponse
@@ -11,6 +12,8 @@ from django.views.decorators.http import require_http_methods
 from datetime import datetime, date, timedelta
 import os
 import uuid
+import json
+from decimal import Decimal, InvalidOperation
 from django.conf import settings
 
 from accounts.models import Staff
@@ -18,8 +21,14 @@ from students.models import Student
 from academics.models import Course, Class
 from facilities.models import Facility, Classroom
 from enrollment.models import Enrollment, Attendance
-from .models import ClockInOut, EmailSettings, SMSSettings, EmailLog, SMSLog, NotificationQuota
+from .models import ClockInOut, EmailSettings, SMSSettings, EmailLog, SMSLog, NotificationQuota, TeacherAttendance
 from .forms import EmailSettingsForm, TestEmailForm, SMSSettingsForm, TestSMSForm, NotificationForm, BulkNotificationForm
+from .utils.gps_utils import (
+    verify_teacher_location, 
+    get_today_classes_for_teacher_at_facility,
+    get_client_ip, 
+    get_user_agent
+)
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
@@ -680,3 +689,233 @@ def get_notification_quotas(request):
             }
         }
     })
+
+
+# Teacher Attendance Views
+
+class TeacherClockView(LoginRequiredMixin, TemplateView):
+    """
+    Main teacher clock in/out page
+    """
+    template_name = 'core/teacher_attendance/clock.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Ensure user is a teacher
+        if not (self.request.user.is_authenticated and 
+                hasattr(self.request.user, 'role') and 
+                self.request.user.role == 'teacher'):
+            context['error'] = 'Access denied. Teachers only.'
+            return context
+        
+        context['teacher'] = self.request.user
+        context['google_maps_api_key'] = getattr(settings, 'GOOGLE_MAPS_API_KEY', '')
+        context['today'] = timezone.now().date()
+        
+        # Get recent attendance records for this teacher
+        recent_records = TeacherAttendance.objects.filter(
+            teacher=self.request.user
+        ).select_related('facility').prefetch_related('classes')[:5]
+        context['recent_records'] = recent_records
+        
+        return context
+
+
+class TeacherLocationVerifyView(LoginRequiredMixin, View):
+    """
+    AJAX endpoint to verify teacher's GPS location and get available classes
+    """
+    
+    def post(self, request):
+        if not (request.user.is_authenticated and 
+                hasattr(request.user, 'role') and 
+                request.user.role == 'teacher'):
+            return JsonResponse({
+                'success': False,
+                'error': 'Access denied. Teachers only.'
+            }, status=403)
+        
+        try:
+            data = json.loads(request.body)
+            lat = float(data.get('latitude'))
+            lon = float(data.get('longitude'))
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid location data provided.'
+            }, status=400)
+        
+        # Verify location
+        location_result = verify_teacher_location(lat, lon)
+        
+        if not location_result['valid']:
+            return JsonResponse({
+                'success': False,
+                'error': location_result['error'],
+                'location_verified': False
+            })
+        
+        facility = location_result['facility']
+        
+        # Get today's classes for this teacher at this facility
+        today_classes = get_today_classes_for_teacher_at_facility(
+            teacher=request.user,
+            facility=facility
+        )
+        
+        # Prepare class data for frontend
+        classes_data = []
+        for cls in today_classes:
+            classes_data.append({
+                'id': cls.id,
+                'course_name': cls.course.name,
+                'start_time': cls.start_time.strftime('%H:%M'),
+                'duration': cls.duration_minutes,
+                'classroom': cls.classroom.name if cls.classroom else 'TBA'
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'location_verified': True,
+            'facility': {
+                'id': facility.id,
+                'name': facility.name,
+                'address': facility.address
+            },
+            'distance': round(location_result['distance'], 1),
+            'classes': classes_data,
+            'has_classes': len(classes_data) > 0
+        })
+
+
+class TeacherClockSubmitView(LoginRequiredMixin, View):
+    """
+    Handle teacher clock in/out submission
+    """
+    
+    def post(self, request):
+        if not (request.user.is_authenticated and 
+                hasattr(request.user, 'role') and 
+                request.user.role == 'teacher'):
+            return JsonResponse({
+                'success': False,
+                'error': 'Access denied. Teachers only.'
+            }, status=403)
+        
+        try:
+            data = json.loads(request.body)
+            
+            # Extract and validate required fields
+            clock_type = data.get('clock_type')
+            if clock_type not in ['clock_in', 'clock_out']:
+                raise ValueError('Invalid clock type')
+            
+            lat = Decimal(str(data.get('latitude')))
+            lon = Decimal(str(data.get('longitude')))
+            facility_id = int(data.get('facility_id'))
+            selected_class_ids = data.get('class_ids', [])
+            notes = data.get('notes', '').strip()
+            
+        except (json.JSONDecodeError, TypeError, ValueError, InvalidOperation) as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid data provided: {str(e)}'
+            }, status=400)
+        
+        # Re-verify location (security measure)
+        location_result = verify_teacher_location(float(lat), float(lon))
+        
+        if not location_result['valid']:
+            return JsonResponse({
+                'success': False,
+                'error': f"Location verification failed: {location_result['error']}"
+            })
+        
+        facility = location_result['facility']
+        
+        if facility.id != facility_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Facility mismatch. Please refresh and try again.'
+            })
+        
+        # Create attendance record
+        try:
+            attendance = TeacherAttendance.objects.create(
+                teacher=request.user,
+                clock_type=clock_type,
+                facility=facility,
+                latitude=lat,
+                longitude=lon,
+                distance_from_facility=location_result['distance'],
+                location_verified=True,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+                notes=notes
+            )
+            
+            # Add selected classes
+            if selected_class_ids:
+                selected_classes = Class.objects.filter(
+                    id__in=selected_class_ids,
+                    teacher=request.user,
+                    date=timezone.now().date(),
+                    facility=facility,
+                    is_active=True
+                )
+                attendance.classes.set(selected_classes)
+            
+            # Success message
+            action_text = 'clocked in' if clock_type == 'clock_in' else 'clocked out'
+            class_count = len(selected_class_ids) if selected_class_ids else 0
+            class_text = f' for {class_count} class(es)' if class_count > 0 else ''
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Successfully {action_text} at {facility.name}{class_text}.',
+                'attendance_id': attendance.id,
+                'timestamp': attendance.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Failed to record attendance: {str(e)}'
+            }, status=500)
+
+
+class TeacherAttendanceHistoryView(LoginRequiredMixin, ListView):
+    """
+    Display teacher's attendance history
+    """
+    model = TeacherAttendance
+    template_name = 'core/teacher_attendance/history.html'
+    context_object_name = 'attendance_records'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        if not (self.request.user.is_authenticated and 
+                hasattr(self.request.user, 'role') and 
+                self.request.user.role == 'teacher'):
+            return TeacherAttendance.objects.none()
+        
+        queryset = TeacherAttendance.objects.filter(
+            teacher=self.request.user
+        ).select_related('facility').prefetch_related('classes__course')
+        
+        # Filter by date range if provided
+        date_from = self.request.GET.get('date_from')
+        if date_from:
+            queryset = queryset.filter(timestamp__date__gte=date_from)
+            
+        date_to = self.request.GET.get('date_to')
+        if date_to:
+            queryset = queryset.filter(timestamp__date__lte=date_to)
+        
+        return queryset.order_by('-timestamp')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['teacher'] = self.request.user
+        return context

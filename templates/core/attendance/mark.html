@@ -249,11 +249,15 @@
                                     </div>
                                     <div class="col-md-1">
                                         {% with student_id=student_data.student_id|add:0 %}
-                                            {% if student_id in existing_attendance %}
-                                                <span class="status-badge status-{{ existing_attendance|get_item:student_id.status }}">
-                                                    {{ existing_attendance|get_item:student_id.get_status_display }}
-                                                </span>
-                                            {% endif %}
+                                            {% for attendance in existing_attendance %}
+                                                {% if attendance.student.id == student_id %}
+                                                    <span class="status-badge status-{{ attendance.status }}">
+                                                        {{ attendance.get_status_display }}
+                                                    </span>
+                                                {% endif %}
+                                            {% empty %}
+                                                <small class="text-muted">-</small>
+                                            {% endfor %}
                                         {% endwith %}
                                     </div>
                                 </div>

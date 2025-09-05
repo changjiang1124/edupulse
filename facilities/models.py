@@ -21,6 +21,30 @@ class Facility(models.Model):
         blank=True,
         verbose_name='Email'
     )
+    
+    # GPS coordinates for teacher attendance verification
+    latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        verbose_name='Latitude',
+        help_text='GPS latitude coordinate for attendance verification'
+    )
+    longitude = models.DecimalField(
+        max_digits=11,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        verbose_name='Longitude',
+        help_text='GPS longitude coordinate for attendance verification'
+    )
+    attendance_radius = models.PositiveIntegerField(
+        default=50,
+        verbose_name='Attendance Verification Radius (meters)',
+        help_text='Maximum distance in meters for valid attendance check-in'
+    )
+    
     is_active = models.BooleanField(
         default=True,
         verbose_name='Active Status'

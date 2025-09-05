@@ -78,7 +78,7 @@ is contact email in enrolment sharing one for either student or guardian, depend
 
 - [x] attendance for student, in class. searchable with suggestions when add student in class. attendance should be able to be marked for single or multiple students in the list, with time specified, and able to be marked as absent or other regular attendance features. note the reasonableness of the interaction of the page and list. 
 
-- [] help me refine the course detail page for interaction, UI and attendance. 
+- [x] help me refine the course detail page for interaction, UI and attendance. 
 - 1. make the title panel in white background instead of green, and back to classes button at the top left of the title panel. in the original place, remove delete action, and only keep edit action button. if the class is "deleted", they should be marked as inactive by uncheck the active checkbox in class edit page. 
 - 2. move `mark attendance` from student panel to attendance history panel to strengthen to correlations. 
 - 3. remove quick actions panel, and put view course action on the title panel next to class edit action. 
@@ -86,4 +86,6 @@ is contact email in enrolment sharing one for either student or guardian, depend
 - 5. the poped action panel from 3 dots of student item, could be covered by the panels in its right. this could be a style error.
 - 6 the modal of `add student` doesn't have suggestions while typing student name or email. and in case this is a new student, below the search box, provide a `cannot find any? add new student` ( you can revise the message) with a link to add a new student. 
 
-- [] attendance for teacher, this is standalone page as i want to teacher scan a QRcode on the site, and fill a form to clock in and out. teachers need to sign in their account first for ID, and then clock in by specifying their class and time, class could be multiple checked, class options are today's class of the facility by detecting their current location. we also need to collect their GPS to calculate (does Google GEOAPI have such feature?) if they are near the facility (so the facility address will also collect GPS, could use google GEOAPI to suggest the location when editing facility). 
+- [x] you can see from the screenshot, the 3 dots pop up could be covered, i guess it's the hover effects, triggering other divs above the popup. and class statistics with empty string of students number. and mark attendance response error
+
+- [] attendance for teacher, this is standalone page as i want to teacher scan a QRcode on the site, and fill a form to clock in and out. teachers need to sign in their account first for ID, and then clock in by specifying their class and time, class could be multiple checked, class options are today's class of the facility by detecting their current location. we also need to collect their GPS to calculate (does Google GEOAPI have such feature?) if they are near the facility (so the facility address will also collect GPS, could use google GEOAPI to suggest the location when editing facility). let me know what I should provide, e.g. GEOAPI key or any others, in the .env (dotenv).

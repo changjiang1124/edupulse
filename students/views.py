@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.views.generic import ListView, DetailView, CreateView, UpdateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, View
 from django.urls import reverse_lazy
 from django.db.models import Q
 from django.http import JsonResponse
@@ -304,3 +304,34 @@ def _send_sms_notification(student, phone, message, message_type):
         backend_type=sms_config.get_sms_backend_type_display(),
         sent_at=timezone.now()
     )
+
+
+class StudentSearchView(LoginRequiredMixin, View):
+    """AJAX endpoint for student search"""
+    
+    def get(self, request):
+        query = request.GET.get('q', '').strip()
+        
+        if len(query) < 2:
+            return JsonResponse({'students': []})
+        
+        # Search students
+        students = Student.objects.filter(
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(email__icontains=query),
+            is_active=True
+        ).order_by('last_name', 'first_name')[:10]
+        
+        # Format results
+        results = []
+        for student in students:
+            results.append({
+                'id': student.id,
+                'first_name': student.first_name,
+                'last_name': student.last_name,
+                'email': student.email or '',
+                'full_name': f"{student.first_name} {student.last_name}"
+            })
+        
+        return JsonResponse({'students': results})

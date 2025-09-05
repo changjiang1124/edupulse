@@ -11,6 +11,12 @@ urlpatterns = [
     path('clock/', views.ClockInOutView.as_view(), name='clockinout'),
     path('timesheet/', views.TimesheetView.as_view(), name='timesheet'),
     
+    # Teacher Attendance System
+    path('attendance/teacher/clock/', views.TeacherClockView.as_view(), name='teacher_clock'),
+    path('attendance/teacher/verify-location/', views.TeacherLocationVerifyView.as_view(), name='teacher_location_verify'),
+    path('attendance/teacher/submit/', views.TeacherClockSubmitView.as_view(), name='teacher_clock_submit'),
+    path('attendance/teacher/history/', views.TeacherAttendanceHistoryView.as_view(), name='teacher_attendance_history'),
+    
     # TinyMCE Image Upload
     path('tinymce/upload/', views.tinymce_upload_image, name='tinymce_upload'),
     

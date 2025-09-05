@@ -1,0 +1,564 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Teacher Clock In/Out - EduPulse{% endblock %}
+
+{% block extra_css %}
+<style>
+.clock-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.clock-time {
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.clock-date {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+.status-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+}
+
+.location-status {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.location-pending {
+    background: linear-gradient(45deg, #ffa726 0%, #ff9800 100%);
+    color: white;
+}
+
+.location-verified {
+    background: linear-gradient(45deg, #66bb6a 0%, #4caf50 100%);
+    color: white;
+}
+
+.location-failed {
+    background: linear-gradient(45deg, #ef5350 0%, #f44336 100%);
+    color: white;
+}
+
+.class-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.class-card:hover {
+    border-color: #1976d2;
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
+}
+
+.class-card.selected {
+    border-color: #1976d2;
+    background-color: #e3f2fd;
+}
+
+.clock-button {
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    border-radius: 8px;
+    margin: 0.5rem;
+    min-width: 150px;
+}
+
+.btn-clock-in {
+    background: linear-gradient(45deg, #4caf50 0%, #45a049 100%);
+    border: none;
+    color: white;
+}
+
+.btn-clock-out {
+    background: linear-gradient(45deg, #f44336 0%, #d32f2f 100%);
+    border: none;
+    color: white;
+}
+
+.recent-record {
+    padding: 1rem;
+    border-left: 4px solid #1976d2;
+    background: #f8f9fa;
+    margin-bottom: 0.5rem;
+    border-radius: 0 8px 8px 0;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.gps-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.gps-searching { background-color: #ff9800; }
+.gps-found { background-color: #4caf50; }
+.gps-failed { background-color: #f44336; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
+    </div>
+    {% else %}
+    
+    <!-- Clock Display -->
+    <div class="clock-container">
+        <div class="clock-time" id="currentTime">--:--:--</div>
+        <div class="clock-date" id="currentDate">{{ today|date:"l, F d, Y" }}</div>
+        <div class="mt-3">
+            <span class="gps-indicator gps-searching" id="gpsIndicator"></span>
+            <span id="gpsStatus">Getting your location...</span>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Clock In/Out Panel -->
+        <div class="col-lg-8">
+            <div class="card status-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-map-marker-alt me-2"></i>Location & Classes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Location Status -->
+                    <div id="locationStatus" class="location-status location-pending">
+                        <div class="d-flex align-items-center">
+                            <div class="loading-spinner me-2"></div>
+                            <span>Verifying your location...</span>
+                        </div>
+                    </div>
+
+                    <!-- Classes Section -->
+                    <div id="classesSection" style="display: none;">
+                        <h6 class="mb-3">Select Classes (Optional)</h6>
+                        <div id="classesList">
+                            <!-- Classes will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Notes Section -->
+                    <div class="mb-3">
+                        <label for="clockNotes" class="form-label">Notes (Optional)</label>
+                        <textarea class="form-control" id="clockNotes" rows="2" 
+                                placeholder="Any additional notes for this clock in/out..."></textarea>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="text-center">
+                        <button type="button" class="btn btn-clock-in clock-button" 
+                                id="clockInBtn" disabled onclick="submitClock('clock_in')">
+                            <i class="fas fa-sign-in-alt me-2"></i>Clock In
+                        </button>
+                        <button type="button" class="btn btn-clock-out clock-button" 
+                                id="clockOutBtn" disabled onclick="submitClock('clock_out')">
+                            <i class="fas fa-sign-out-alt me-2"></i>Clock Out
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Quick Stats -->
+            <div class="card status-card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-user me-2"></i>{{ teacher.get_full_name }}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="mb-2">
+                                <i class="fas fa-calendar-day fa-2x text-primary"></i>
+                            </div>
+                            <div class="fw-bold">Today</div>
+                            <small class="text-muted">{{ today|date:"d M" }}</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="mb-2">
+                                <i class="fas fa-clock fa-2x text-success"></i>
+                            </div>
+                            <div class="fw-bold" id="currentTimeSmall">--:--</div>
+                            <small class="text-muted">Current Time</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Records -->
+            <div class="card status-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Activity
+                    </h6>
+                    <a href="{% url 'core:teacher_attendance_history' %}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_records %}
+                        {% for record in recent_records %}
+                        <div class="recent-record">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="fw-medium">
+                                        <i class="fas fa-{% if record.clock_type == 'clock_in' %}sign-in-alt text-success{% else %}sign-out-alt text-danger{% endif %} me-1"></i>
+                                        {{ record.get_clock_type_display }}
+                                    </div>
+                                    <small class="text-muted">
+                                        {{ record.facility.name }}<br>
+                                        {{ record.timestamp|date:"M d, H:i" }}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    {% if record.location_verified %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-exclamation-triangle text-warning"></i>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-clock fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">No recent activity</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% endif %}
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="loading-spinner mb-3" style="width: 40px; height: 40px; border-width: 4px;"></div>
+                <div id="loadingMessage">Processing...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentLocation = null;
+let selectedClasses = [];
+let locationVerified = false;
+let facilityData = null;
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    updateClock();
+    setInterval(updateClock, 1000);
+    
+    // Request location permission and get current position
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            handleLocationSuccess,
+            handleLocationError,
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 300000 // 5 minutes
+            }
+        );
+    } else {
+        handleLocationError(new Error('Geolocation not supported'));
+    }
+});
+
+function updateClock() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-AU', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    const timeShort = now.toLocaleTimeString('en-AU', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    document.getElementById('currentTime').textContent = timeString;
+    document.getElementById('currentTimeSmall').textContent = timeShort;
+}
+
+function handleLocationSuccess(position) {
+    const lat = position.coords.latitude;
+    const lon = position.coords.longitude;
+    
+    currentLocation = { latitude: lat, longitude: lon };
+    
+    // Update GPS indicator
+    document.getElementById('gpsIndicator').className = 'gps-indicator gps-found';
+    document.getElementById('gpsStatus').textContent = 'Location found, verifying...';
+    
+    // Verify location with server
+    verifyLocation(lat, lon);
+}
+
+function handleLocationError(error) {
+    console.error('Location error:', error);
+    
+    document.getElementById('gpsIndicator').className = 'gps-indicator gps-failed';
+    document.getElementById('gpsStatus').textContent = 'Location access failed';
+    
+    const locationStatus = document.getElementById('locationStatus');
+    locationStatus.className = 'location-status location-failed';
+    locationStatus.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <div>
+                <div class="fw-medium">Location Access Failed</div>
+                <div class="small">Please enable location access and refresh the page.</div>
+            </div>
+        </div>
+    `;
+}
+
+function verifyLocation(lat, lon) {
+    fetch('{% url "core:teacher_location_verify" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify({
+            latitude: lat,
+            longitude: lon
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            handleLocationVerified(data);
+        } else {
+            handleLocationFailed(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Verification error:', error);
+        handleLocationFailed('Failed to verify location');
+    });
+}
+
+function handleLocationVerified(data) {
+    locationVerified = true;
+    facilityData = data.facility;
+    
+    // Update GPS status
+    document.getElementById('gpsStatus').textContent = `At ${data.facility.name} (${data.distance}m away)`;
+    
+    // Update location status
+    const locationStatus = document.getElementById('locationStatus');
+    locationStatus.className = 'location-status location-verified';
+    locationStatus.innerHTML = `
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-check-circle me-2"></i>
+                <div>
+                    <div class="fw-medium">Location Verified</div>
+                    <div class="small">${data.facility.name} • ${data.distance}m away</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Show classes if available
+    if (data.has_classes) {
+        displayClasses(data.classes);
+    }
+    
+    // Enable clock buttons
+    document.getElementById('clockInBtn').disabled = false;
+    document.getElementById('clockOutBtn').disabled = false;
+}
+
+function handleLocationFailed(error) {
+    const locationStatus = document.getElementById('locationStatus');
+    locationStatus.className = 'location-status location-failed';
+    locationStatus.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-times-circle me-2"></i>
+            <div>
+                <div class="fw-medium">Location Verification Failed</div>
+                <div class="small">${error}</div>
+            </div>
+        </div>
+    `;
+}
+
+function displayClasses(classes) {
+    const classesSection = document.getElementById('classesSection');
+    const classesList = document.getElementById('classesList');
+    
+    if (classes.length === 0) {
+        classesList.innerHTML = '<p class="text-muted mb-0">No classes scheduled for today at this location.</p>';
+    } else {
+        let html = '';
+        classes.forEach(cls => {
+            html += `
+                <div class="class-card" data-class-id="${cls.id}" onclick="toggleClass(${cls.id})">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fw-medium">${cls.course_name}</div>
+                            <small class="text-muted">${cls.start_time} • ${cls.duration} minutes • ${cls.classroom}</small>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="class_${cls.id}">
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        classesList.innerHTML = html;
+    }
+    
+    classesSection.style.display = 'block';
+}
+
+function toggleClass(classId) {
+    const card = document.querySelector(`[data-class-id="${classId}"]`);
+    const checkbox = document.getElementById(`class_${classId}`);
+    
+    if (selectedClasses.includes(classId)) {
+        selectedClasses = selectedClasses.filter(id => id !== classId);
+        card.classList.remove('selected');
+        checkbox.checked = false;
+    } else {
+        selectedClasses.push(classId);
+        card.classList.add('selected');
+        checkbox.checked = true;
+    }
+}
+
+function submitClock(clockType) {
+    if (!locationVerified || !currentLocation || !facilityData) {
+        alert('Location not verified. Please wait for location verification.');
+        return;
+    }
+    
+    const notes = document.getElementById('clockNotes').value.trim();
+    const actionText = clockType === 'clock_in' ? 'Clocking In' : 'Clocking Out';
+    
+    // Show loading modal
+    document.getElementById('loadingMessage').textContent = actionText + '...';
+    const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+    loadingModal.show();
+    
+    const data = {
+        clock_type: clockType,
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        facility_id: facilityData.id,
+        class_ids: selectedClasses,
+        notes: notes
+    };
+    
+    fetch('{% url "core:teacher_clock_submit" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingModal.hide();
+        
+        if (data.success) {
+            // Show success message
+            alert(data.message);
+            
+            // Reset form
+            selectedClasses = [];
+            document.querySelectorAll('.class-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.querySelectorAll('.form-check-input').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            document.getElementById('clockNotes').value = '';
+            
+            // Optionally reload page to show updated recent records
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+            
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        loadingModal.hide();
+        console.error('Submit error:', error);
+        alert('Failed to submit attendance. Please try again.');
+    });
+}
+
+// Utility function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

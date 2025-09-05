@@ -10,6 +10,9 @@ urlpatterns = [
     path('<int:pk>/', views.StudentDetailView.as_view(), name='student_detail'),
     path('<int:pk>/edit/', views.StudentUpdateView.as_view(), name='student_edit'),
     
+    # Search
+    path('search/', views.StudentSearchView.as_view(), name='student_search'),
+    
     # Bulk operations
     path('bulk-notification/', views.bulk_notification, name='bulk_notification'),
 ]

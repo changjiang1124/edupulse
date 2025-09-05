@@ -9,11 +9,11 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
-from core.views import DashboardView
+import core.views as core_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', DashboardView.as_view(), name='dashboard'),
+    path('', core_views.DashboardView.as_view(), name='dashboard'),
     
     # Core application (Dashboard, Clock, etc.)
     path('core/', include('core.urls')),

@@ -1,9 +1,16 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
-from django.views.generic import ListView, DetailView, CreateView, UpdateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, View
 from django.urls import reverse_lazy
 from django.db.models import Count, Q
+from django.conf import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+import os
+import requests
+import json
 
 from .models import Facility, Classroom
 from .forms import FacilityForm, ClassroomForm
@@ -155,3 +162,58 @@ class ClassroomUpdateView(AdminRequiredMixin, UpdateView):
     
     def get_success_url(self):
         return reverse_lazy('facilities:classroom_detail', kwargs={'pk': self.object.pk})
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AddressGeocodeView(AdminRequiredMixin, View):
+    """
+    AJAX endpoint for address geocoding using Google Maps API
+    """
+    def post(self, request, *args, **kwargs):
+        try:
+            data = json.loads(request.body)
+            address = data.get('address', '').strip()
+            
+            if not address:
+                return JsonResponse({'error': 'Address is required'}, status=400)
+            
+            # Get Google Maps API key
+            api_key = os.getenv('GOOGLE_MAPS_API_KEY')
+            if not api_key:
+                return JsonResponse({'error': 'Google Maps API not configured'}, status=500)
+            
+            # Call Google Geocoding API
+            url = 'https://maps.googleapis.com/maps/api/geocode/json'
+            params = {
+                'address': address,
+                'key': api_key,
+                'region': 'au',
+                'components': 'country:AU'
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
+            
+            if data['status'] == 'OK' and data['results']:
+                result = data['results'][0]
+                location = result['geometry']['location']
+                
+                return JsonResponse({
+                    'success': True,
+                    'formatted_address': result['formatted_address'],
+                    'latitude': location['lat'],
+                    'longitude': location['lng']
+                })
+            elif data['status'] == 'ZERO_RESULTS':
+                return JsonResponse({'error': 'No results found for this address'}, status=404)
+            elif data['status'] == 'OVER_QUERY_LIMIT':
+                return JsonResponse({'error': 'API quota exceeded. Please try again later.'}, status=429)
+            else:
+                return JsonResponse({'error': f"Geocoding failed: {data['status']}"}, status=400)
+                
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except requests.RequestException as e:
+            return JsonResponse({'error': f'Network error: {str(e)}'}, status=500)
+        except Exception as e:
+            return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)

@@ -1,0 +1,359 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Attendance History - EduPulse{% endblock %}
+
+{% block extra_css %}
+<style>
+.attendance-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.filter-card {
+    border: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.attendance-record {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.attendance-record:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.clock-type-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.badge-clock-in {
+    background: linear-gradient(45deg, #4caf50 0%, #45a049 100%);
+    color: white;
+}
+
+.badge-clock-out {
+    background: linear-gradient(45deg, #f44336 0%, #d32f2f 100%);
+    color: white;
+}
+
+.verification-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+}
+
+.status-verified {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-unverified {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.class-tag {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0.25rem;
+    display: inline-block;
+}
+
+.stats-card {
+    background: linear-gradient(45deg, #f8f9fa 0%, #ffffff 100%);
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #1976d2;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="attendance-header">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h2 class="mb-2">
+                    <i class="fas fa-history me-2"></i>My Attendance History
+                </h2>
+                <p class="mb-0">View your clock in/out records and attendance statistics</p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                <a href="{% url 'core:teacher_clock' %}" class="btn btn-light btn-lg">
+                    <i class="fas fa-clock me-2"></i>Clock In/Out
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-9">
+            <!-- Filters -->
+            <div class="card filter-card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="date_from" class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from" 
+                                   value="{{ request.GET.date_from }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="date_to" class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to" 
+                                   value="{{ request.GET.date_to }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter me-1"></i>Filter
+                                </button>
+                                <a href="{% url 'core:teacher_attendance_history' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i>Clear
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Attendance Records -->
+            <div class="records-container">
+                {% if attendance_records %}
+                    {% for record in attendance_records %}
+                    <div class="attendance-record">
+                        <div class="row align-items-start">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="clock-type-badge badge-{{ record.clock_type|cut:'_' }}">
+                                        <i class="fas fa-{% if record.clock_type == 'clock_in' %}sign-in-alt{% else %}sign-out-alt{% endif %} me-1"></i>
+                                        {{ record.get_clock_type_display }}
+                                    </span>
+                                    <span class="verification-status status-{% if record.location_verified %}verified{% else %}unverified{% endif %} ms-2">
+                                        <i class="fas fa-{% if record.location_verified %}check-circle{% else %}exclamation-triangle{% endif %} me-1"></i>
+                                        {% if record.location_verified %}Verified{% else %}Unverified{% endif %}
+                                    </span>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <i class="fas fa-map-marker-alt text-primary me-1"></i>
+                                    <strong>{{ record.facility.name }}</strong>
+                                </div>
+                                
+                                <div class="text-muted small">
+                                    <i class="fas fa-ruler me-1"></i>{{ record.distance_from_facility|floatformat:1 }}m from facility
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <div class="mb-1">
+                                    <i class="fas fa-calendar text-primary me-1"></i>
+                                    {{ record.timestamp|date:"M d, Y" }}
+                                </div>
+                                <div class="mb-1">
+                                    <i class="fas fa-clock text-primary me-1"></i>
+                                    {{ record.timestamp|date:"H:i:s" }}
+                                </div>
+                                {% if record.ip_address %}
+                                <div class="text-muted small">
+                                    <i class="fas fa-network-wired me-1"></i>{{ record.ip_address }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-3">
+                                {% if record.classes.all %}
+                                    <div class="mb-2">
+                                        <small class="text-muted">Associated Classes:</small>
+                                    </div>
+                                    {% for class in record.classes.all %}
+                                        <span class="class-tag">
+                                            {{ class.course.name }} - {{ class.start_time|time:"H:i" }}
+                                        </span>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-muted small">
+                                        <i class="fas fa-info-circle me-1"></i>No specific classes
+                                    </div>
+                                {% endif %}
+                                
+                                {% if record.notes %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">Notes:</small>
+                                        <div class="small">{{ record.notes }}</div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <nav aria-label="Attendance records pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.date_from %}date_from={{ request.GET.date_from }}&{% endif %}{% if request.GET.date_to %}date_to={{ request.GET.date_to }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if request.GET.date_from %}date_from={{ request.GET.date_from }}&{% endif %}{% if request.GET.date_to %}date_to={{ request.GET.date_to }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.date_from %}date_from={{ request.GET.date_from }}&{% endif %}{% if request.GET.date_to %}date_to={{ request.GET.date_to }}&{% endif %}page={{ page_obj.next_page_number }}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-clock fa-4x mb-3"></i>
+                        <h4>No Attendance Records</h4>
+                        <p class="text-muted mb-4">You haven't clocked in or out yet.</p>
+                        <a href="{% url 'core:teacher_clock' %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-clock me-2"></i>Start Clocking
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sidebar Stats -->
+        <div class="col-lg-3">
+            {% if attendance_records %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Quick Stats
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="stats-card">
+                        <div class="stats-number">{{ attendance_records|length }}</div>
+                        <div class="small text-muted">Total Records</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="stats-card">
+                                <div class="stats-number text-success">
+                                    {% with clock_ins=attendance_records|length %}
+                                        {{ clock_ins }}
+                                    {% endwith %}
+                                </div>
+                                <div class="small text-muted">This Period</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stats-card">
+                                <div class="stats-number text-primary">
+                                    {% now "Y-m-d" as today %}
+                                    {% with today_records=attendance_records|length %}
+                                        0
+                                    {% endwith %}
+                                </div>
+                                <div class="small text-muted">Today</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick Actions -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'core:teacher_clock' %}" class="btn btn-primary">
+                            <i class="fas fa-clock me-2"></i>Clock In/Out
+                        </a>
+                        <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-home me-2"></i>Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Set default date range to current month
+document.addEventListener('DOMContentLoaded', function() {
+    const dateFrom = document.getElementById('date_from');
+    const dateTo = document.getElementById('date_to');
+    
+    // If no dates are set, default to current month
+    if (!dateFrom.value && !dateTo.value) {
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        
+        // Don't set defaults to avoid auto-filtering on first load
+        // dateFrom.value = firstDay.toISOString().split('T')[0];
+        // dateTo.value = lastDay.toISOString().split('T')[0];
+    }
+});
+</script>
+{% endblock %}

@@ -484,7 +484,99 @@ class ClockInOut(models.Model):
         ordering = ['-timestamp']
     
     def __str__(self):
-        return f"{self.staff} - {self.get_status_display()} - {self.timestamp}"
+        return f"{self.staff.get_full_name()} - {self.get_status_display()} at {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+
+
+class TeacherAttendance(models.Model):
+    """
+    Teacher attendance model for GPS-based clock in/out system
+    """
+    CLOCK_TYPE_CHOICES = [
+        ('clock_in', 'Clock In'),
+        ('clock_out', 'Clock Out'),
+    ]
+    
+    teacher = models.ForeignKey(
+        Staff,
+        on_delete=models.CASCADE,
+        related_name='teacher_attendance',
+        verbose_name='Teacher',
+        limit_choices_to={'role': 'teacher'}
+    )
+    clock_type = models.CharField(
+        max_length=20,
+        choices=CLOCK_TYPE_CHOICES,
+        verbose_name='Clock Type'
+    )
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Clock Time'
+    )
+    
+    # Associated classes (many-to-many as teacher can select multiple classes)
+    classes = models.ManyToManyField(
+        'academics.Class',
+        blank=True,
+        verbose_name='Associated Classes',
+        help_text='Classes that this attendance record is for'
+    )
+    
+    # Location verification
+    facility = models.ForeignKey(
+        'facilities.Facility',
+        on_delete=models.CASCADE,
+        verbose_name='Facility',
+        help_text='Facility where attendance was recorded'
+    )
+    latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=8,
+        verbose_name='Teacher Latitude',
+        help_text='GPS latitude where teacher clocked in/out'
+    )
+    longitude = models.DecimalField(
+        max_digits=11,
+        decimal_places=8,
+        verbose_name='Teacher Longitude',
+        help_text='GPS longitude where teacher clocked in/out'
+    )
+    distance_from_facility = models.FloatField(
+        verbose_name='Distance from Facility (meters)',
+        help_text='Calculated distance from facility location'
+    )
+    location_verified = models.BooleanField(
+        default=False,
+        verbose_name='Location Verified',
+        help_text='Whether location is within acceptable range'
+    )
+    
+    # Additional tracking information
+    ip_address = models.GenericIPAddressField(
+        verbose_name='IP Address'
+    )
+    user_agent = models.TextField(
+        blank=True,
+        verbose_name='User Agent',
+        help_text='Browser/device information'
+    )
+    notes = models.TextField(
+        blank=True,
+        verbose_name='Notes',
+        help_text='Additional notes or comments'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Created At'
+    )
+    
+    class Meta:
+        verbose_name = 'Teacher Attendance'
+        verbose_name_plural = 'Teacher Attendance Records'
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"{self.teacher.get_full_name()} - {self.get_clock_type_display()} at {self.facility.name} ({self.timestamp.strftime('%Y-%m-%d %H:%M')})"
 
 
 class EmailLog(models.Model):
