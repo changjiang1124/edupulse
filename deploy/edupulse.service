@@ -14,7 +14,7 @@ WorkingDirectory=/var/www/edupulse
 Environment="DJANGO_SETTINGS_MODULE=edupulse.settings" "PYTHONUNBUFFERED=1"
 # Load environment variables from .env if required
 EnvironmentFile=-/var/www/edupulse/.env
-ExecStart=/var/www/edupulse/venv/bin/gunicorn \
+ExecStart=/var/www/edupulse/.venv/bin/gunicorn \
     --workers 3 \
     --bind unix:/run/edupulse/gunicorn.sock \
     --access-logfile - \
