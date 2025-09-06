@@ -1,21 +1,25 @@
-# Django 依赖包
-django>=5.2.0
-python-dotenv>=1.1.0
-
-# 数据库
-psycopg2-binary>=2.9.0  # PostgreSQL (生产环境)
-
-# API 框架
-djangorestframework>=3.14.0
-
-# 邮件服务
-boto3>=1.26.0  # Amazon SES
-
-# 短信服务
-twilio>=8.0.0
-
-# 生产环境部署
-gunicorn>=21.0.0
-
-# 开发工具
-django-extensions>=3.2.0
+aiohappyeyeballs==2.6.1
+aiohttp==3.12.15
+aiohttp-retry==2.9.1
+aiosignal==1.4.0
+asgiref==3.9.1
+attrs==25.3.0
+certifi==2025.8.3
+charset-normalizer==3.4.3
+Django==5.2.5
+django-tinymce==4.1.0
+et_xmlfile==2.0.0
+frozenlist==1.7.0
+idna==3.10
+multidict==6.6.4
+openpyxl==3.1.5
+pillow==11.3.0
+propcache==0.3.2
+PyJWT==2.10.1
+python-dotenv==1.1.1
+qrcode==8.2
+requests==2.32.5
+sqlparse==0.5.3
+twilio==9.7.2
+urllib3==2.5.0
+yarl==1.20.1
