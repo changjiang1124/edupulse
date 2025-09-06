@@ -25,12 +25,31 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
+# It is recommended to set this in your environment variables for production.
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-c@=gl@5kfa53m#+pq-_=ih_-hy@ac)-1b0wmamj3fzw02s-ekw')
 
 # SECURITY WARNING: don't run with debug turned on in production!
+# Set DEBUG = False in your production environment.
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost').split(',')
+# Define allowed hosts. For production, set this to your domain name in environment variables.
+# e.g., ALLOWED_HOSTS=edupulse.perthartschool.com.au
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+
+# Production security settings
+# These settings are activated when DEBUG = False
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+
+    # HSTS (HTTP Strict Transport Security) settings
+    # Before enabling, ensure the entire site is served over HTTPS, or it will be inaccessible.
+    # Start with a small value (e.g., 3600 for 1 hour) for testing.
+    SECURE_HSTS_SECONDS = 2592000  # 30 days
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 
 # Application definition

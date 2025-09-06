@@ -199,8 +199,35 @@ A copy is available at `deploy/edupulse.service`. Ensure:
 
 ## Security Considerations
 
+### Production Environment Variables
+For any production deployment, it is **critical** to configure the following environment variables in your `.env` file or server environment. These settings directly address Django's deployment security warnings.
+
+-   **`DEBUG=False`**
+    -   **Why:** This is the most important setting. Setting it to `False` prevents sensitive application details (like configuration and code paths) from being displayed on error pages.
+    -   **Value:** `False`
+
+-   **`SECRET_KEY`**
+    -   **Why:** This key is used for cryptographic signing (e.g., sessions, password resets). A weak or exposed key compromises the entire application's security. It **must not** be the default `django-insecure-...` key.
+    -   **Value:** A long, random, and unique string. You can generate one with the following command:
+        ```bash
+        python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+        ```
+
+-   **`ALLOWED_HOSTS`**
+    -   **Why:** This is a list of domain names that your Django site can serve. It prevents HTTP Host header attacks.
+    -   **Value:** A comma-separated list of your domains, e.g., `edupulse.perthartschool.com.au`
+
+### HTTPS and Secure Cookies
+When `DEBUG=False`, the `settings.py` file is now configured to automatically enable the following for enhanced security:
+-   `SESSION_COOKIE_SECURE = True`: Ensures session cookies are only sent over HTTPS.
+-   `CSRF_COOKIE_SECURE = True`: Ensures CSRF cookies are only sent over HTTPS.
+-   `SECURE_SSL_REDIRECT = True`: Redirects all non-HTTPS requests to HTTPS at the application level.
+-   `SECURE_HSTS_SECONDS`: Enables HTTP Strict Transport Security (HSTS), which instructs browsers to only communicate with your site via HTTPS. This is enabled with a 30-day duration.
+
+**To make these settings work, your site must be correctly configured with an SSL certificate (e.g., via Let's Encrypt as described above) and served over HTTPS.**
+
 ### File Upload Security
-The system implements several security measures for file uploads:
+The system also implements several security measures for file uploads:
 - File type validation (only JPG, PNG, GIF, WebP for images)
 - File size limits (5MB for images)
 - Unique filename generation using UUID
@@ -208,12 +235,9 @@ The system implements several security measures for file uploads:
 - Organized storage by date (YYYY/MM structure)
 
 ### Recommended Production Settings
-- Set `DEBUG=False`
-- Use strong `SECRET_KEY`
-- Configure `ALLOWED_HOSTS` properly
-- Use HTTPS in production
-- Regular database backups
-- Monitor file upload directories for disk space
+- Use a non-SQLite database like PostgreSQL for production.
+- Regular database backups.
+- Monitor file upload directories for disk space.
 
 ## Troubleshooting
 
