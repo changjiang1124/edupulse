@@ -113,3 +113,4 @@ Ubuntu 22.04
 Nginx
 Gunicorn
 SSL - Let's Encrypt
+url: https://edupulse.perthartschool.com.au/

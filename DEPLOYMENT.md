@@ -20,13 +20,13 @@ cd edupulse
 
 ### 2. Create Virtual Environment
 ```bash
-python -m venv venv
+python -m venv .venv
 
 # Activate virtual environment
 # Windows:
 venv\Scripts\activate
 # macOS/Linux:
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 ### 3. Install Dependencies
@@ -41,15 +41,16 @@ Create a `.env` file in the project root with the following variables:
 # Django Settings
 DEBUG=False
 SECRET_KEY=your-secret-key-here
-ALLOWED_HOSTS=your-domain.com,www.your-domain.com
+ALLOWED_HOSTS=edupulse.perthartschool.com.au,www.perthartschool.com.au,localhost,127.0.0.1
 
 # Database (if using PostgreSQL/MySQL)
-DATABASE_URL=postgresql://user:password@host:port/database
+# DATABASE_URL=postgresql://user:password@host:port/database
 
-# Email Configuration (AWS SES)
-AWS_ACCESS_KEY_ID=your-aws-access-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret-key
-AWS_SES_FROM_EMAIL=noreply@your-domain.com
+# SMTP Email (AWS SES or other SMTP)
+SMTP_SERVER=email-smtp.ap-southeast-2.amazonaws.com
+SMTP_PORT=587
+SMTP_USERNAME=your-smtp-username
+SMTP_PASSWORD=your-smtp-password
 
 # SMS Configuration (Optional - Twilio)
 TWILIO_ACCOUNT_SID=your-twilio-sid
@@ -57,7 +58,7 @@ TWILIO_AUTH_TOKEN=your-twilio-token
 TWILIO_FROM_NUMBER=your-twilio-number
 
 # WooCommerce Integration (Future)
-WOOCOMMERCE_URL=https://your-wordpress-site.com
+WOOCOMMERCE_URL=https://perthartschool.com.au
 WOOCOMMERCE_CONSUMER_KEY=your-consumer-key
 WOOCOMMERCE_CONSUMER_SECRET=your-consumer-secret
 ```
@@ -117,36 +118,84 @@ python manage.py runserver
 ```
 Visit `http://localhost:8000` to verify the installation.
 
-## Production Deployment
+## Production Deployment on Ubuntu 22.04 (Nginx + Gunicorn + SSL)
 
-### Web Server Configuration
-Configure your web server (Apache/Nginx) to:
-- Serve static files from `/static/` directory
-- Serve media files from `/media/` directory
-- Proxy Django application
-- Handle HTTPS certificates
-
-### Example Nginx Configuration
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-    
-    location /static/ {
-        alias /path/to/edupulse/static/;
-    }
-    
-    location /media/ {
-        alias /path/to/edupulse/media/;
-    }
-    
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
+### 1) Install system packages
+```bash
+sudo apt update && sudo apt install -y python3-venv python3-pip nginx certbot python3-certbot-nginx
 ```
+
+### 2) Create directories and clone to /var/www/edupulse
+```bash
+sudo mkdir -p /var/www/edupulse
+sudo chown -R $USER:www-data /var/www/edupulse
+cd /var/www/edupulse
+# Copy or git clone project here
+```
+
+### 3) Setup virtualenv and install deps
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 4) Django initialisation
+```bash
+# Ensure .env is created with proper values (see above)
+python manage.py migrate --noinput
+python manage.py collectstatic --noinput
+```
+
+### 5) Systemd service for Gunicorn
+Copy the service file we provide and enable it:
+```bash
+sudo mkdir -p /etc/systemd/system
+sudo cp deploy/edupulse.service /etc/systemd/system/edupulse.service
+sudo systemctl daemon-reload
+sudo systemctl enable edupulse.service
+sudo systemctl start edupulse.service
+sudo systemctl status edupulse.service --no-pager -n 0
+```
+
+### 6) Nginx configuration
+```bash
+sudo cp deploy/nginx-edupulse.conf /etc/nginx/sites-available/edupulse.conf
+sudo ln -s /etc/nginx/sites-available/edupulse.conf /etc/nginx/sites-enabled/edupulse.conf || true
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 7) Issue Let's Encrypt SSL (after DNS points to server)
+```bash
+sudo certbot --nginx -d edupulse.perthartschool.com.au --redirect --agree-tos -m admin@perthartschool.com.au -n
+```
+
+### 8) Post-SSL hardening (optional)
+- Verify HSTS, TLS versions, and security headers in Nginx as per organisation policy
+
+### 9) Deploy updates in the future
+Use the helper script:
+```bash
+sudo bash deploy/deploy.sh PROJECT_DIR=/var/www/edupulse VENV_DIR=/var/www/edupulse/venv SERVICE_NAME=edupulse
+```
+
+### 10) Log locations
+- Gunicorn (stderr/stdout): `journalctl -u edupulse -n 200 -f`
+- Nginx access/error: `/var/log/nginx/`
+
+## Nginx config (reference)
+A copy is available at `deploy/nginx-edupulse.conf`. Ensure the paths:
+- Static: `/var/www/edupulse/staticfiles/` (matches Django STATIC_ROOT)
+- Media: `/var/www/edupulse/media/`
+- Upstream socket: `/run/edupulse/gunicorn.sock`
+
+## Gunicorn service (reference)
+A copy is available at `deploy/edupulse.service`. Ensure:
+- WorkingDirectory: `/var/www/edupulse`
+- ExecStart: `/var/www/edupulse/venv/bin/gunicorn ... edupulse.wsgi:application`
+- RuntimeDirectory: `edupulse` so `/run/edupulse/` exists for socket
 
 ## Security Considerations
 
@@ -166,42 +215,19 @@ The system implements several security measures for file uploads:
 - Regular database backups
 - Monitor file upload directories for disk space
 
-## Feature Components
-
-### Core Features Implemented
-- **Staff Management**: User authentication and role management
-- **Student Management**: Student profiles and information
-- **Course Management**: Course creation with rich text descriptions (TinyMCE)
-- **Facility Management**: Location and facility tracking
-- **Classroom Management**: Room assignments linked to facilities
-- **Class Scheduling**: Course scheduling and management
-- **Rich Text Editing**: TinyMCE integration with image upload support
-
-### File Upload Functionality
-- **TinyMCE Image Upload**: Secure image upload for course descriptions
-- **Automatic Directory Creation**: Upload directories created as needed
-- **File Organization**: Date-based directory structure (YYYY/MM)
-- **Security Validation**: File type and size restrictions
-
-## WordPress Integration (Planned)
-The system is designed to integrate with WordPress/WooCommerce:
-- Course synchronization from EduPulse to WooCommerce
-- Enrollment redirection from WordPress to EduPulse
-- Rich text content compatibility between systems
-
 ## Troubleshooting
 
 ### Common Issues
-1. **Media files not accessible**: Check file permissions and web server configuration
-2. **TinyMCE not loading**: Verify static files are properly served
-3. **Upload errors**: Check media directory permissions and disk space
-4. **Database errors**: Ensure proper database configuration and migrations
+1. Media files not accessible: Check file permissions and Nginx alias paths
+2. TinyMCE not loading: Verify static files are properly collected and served
+3. Upload errors: Check media directory permissions and disk space
+4. Database errors: Ensure proper database configuration and migrations
 
 ### Log Files
-Monitor Django logs for errors:
+Monitor logs for errors:
 ```bash
-# If using logging configuration
-tail -f logs/django.log
+journalctl -u edupulse -n 200 -f
+sudo tail -f /var/log/nginx/error.log
 ```
 
 ## Maintenance

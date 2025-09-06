@@ -1,0 +1,36 @@
+# /etc/systemd/system/edupulse.service
+# -----------------------------------------------------------------------------
+# Systemd unit file for EduPulse Django app served by Gunicorn
+# -----------------------------------------------------------------------------
+[Unit]
+Description=EduPulse Django application (Gunicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/edupulse
+Environment="DJANGO_SETTINGS_MODULE=edupulse.settings" "PYTHONUNBUFFERED=1"
+# Load environment variables from .env if required
+EnvironmentFile=-/var/www/edupulse/.env
+ExecStart=/var/www/edupulse/venv/bin/gunicorn \
+    --workers 3 \
+    --bind unix:/run/edupulse/gunicorn.sock \
+    --access-logfile - \
+    --error-logfile - \
+    edupulse.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=3
+TimeoutStartSec=30
+
+# Runtime directory for socket
+RuntimeDirectory=edupulse
+RuntimeDirectoryMode=0755
+
+# File permissions for static/media access (adjust as needed)
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
