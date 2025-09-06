@@ -1,0 +1,56 @@
+PERTH ART SCHOOL - ATTENDANCE NOTICE
+
+Dear {{ recipient_name }},
+
+We wanted to inform you about {{ student.first_name }}'s attendance for today's class.
+
+ATTENDANCE STATUS
+================
+Status: {{ status_display }}
+{% if attendance.time_recorded %}Time Recorded: {{ attendance.time_recorded|time:"g:i A" }}{% endif %}
+
+CLASS INFORMATION
+=================
+Course: {{ class.course.name }}
+Date: {{ class.date|date:"d F Y" }}
+Time: {{ class.start_time|time:"g:i A" }}
+Instructor: {{ class.teacher.get_full_name }}
+{% if class.facility %}Location: {{ class.facility.name }}{% endif %}
+
+{% if attendance.status == 'absent' %}
+ABOUT TODAY'S ABSENCE
+=====================
+{{ student.first_name }} was marked as absent from today's class. If this was due to illness or an emergency, please let us know so we can arrange any necessary catch-up sessions or provide class materials.
+
+We understand that unexpected circumstances can arise, and we're here to support {{ student.first_name }}'s continued learning.
+
+{% elif attendance.status == 'late' %}
+LATE ARRIVAL
+============
+{{ student.first_name }} arrived late to today's class. While we understand that delays can happen, arriving on time helps ensure {{ student.first_name }} doesn't miss important instructions and can fully participate in the activities.
+
+If you're experiencing ongoing challenges with punctuality, please let us know how we can help.
+
+{% elif attendance.status == 'early_leave' %}
+EARLY DEPARTURE
+===============
+{{ student.first_name }} left class early today. If this was planned, thank you for letting us know. If not, we wanted to make sure everything is okay.
+
+We can provide information about any activities or instructions {{ student.first_name }} may have missed.
+
+{% endif %}
+Regular attendance helps students get the most from their art education and maintain momentum in their creative development. If you have any concerns or questions about attendance, please don't hesitate to reach out to us.
+
+CONTACT INFORMATION
+==================
+Email: {{ contact_email }}
+Phone: {{ contact_phone }}
+
+We appreciate your partnership in {{ student.first_name }}'s artistic journey.
+
+--
+This attendance notice was sent to {{ recipient_email }} for {{ student.first_name }}'s class at Perth Art School.
+© 2025 Perth Art School. All rights reserved.
+
+Visit our website: https://{{ site_domain }}
+Contact us: {{ contact_email }}

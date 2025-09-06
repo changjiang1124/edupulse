@@ -66,16 +66,65 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
         return context
     
     def post(self, request, *args, **kwargs):
+        from core.services import NotificationService
+        
         self.object = self.get_object()
         action = request.POST.get('action')
         
         if action == 'confirm' and self.object.status == 'pending':
             self.object.status = 'confirmed'
             self.object.save()
-            messages.success(
-                request, 
-                f'Enrollment for {self.object.student.get_full_name()} has been confirmed.'
+            
+            # Create student activity record for enrollment confirmation
+            from students.models import StudentActivity
+            StudentActivity.create_activity(
+                student=self.object.student,
+                activity_type='enrollment_confirmed',
+                title=f'Enrollment confirmed for {self.object.course.name}',
+                description=f'Enrollment status changed from pending to confirmed by staff member.',
+                enrollment=self.object,
+                course=self.object.course,
+                performed_by=request.user if hasattr(request.user, 'staff') else None,
+                metadata={
+                    'previous_status': 'pending',
+                    'new_status': 'confirmed',
+                    'confirmed_at': timezone.now().isoformat()
+                }
             )
+            
+            # Send welcome email upon confirmation
+            try:
+                welcome_sent = NotificationService.send_welcome_email(self.object)
+                if welcome_sent:
+                    # Record welcome email activity
+                    StudentActivity.create_activity(
+                        student=self.object.student,
+                        activity_type='email_sent',
+                        title='Welcome email sent',
+                        description=f'Welcome email sent to {self.object.student.get_contact_email()} after enrollment confirmation',
+                        enrollment=self.object,
+                        course=self.object.course,
+                        performed_by=request.user if hasattr(request.user, 'staff') else None,
+                        metadata={
+                            'email_type': 'welcome',
+                            'recipient': self.object.student.get_contact_email(),
+                            'triggered_by': 'enrollment_confirmation'
+                        }
+                    )
+                    messages.success(
+                        request, 
+                        f'Enrollment for {self.object.student.get_full_name()} has been confirmed and welcome email sent.'
+                    )
+                else:
+                    messages.success(
+                        request, 
+                        f'Enrollment for {self.object.student.get_full_name()} has been confirmed, but welcome email could not be sent.'
+                    )
+            except Exception as e:
+                messages.success(
+                    request, 
+                    f'Enrollment for {self.object.student.get_full_name()} has been confirmed, but notification error: {str(e)}'
+                )
         
         return redirect('enrollment:enrollment_detail', pk=self.object.pk)
 
@@ -224,6 +273,7 @@ class PublicEnrollmentView(TemplateView):
         
         if form.is_valid():
             from students.services import StudentMatchingService, EnrollmentFeeCalculator
+            from core.services import NotificationService
             
             # Get course
             course = Course.objects.get(pk=form.cleaned_data['course_id'])
@@ -262,6 +312,47 @@ class PublicEnrollmentView(TemplateView):
                 )
                 return redirect('enrollment:enrollment_success', enrollment_id=existing_enrollment.pk)
             else:
+                # Create student activity record for enrollment creation
+                from students.models import StudentActivity
+                StudentActivity.create_activity(
+                    student=student,
+                    activity_type='enrollment_created',
+                    title=f'Enrolled in {course.name}',
+                    description=f'Student enrolled in course "{course.name}" via website form. Status: pending.',
+                    enrollment=enrollment,
+                    course=course,
+                    metadata={
+                        'source_channel': 'website',
+                        'form_data_stored': True,
+                        'fees_calculated': True,
+                        'is_new_student': was_created,
+                        'total_fee': str(fees.get('total_fee', 0))
+                    }
+                )
+                
+                # Process enrollment notifications
+                try:
+                    notification_results = NotificationService.process_enrollment_notifications(enrollment)
+                    if notification_results['confirmation_sent']:
+                        messages.success(request, 'Enrollment confirmation email sent.')
+                        # Record email sent activity
+                        StudentActivity.create_activity(
+                            student=student,
+                            activity_type='email_sent',
+                            title='Enrollment confirmation email sent',
+                            description=f'Confirmation email sent to {student.get_contact_email()}',
+                            enrollment=enrollment,
+                            course=course,
+                            metadata={
+                                'email_type': 'enrollment_confirmation',
+                                'recipient': student.get_contact_email()
+                            }
+                        )
+                    else:
+                        messages.warning(request, 'Enrollment created but confirmation email could not be sent.')
+                except Exception as e:
+                    messages.warning(request, f'Enrollment created but notification error: {str(e)}')
+                
                 success_message = f'Enrollment submitted successfully for {student.get_full_name()} in {course.name}.'
                 if was_created:
                     success_message += ' New student profile created.'

@@ -18,7 +18,13 @@ class CourseListView(LoginRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        queryset = Course.objects.filter(status='published')
+        queryset = Course.objects.all()
+        
+        # Filter by status
+        status_filter = self.request.GET.get('status', 'all')
+        if status_filter != 'all':
+            queryset = queryset.filter(status=status_filter)
+            
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
@@ -27,6 +33,12 @@ class CourseListView(LoginRequiredMixin, ListView):
                 Q(short_description__icontains=search)
             )
         return queryset.order_by('-created_at')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['current_status'] = self.request.GET.get('status', 'all')
+        context['status_choices'] = Course.STATUS_CHOICES
+        return context
 
 
 class CourseCreateView(LoginRequiredMixin, CreateView):

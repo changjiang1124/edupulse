@@ -14,6 +14,7 @@ import core.views as core_views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', core_views.DashboardView.as_view(), name='dashboard'),
+    path('dashboard/', core_views.DashboardView.as_view(), name='dashboard_direct'),
     
     # Core application (Dashboard, Clock, etc.)
     path('core/', include('core.urls')),

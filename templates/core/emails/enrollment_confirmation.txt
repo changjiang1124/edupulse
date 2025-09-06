@@ -1,0 +1,48 @@
+PERTH ART SCHOOL - ENROLMENT CONFIRMATION
+
+Dear {{ recipient_name }},
+
+Thank you for enrolling with Perth Art School! We're excited to confirm your enrolment in our course.
+
+COURSE DETAILS
+==============
+Course: {{ course.name }}
+Type: {{ course.get_course_type_display }}
+Duration: {{ course.duration_display }}
+{% if course.facility %}Location: {{ course.facility.name }}{% endif %}
+Start Date: {{ course.start_date|date:"d F Y" }}
+{% if course.course_type == 'multiple' %}End Date: {{ course.end_date|date:"d F Y" }}{% endif %}
+
+{% if not is_fully_paid %}
+FEE INFORMATION
+===============
+Course Fee: ${{ enrollment.course_fee|floatformat:2 }}
+{% if enrollment.registration_fee %}Registration Fee: ${{ enrollment.registration_fee|floatformat:2 }}{% endif %}
+Total Outstanding: ${{ outstanding_fee|floatformat:2 }}
+
+NEXT STEPS
+==========
+1. Payment: Please arrange payment via bank transfer to secure your place in the course.
+2. Bank Details: Account details will be provided separately via email.
+3. Confirmation: Once payment is received, we'll send you a final confirmation with class details.
+4. Preparation: Course materials and preparation instructions will be sent closer to the start date.
+{% else %}
+YOU'RE ALL SET!
+===============
+Your enrolment is confirmed and payment is complete. We'll send you course details and preparation instructions closer to the start date.
+{% endif %}
+
+We look forward to having {{ student.first_name }} join our creative community at Perth Art School. If you have any questions or need to make changes to your enrolment, please don't hesitate to contact us.
+
+CONTACT INFORMATION
+==================
+Email: {{ contact_email }}
+Phone: {{ contact_phone }}
+Website: https://{{ site_domain }}
+
+--
+This email was sent to {{ recipient_email }} regarding your enrolment at Perth Art School.
+© 2025 Perth Art School. All rights reserved.
+
+Visit our website: https://{{ site_domain }}
+Contact us: {{ contact_email }}

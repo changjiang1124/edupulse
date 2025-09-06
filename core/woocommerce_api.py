@@ -90,6 +90,136 @@ class WooCommerceAPI:
                 'data': None
             }
     
+    def _generate_enhanced_description(self, course_data: Dict[str, Any]) -> str:
+        """
+        Generate enhanced product description with essential user information
+        """
+        from datetime import datetime
+        
+        # Start with basic description
+        description = course_data.get('description', '')
+        
+        # Add essential course information
+        info_sections = []
+        
+        # Course details section
+        course_details = []
+        
+        # Price information
+        price = course_data.get('price', 0)
+        registration_fee = course_data.get('registration_fee')
+        if registration_fee and registration_fee > 0:
+            course_details.append(f"<strong>Course Fee:</strong> ${price}")
+            course_details.append(f"<strong>Registration Fee:</strong> ${registration_fee} (for new students)")
+            course_details.append(f"<strong>Total for New Students:</strong> ${float(price) + float(registration_fee)}")
+        else:
+            course_details.append(f"<strong>Course Fee:</strong> ${price}")
+        
+        # Vacancy information
+        vacancy = course_data.get('vacancy')
+        if vacancy:
+            course_details.append(f"<strong>Available Places:</strong> {vacancy}")
+        
+        # Enrollment deadline
+        enrollment_deadline = course_data.get('enrollment_deadline')
+        if enrollment_deadline:
+            try:
+                if isinstance(enrollment_deadline, str):
+                    deadline_date = datetime.fromisoformat(enrollment_deadline.replace('Z', '+00:00'))
+                else:
+                    deadline_date = enrollment_deadline
+                formatted_deadline = deadline_date.strftime('%d %B %Y')
+                course_details.append(f"<strong>Enrollment Deadline:</strong> {formatted_deadline}")
+            except:
+                course_details.append(f"<strong>Enrollment Deadline:</strong> {enrollment_deadline}")
+        
+        # Course dates
+        start_date = course_data.get('start_date')
+        end_date = course_data.get('end_date')
+        if start_date:
+            try:
+                if isinstance(start_date, str):
+                    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                else:
+                    start_dt = start_date
+                formatted_start = start_dt.strftime('%d %B %Y')
+                
+                if end_date and end_date != start_date:
+                    try:
+                        if isinstance(end_date, str):
+                            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                        else:
+                            end_dt = end_date
+                        formatted_end = end_dt.strftime('%d %B %Y')
+                        course_details.append(f"<strong>Course Period:</strong> {formatted_start} - {formatted_end}")
+                    except:
+                        course_details.append(f"<strong>Start Date:</strong> {formatted_start}")
+                else:
+                    course_details.append(f"<strong>Course Date:</strong> {formatted_start}")
+            except:
+                course_details.append(f"<strong>Start Date:</strong> {start_date}")
+        
+        # Course timing
+        start_time = course_data.get('start_time')
+        duration_minutes = course_data.get('duration_minutes')
+        if start_time:
+            try:
+                if isinstance(start_time, str):
+                    time_parts = start_time.split(':')
+                    hour = int(time_parts[0])
+                    minute = int(time_parts[1])
+                    formatted_time = f"{hour:02d}:{minute:02d}"
+                else:
+                    formatted_time = start_time.strftime('%H:%M')
+                
+                timing_info = f"<strong>Class Time:</strong> {formatted_time}"
+                if duration_minutes:
+                    hours = duration_minutes // 60
+                    mins = duration_minutes % 60
+                    if hours > 0 and mins > 0:
+                        duration_str = f"{hours}h {mins}min"
+                    elif hours > 0:
+                        duration_str = f"{hours} hour{'s' if hours > 1 else ''}"
+                    else:
+                        duration_str = f"{mins} minutes"
+                    timing_info += f" ({duration_str})"
+                
+                course_details.append(timing_info)
+            except:
+                course_details.append(f"<strong>Class Time:</strong> {start_time}")
+        
+        # Facility/Location
+        facility_name = course_data.get('facility_name')
+        facility_address = course_data.get('facility_address')
+        if facility_name:
+            location_info = f"<strong>Location:</strong> {facility_name}"
+            if facility_address:
+                location_info += f" - {facility_address}"
+            course_details.append(location_info)
+        
+        if course_details:
+            info_sections.append(f"<h3>Course Information</h3>\n<ul>\n" + 
+                               "\n".join(f"<li>{detail}</li>" for detail in course_details) + 
+                               "\n</ul>")
+        
+        # Enrollment information
+        enrollment_info = [
+            "<strong>How to Enroll:</strong> Click 'Enrol Now' to complete your enrollment",
+            "<strong>Payment:</strong> Bank transfer details will be provided after enrollment",
+            "<strong>Questions?</strong> Contact us for more information"
+        ]
+        
+        info_sections.append(f"<h3>Enrollment Details</h3>\n<ul>\n" + 
+                           "\n".join(f"<li>{info}</li>" for info in enrollment_info) + 
+                           "\n</ul>")
+        
+        # Combine original description with enhanced information
+        enhanced_description = description
+        if info_sections:
+            enhanced_description += "\n\n" + "\n\n".join(info_sections)
+        
+        return enhanced_description
+    
     def create_external_product(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create an external product in WooCommerce for a course
@@ -109,7 +239,7 @@ class WooCommerceAPI:
             'status': 'publish' if course_data.get('status') == 'published' else 'draft',
             'featured': False,
             'catalog_visibility': 'visible',
-            'description': course_data.get('description', ''),
+            'description': self._generate_enhanced_description(course_data),
             'short_description': course_data.get('short_description', ''),
             'regular_price': str(course_data.get('price', '0')),
             'external_url': course_data.get('enrollment_url', ''),
@@ -160,7 +290,7 @@ class WooCommerceAPI:
         product_data = {
             'name': course_data['name'],
             'status': 'publish' if course_data.get('status') == 'published' else 'draft',
-            'description': course_data.get('description', ''),
+            'description': self._generate_enhanced_description(course_data),
             'short_description': course_data.get('short_description', ''),
             'regular_price': str(course_data.get('price', '0')),
             'external_url': course_data.get('enrollment_url', ''),
@@ -347,6 +477,15 @@ class WooCommerceSyncService:
                 'description': course.description or '',
                 'short_description': course.short_description or '',
                 'price': float(course.price),
+                'registration_fee': float(course.registration_fee) if course.registration_fee else None,
+                'vacancy': course.vacancy,
+                'enrollment_deadline': course.enrollment_deadline.isoformat() if course.enrollment_deadline else None,
+                'start_date': course.start_date.isoformat() if course.start_date else None,
+                'end_date': course.end_date.isoformat() if course.end_date else None,
+                'start_time': course.start_time.isoformat() if course.start_time else None,
+                'duration_minutes': course.duration_minutes,
+                'facility_name': course.facility.name if course.facility else None,
+                'facility_address': course.facility.address if course.facility else None,
                 'status': course.status,
                 'enrollment_url': enrollment_url,
                 'featured_image_url': featured_image_url,  # Add image URL

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Reminder - {{ course.name }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .reminder-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #f59e0b;
+        }
+        .class-highlight {
+            background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 20%, #fef3c7 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .class-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #92400e;
+            margin: 0 0 10px 0;
+        }
+        .class-time {
+            font-size: 20px;
+            font-weight: 600;
+            color: #d97706;
+            margin: 10px 0;
+        }
+        .class-details {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        .class-details h3 {
+            margin: 0 0 20px 0;
+            color: #2563eb;
+            font-size: 20px;
+        }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .detail-item {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .detail-value {
+            color: #64748b;
+            font-size: 16px;
+        }
+        .location-info {
+            background-color: #ecfdf5;
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        .location-info h4 {
+            margin: 0 0 15px 0;
+            color: #15803d;
+            font-size: 18px;
+        }
+        .address {
+            font-size: 16px;
+            color: #166534;
+            margin: 10px 0;
+        }
+        .reminders {
+            background-color: #fef2f2;
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        .reminders h4 {
+            margin: 0 0 15px 0;
+            color: #dc2626;
+            font-size: 18px;
+        }
+        .reminders ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #991b1b;
+        }
+        .reminders li {
+            margin: 8px 0;
+        }
+        .contact-info {
+            background-color: #f1f5f9;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .contact-info h4 {
+            margin: 0 0 15px 0;
+            color: #475569;
+        }
+        .contact-details {
+            color: #64748b;
+        }
+        .footer {
+            background-color: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            color: #64748b;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        .urgency-high {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        .urgency-medium {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+        .urgency-low {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 0;
+            }
+            .content {
+                padding: 30px 20px;
+            }
+            .header {
+                padding: 25px 20px;
+            }
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header {% if days_ahead == 1 %}urgency-high{% elif days_ahead <= 3 %}urgency-medium{% else %}urgency-low{% endif %}">
+            <div class="reminder-icon">⏰</div>
+            <h1>Class Reminder</h1>
+            <p>{% if days_ahead == 1 %}Tomorrow's class{% else %}Upcoming class in {{ days_ahead }} days{% endif %}</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">
+                Hello {{ recipient_name }},
+            </div>
+            
+            <p>{% if days_ahead == 1 %}Just a friendly reminder that {{ student.first_name }} has a class tomorrow!{% else %}We wanted to remind you that {{ student.first_name }} has an upcoming class in {{ days_ahead }} days.{% endif %}</p>
+            
+            <div class="class-highlight">
+                <div class="class-name">{{ course.name }}</div>
+                <div class="class-time">
+                    {{ class_date|date:"l, d F Y" }} at {{ class_time|time:"g:i A" }}
+                </div>
+            </div>
+            
+            <div class="class-details">
+                <h3>Class Information</h3>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Date</div>
+                        <div class="detail-value">{{ class_date|date:"d F Y" }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Time</div>
+                        <div class="detail-value">{{ class_time|time:"g:i A" }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Duration</div>
+                        <div class="detail-value">{{ course.duration_display }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Instructor</div>
+                        <div class="detail-value">{{ teacher.get_full_name }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if facility %}
+            <div class="location-info">
+                <h4>📍 Location Details</h4>
+                <p><strong>{{ facility.name }}</strong></p>
+                {% if classroom %}
+                <p>Room: {{ classroom.name }}</p>
+                {% endif %}
+                <p class="address">{{ facility.address }}</p>
+                {% if facility.phone %}
+                <p>Phone: {{ facility.phone }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <div class="reminders">
+                <h4>Important Reminders</h4>
+                <ul>
+                    <li>Please arrive 5-10 minutes early to allow time for setup</li>
+                    <li>Bring comfortable clothes that you don't mind getting a bit messy</li>
+                    <li>All art materials and supplies are provided</li>
+                    <li>Water bottles are recommended for longer classes</li>
+                    {% if days_ahead == 1 %}
+                    <li><strong>Don't forget - class is tomorrow!</strong></li>
+                    {% endif %}
+                </ul>
+            </div>
+            
+            <p>{% if days_ahead == 1 %}We're excited to see {{ student.first_name }} in class tomorrow!{% else %}We're looking forward to seeing {{ student.first_name }} in class.{% endif %} If you have any questions or need to make any changes, please don't hesitate to contact us.</p>
+            
+            <div class="contact-info">
+                <h4>Questions? Contact Us</h4>
+                <div class="contact-details">
+                    <p><strong>Email:</strong> {{ contact_email }}</p>
+                    <p><strong>Phone:</strong> {{ contact_phone }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>This reminder was sent to {{ recipient_email }} for {{ student.first_name }}'s class at Perth Art School.</p>
+            <p>© 2025 Perth Art School. All rights reserved.</p>
+            <p><a href="https://{{ site_domain }}">Visit our website</a> | <a href="mailto:{{ contact_email }}">Contact us</a></p>
+        </div>
+    </div>
+</body>
+</html>

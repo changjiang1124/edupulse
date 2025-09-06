@@ -1,44 +1,147 @@
 from django.contrib import admin
-from .models import Student, StudentTag
+from django.utils.html import format_html
+from .models import Student, StudentTag, StudentActivity
 
 
 @admin.register(StudentTag)
 class StudentTagAdmin(admin.ModelAdmin):
-    list_display = ('name', 'colour', 'is_active', 'created_at')
-    list_filter = ('is_active', 'created_at')
-    search_fields = ('name', 'description')
-    ordering = ('name',)
+    list_display = ['name', 'colour_display', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['created_at']
     
-    fieldsets = (
-        ('Tag Information', {
-            'fields': ('name', 'colour', 'description', 'is_active')
-        }),
-    )
+    def colour_display(self, obj):
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">● {}</span>',
+            obj.colour,
+            obj.colour
+        )
+    colour_display.short_description = 'Colour'
+
+
+class StudentActivityInline(admin.TabularInline):
+    model = StudentActivity
+    extra = 0
+    readonly_fields = ['created_at']
+    fields = ['activity_type', 'title', 'enrollment', 'course', 'performed_by', 'is_visible_to_student', 'created_at']
+    ordering = ['-created_at']
 
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'email', 'phone', 'guardian_name', 'get_tags', 'is_active', 'created_at')
-    list_filter = ('is_active', 'tags', 'created_at')
-    search_fields = ('first_name', 'last_name', 'email', 'phone', 'guardian_name', 'guardian_email')
-    ordering = ('last_name', 'first_name')
-    filter_horizontal = ('tags',)
+    list_display = [
+        'first_name', 'last_name', 'primary_contact_email', 'primary_contact_phone', 
+        'primary_contact_type', 'is_active', 'created_at'
+    ]
+    list_filter = ['is_active', 'primary_contact_type', 'registration_status', 'created_at', 'tags']
+    search_fields = [
+        'first_name', 'last_name', 'primary_contact_email', 'email', 
+        'guardian_email', 'primary_contact_phone', 'phone', 'guardian_phone'
+    ]
+    readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('first_name', 'last_name', 'birth_date', 'email', 'phone', 'address')
+            'fields': ('first_name', 'last_name', 'birth_date', 'address')
+        }),
+        ('Primary Contact', {
+            'fields': ('primary_contact_email', 'primary_contact_phone', 'primary_contact_type'),
+            'description': 'Primary contact information from enrollment form'
+        }),
+        ('Student Contact Details', {
+            'fields': ('email', 'phone'),
+            'classes': ('collapse',)
         }),
         ('Guardian Information', {
-            'fields': ('guardian_name', 'guardian_phone', 'guardian_email')
+            'fields': ('guardian_name', 'guardian_email', 'guardian_phone'),
+            'classes': ('collapse',)
         }),
-        ('Tags and Classification', {
-            'fields': ('tags',)
+        ('Emergency Contact', {
+            'fields': ('emergency_contact_name', 'emergency_contact_phone'),
+            'classes': ('collapse',)
         }),
-        ('Additional Info', {
-            'fields': ('reference', 'is_active')
-        })
+        ('Medical Information', {
+            'fields': ('medical_conditions', 'special_requirements'),
+            'classes': ('collapse',)
+        }),
+        ('Administrative', {
+            'fields': ('staff_notes', 'internal_notes', 'registration_status', 'enrollment_source', 'tags'),
+            'classes': ('collapse',)
+        }),
+        ('Status & Timestamps', {
+            'fields': ('is_active', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
     )
     
-    def get_tags(self, obj):
-        return ', '.join([tag.name for tag in obj.tags.all()[:3]])
-    get_tags.short_description = 'Tags'
+    filter_horizontal = ['tags']
+    inlines = [StudentActivityInline]
+    
+    actions = ['mark_as_active', 'mark_as_inactive']
+    
+    def mark_as_active(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} student(s) marked as active.')
+    mark_as_active.short_description = "Mark selected students as active"
+    
+    def mark_as_inactive(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} student(s) marked as inactive.')
+    mark_as_inactive.short_description = "Mark selected students as inactive"
+
+
+@admin.register(StudentActivity)
+class StudentActivityAdmin(admin.ModelAdmin):
+    list_display = [
+        'student', 'activity_type_display', 'title', 'course', 'enrollment', 
+        'performed_by', 'is_visible_to_student', 'created_at'
+    ]
+    list_filter = [
+        'activity_type', 'is_visible_to_student', 'created_at', 'course', 'performed_by'
+    ]
+    search_fields = [
+        'student__first_name', 'student__last_name', 'title', 'description',
+        'course__name', 'enrollment__id'
+    ]
+    readonly_fields = ['created_at']
+    
+    fieldsets = (
+        ('Activity Information', {
+            'fields': ('student', 'activity_type', 'title', 'description')
+        }),
+        ('Related Objects', {
+            'fields': ('enrollment', 'course', 'performed_by'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('metadata', 'is_visible_to_student'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamp', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def activity_type_display(self, obj):
+        icon = obj.get_activity_icon()
+        color = obj.get_activity_color()
+        return format_html(
+            '<i class="fas {} text-{}"></i> {}',
+            icon,
+            color,
+            obj.get_activity_type_display()
+        )
+    activity_type_display.short_description = 'Activity Type'
+    
+    actions = ['mark_visible_to_student', 'mark_not_visible_to_student']
+    
+    def mark_visible_to_student(self, request, queryset):
+        updated = queryset.update(is_visible_to_student=True)
+        self.message_user(request, f'{updated} activity(ies) marked as visible to students.')
+    mark_visible_to_student.short_description = "Mark selected activities as visible to students"
+    
+    def mark_not_visible_to_student(self, request, queryset):
+        updated = queryset.update(is_visible_to_student=False)
+        self.message_user(request, f'{updated} activity(ies) marked as not visible to students.')
+    mark_not_visible_to_student.short_description = "Mark selected activities as not visible to students"

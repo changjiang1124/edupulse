@@ -251,3 +251,155 @@ class Student(models.Model):
     def get_full_name(self):
         """Get student's full name"""
         return f"{self.first_name} {self.last_name}"
+
+
+class StudentActivity(models.Model):
+    """
+    Student Activity model for tracking enrollment and other student-related activities
+    """
+    ACTIVITY_TYPES = [
+        ('enrollment_created', 'Enrollment Created'),
+        ('enrollment_confirmed', 'Enrollment Confirmed'),
+        ('enrollment_cancelled', 'Enrollment Cancelled'),
+        ('attendance_marked', 'Attendance Marked'),
+        ('payment_received', 'Payment Received'),
+        ('course_completed', 'Course Completed'),
+        ('contact_updated', 'Contact Information Updated'),
+        ('notes_added', 'Staff Notes Added'),
+        ('email_sent', 'Email Sent'),
+        ('sms_sent', 'SMS Sent'),
+        ('other', 'Other Activity')
+    ]
+    
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='activities',
+        verbose_name='Student'
+    )
+    
+    activity_type = models.CharField(
+        max_length=30,
+        choices=ACTIVITY_TYPES,
+        verbose_name='Activity Type'
+    )
+    
+    title = models.CharField(
+        max_length=200,
+        verbose_name='Activity Title',
+        help_text='Brief description of the activity'
+    )
+    
+    description = models.TextField(
+        blank=True,
+        verbose_name='Description',
+        help_text='Detailed description of the activity'
+    )
+    
+    # Related objects (optional foreign keys for context)
+    enrollment = models.ForeignKey(
+        'enrollment.Enrollment',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activities',
+        verbose_name='Related Enrollment'
+    )
+    
+    course = models.ForeignKey(
+        'academics.Course',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='student_activities',
+        verbose_name='Related Course'
+    )
+    
+    # Staff member who performed the activity (if applicable)
+    performed_by = models.ForeignKey(
+        'accounts.Staff',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='performed_activities',
+        verbose_name='Performed By'
+    )
+    
+    # Metadata
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Additional Data',
+        help_text='JSON field for storing additional activity-specific data'
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Created At'
+    )
+    
+    is_visible_to_student = models.BooleanField(
+        default=True,
+        verbose_name='Visible to Student/Guardian',
+        help_text='Whether this activity should be visible in student portal'
+    )
+    
+    class Meta:
+        verbose_name = 'Student Activity'
+        verbose_name_plural = 'Student Activities'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['student', '-created_at']),
+            models.Index(fields=['activity_type', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.student.get_full_name()} - {self.get_activity_type_display()}"
+    
+    def get_activity_icon(self):
+        """Get FontAwesome icon for activity type"""
+        icon_map = {
+            'enrollment_created': 'fa-user-plus',
+            'enrollment_confirmed': 'fa-check-circle',
+            'enrollment_cancelled': 'fa-times-circle',
+            'attendance_marked': 'fa-check-square',
+            'payment_received': 'fa-dollar-sign',
+            'course_completed': 'fa-graduation-cap',
+            'contact_updated': 'fa-address-book',
+            'notes_added': 'fa-sticky-note',
+            'email_sent': 'fa-envelope',
+            'sms_sent': 'fa-sms',
+            'other': 'fa-info-circle'
+        }
+        return icon_map.get(self.activity_type, 'fa-info-circle')
+    
+    def get_activity_color(self):
+        """Get Bootstrap color class for activity type"""
+        color_map = {
+            'enrollment_created': 'primary',
+            'enrollment_confirmed': 'success',
+            'enrollment_cancelled': 'danger',
+            'attendance_marked': 'info',
+            'payment_received': 'success',
+            'course_completed': 'warning',
+            'contact_updated': 'secondary',
+            'notes_added': 'secondary',
+            'email_sent': 'info',
+            'sms_sent': 'info',
+            'other': 'secondary'
+        }
+        return color_map.get(self.activity_type, 'secondary')
+    
+    @classmethod
+    def create_activity(cls, student, activity_type, title, description=None, **kwargs):
+        """
+        Helper method to create student activities
+        """
+        return cls.objects.create(
+            student=student,
+            activity_type=activity_type,
+            title=title,
+            description=description or '',
+            **kwargs
+        )

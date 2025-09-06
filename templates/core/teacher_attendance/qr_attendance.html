@@ -1,0 +1,503 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}QR Code Attendance - Perth Art School{% endblock %}
+
+{% block extra_css %}
+<style>
+    .qr-attendance-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .attendance-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 30px;
+        text-align: center;
+        color: white;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .current-time {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    
+    .current-date {
+        font-size: 16px;
+        opacity: 0.9;
+    }
+    
+    .facility-info {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+        text-align: center;
+        color: white;
+    }
+    
+    .facility-name {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .facility-address {
+        font-size: 14px;
+        opacity: 0.9;
+    }
+    
+    .qr-status {
+        margin: 20px 0;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .qr-status.valid {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .qr-status.invalid {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .clock-type-selector {
+        display: flex;
+        gap: 10px;
+        margin: 20px 0;
+    }
+    
+    .clock-type-btn {
+        flex: 1;
+        padding: 12px 20px;
+        border: 2px solid #007bff;
+        background: white;
+        color: #007bff;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 600;
+    }
+    
+    .clock-type-btn.active,
+    .clock-type-btn:hover {
+        background: #007bff;
+        color: white;
+    }
+    
+    .classes-section {
+        margin: 20px 0;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .class-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        margin: 5px 0;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .class-item input[type="checkbox"] {
+        margin-right: 10px;
+    }
+    
+    .class-info {
+        flex-grow: 1;
+    }
+    
+    .class-name {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .class-time {
+        font-size: 14px;
+        color: #6c757d;
+    }
+    
+    .gps-status {
+        margin: 20px 0;
+        padding: 10px;
+        border-radius: 6px;
+        text-align: center;
+        font-size: 14px;
+    }
+    
+    .gps-status.searching {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+    
+    .gps-status.found {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .gps-status.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .submit-btn {
+        width: 100%;
+        padding: 15px;
+        font-size: 18px;
+        font-weight: 600;
+        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    
+    .submit-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .submit-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background: #6c757d;
+    }
+    
+    .error-message {
+        color: #dc3545;
+        text-align: center;
+        margin: 15px 0;
+        padding: 10px;
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 6px;
+    }
+    
+    .success-message {
+        color: #155724;
+        text-align: center;
+        margin: 15px 0;
+        padding: 10px;
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        border-radius: 6px;
+    }
+    
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .spinner-border {
+        width: 2rem;
+        height: 2rem;
+    }
+    
+    @media (max-width: 576px) {
+        .qr-attendance-container {
+            padding: 15px;
+        }
+        
+        .attendance-card {
+            padding: 20px;
+        }
+        
+        .clock-type-selector {
+            flex-direction: column;
+        }
+        
+        .current-time {
+            font-size: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="qr-attendance-container">
+        <!-- Header Card -->
+        <div class="attendance-card">
+            <h2 class="mb-3">🎯 Teacher Attendance</h2>
+            <div class="current-time" id="current-time">{{ current_time|time:"H:i:s" }}</div>
+            <div class="current-date">{{ current_time|date:"l, d F Y" }}</div>
+        </div>
+        
+        <!-- QR Code Status -->
+        {% if qr_data_param %}
+            {% if qr_validation.valid %}
+                <div class="qr-status valid">
+                    <strong>✅ Valid QR Code</strong><br>
+                    Ready for attendance at {{ facility.name }}
+                </div>
+                
+                <!-- Facility Information -->
+                <div class="facility-info">
+                    <div class="facility-name">{{ facility.name }}</div>
+                    <div class="facility-address">{{ facility.address }}</div>
+                </div>
+                
+                <!-- Attendance Form -->
+                <form id="attendance-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="qr_data" value="{{ qr_data_param }}">
+                    
+                    <!-- Clock Type Selection -->
+                    <div class="clock-type-selector">
+                        <button type="button" class="clock-type-btn active" data-type="clock_in">
+                            Clock In
+                        </button>
+                        <button type="button" class="clock-type-btn" data-type="clock_out">
+                            Clock Out
+                        </button>
+                    </div>
+                    <input type="hidden" name="clock_type" value="clock_in">
+                    
+                    <!-- GPS Status -->
+                    <div class="gps-status searching" id="gps-status">
+                        📍 Getting your location...
+                    </div>
+                    <input type="hidden" name="latitude" id="latitude">
+                    <input type="hidden" name="longitude" id="longitude">
+                    
+                    <!-- Today's Classes Section -->
+                    <div class="classes-section" id="classes-section" style="display: none;">
+                        <h5>Today's Classes at {{ facility.name }}</h5>
+                        <div id="classes-list">
+                            <!-- Classes will be loaded via JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <button type="submit" class="submit-btn" id="submit-btn" disabled>
+                        Submit Attendance
+                    </button>
+                    
+                    <!-- Loading Spinner -->
+                    <div class="loading-spinner" id="loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Processing attendance...</p>
+                    </div>
+                </form>
+                
+            {% else %}
+                <div class="qr-status invalid">
+                    <strong>❌ Invalid QR Code</strong><br>
+                    {{ qr_validation.error }}
+                    {% if qr_validation.expired %}
+                        <br><small>Please scan a new QR code from the facility.</small>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="qr-status invalid">
+                <strong>📱 No QR Code Detected</strong><br>
+                Please scan a QR code to record your attendance.
+            </div>
+        {% endif %}
+        
+        <!-- Messages -->
+        <div id="message-area"></div>
+        
+        <!-- Back to Clock System -->
+        <div class="text-center mt-4">
+            <a href="{% url 'core:teacher_clock' %}" class="btn btn-outline-secondary">
+                ← Back to Manual Clock System
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update current time every second
+    function updateTime() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-AU', { 
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        document.getElementById('current-time').textContent = timeString;
+    }
+    
+    // Update time immediately and then every second
+    updateTime();
+    setInterval(updateTime, 1000);
+    
+    // Only proceed with attendance functionality if QR code is valid
+    {% if qr_validation.valid %}
+    
+    // Clock type selection
+    document.querySelectorAll('.clock-type-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Remove active class from all buttons
+            document.querySelectorAll('.clock-type-btn').forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+            // Update hidden input
+            document.querySelector('input[name="clock_type"]').value = this.dataset.type;
+        });
+    });
+    
+    // Get user location
+    function getLocation() {
+        if (navigator.geolocation) {
+            const gpsStatus = document.getElementById('gps-status');
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    
+                    // Update hidden inputs
+                    document.getElementById('latitude').value = latitude;
+                    document.getElementById('longitude').value = longitude;
+                    
+                    // Update GPS status
+                    gpsStatus.className = 'gps-status found';
+                    gpsStatus.innerHTML = '📍 Location found - Ready for attendance';
+                    
+                    // Enable submit button
+                    document.getElementById('submit-btn').disabled = false;
+                    
+                    // Load today's classes
+                    loadTodayClasses();
+                },
+                function(error) {
+                    console.warn('GPS error:', error);
+                    const gpsStatus = document.getElementById('gps-status');
+                    
+                    if (error.code === error.PERMISSION_DENIED) {
+                        gpsStatus.className = 'gps-status error';
+                        gpsStatus.innerHTML = '⚠️ Location permission denied - QR code location will be used';
+                    } else {
+                        gpsStatus.className = 'gps-status error';
+                        gpsStatus.innerHTML = '⚠️ Unable to get location - QR code location will be used';
+                    }
+                    
+                    // Still allow submission without GPS verification
+                    document.getElementById('submit-btn').disabled = false;
+                    loadTodayClasses();
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 300000 // 5 minutes
+                }
+            );
+        } else {
+            const gpsStatus = document.getElementById('gps-status');
+            gpsStatus.className = 'gps-status error';
+            gpsStatus.innerHTML = '⚠️ GPS not supported - QR code location will be used';
+            
+            // Still allow submission
+            document.getElementById('submit-btn').disabled = false;
+            loadTodayClasses();
+        }
+    }
+    
+    // Load today's classes for the facility
+    function loadTodayClasses() {
+        const facilityId = {{ facility.id }};
+        const today = new Date().toISOString().split('T')[0];
+        
+        // This would normally be an AJAX call, but for now we'll show the classes section
+        // TODO: Implement AJAX call to get today's classes
+        document.getElementById('classes-section').style.display = 'block';
+    }
+    
+    // Handle form submission
+    document.getElementById('attendance-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const submitBtn = document.getElementById('submit-btn');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const messageArea = document.getElementById('message-area');
+        
+        // Show loading state
+        submitBtn.style.display = 'none';
+        loadingSpinner.style.display = 'block';
+        messageArea.innerHTML = '';
+        
+        // Submit attendance
+        fetch('{% url "core:teacher_qr_attendance" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            loadingSpinner.style.display = 'none';
+            
+            if (data.success) {
+                messageArea.innerHTML = `
+                    <div class="success-message">
+                        <strong>✅ Success!</strong><br>
+                        ${data.message}
+                        <br><small>Time: ${data.timestamp}</small>
+                    </div>
+                `;
+                
+                // Disable form after successful submission
+                submitBtn.textContent = 'Attendance Recorded';
+                submitBtn.disabled = true;
+                submitBtn.style.display = 'block';
+                
+            } else {
+                messageArea.innerHTML = `
+                    <div class="error-message">
+                        <strong>❌ Error</strong><br>
+                        ${data.message}
+                    </div>
+                `;
+                submitBtn.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            loadingSpinner.style.display = 'none';
+            submitBtn.style.display = 'block';
+            
+            messageArea.innerHTML = `
+                <div class="error-message">
+                    <strong>❌ Network Error</strong><br>
+                    Please check your connection and try again.
+                </div>
+            `;
+        });
+    });
+    
+    // Start location detection
+    getLocation();
+    
+    {% endif %}
+});
+</script>
+{% endblock %}

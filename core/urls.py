@@ -13,9 +13,18 @@ urlpatterns = [
     
     # Teacher Attendance System
     path('attendance/teacher/clock/', views.TeacherClockView.as_view(), name='teacher_clock'),
+    path('attendance/teacher/qr/', views.TeacherQRAttendanceView.as_view(), name='teacher_qr_attendance'),
     path('attendance/teacher/verify-location/', views.TeacherLocationVerifyView.as_view(), name='teacher_location_verify'),
     path('attendance/teacher/submit/', views.TeacherClockSubmitView.as_view(), name='teacher_clock_submit'),
     path('attendance/teacher/history/', views.TeacherAttendanceHistoryView.as_view(), name='teacher_attendance_history'),
+    
+    # Timesheet Export
+    path('timesheet/export/', views.TimesheetExportView.as_view(), name='timesheet_export'),
+    path('timesheet/monthly/<int:year>/<int:month>/', views.MonthlyTimesheetView.as_view(), name='monthly_timesheet'),
+    
+    # QR Code Management
+    path('qr-codes/', views.QRCodeManagementView.as_view(), name='qr_code_management'),
+    path('qr-codes/facility/<int:facility_id>/', views.GenerateFacilityQRCodesView.as_view(), name='generate_facility_qr_codes'),
     
     # TinyMCE Image Upload
     path('tinymce/upload/', views.tinymce_upload_image, name='tinymce_upload'),

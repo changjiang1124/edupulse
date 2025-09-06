@@ -919,3 +919,337 @@ class TeacherAttendanceHistoryView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['teacher'] = self.request.user
         return context
+
+
+# QR Code Teacher Attendance Views
+
+class TeacherQRAttendanceView(LoginRequiredMixin, View):
+    """
+    Teacher QR Code Attendance View - Handles QR code scanning and attendance
+    """
+    template_name = 'core/teacher_attendance/qr_attendance.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Ensure only teachers can access this view
+        if not hasattr(request.user, 'role') or request.user.role != 'teacher':
+            messages.error(request, 'Access denied. This page is for teachers only.')
+            return redirect('core:dashboard')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get(self, request):
+        """Display QR code attendance interface"""
+        data_param = request.GET.get('data')
+        
+        context = {
+            'current_time': timezone.now(),
+            'qr_data_param': data_param
+        }
+        
+        # If QR code data is provided, validate it
+        if data_param:
+            from core.services import QRCodeService
+            validation_result = QRCodeService.validate_qr_code(data_param)
+            
+            context.update({
+                'qr_validation': validation_result,
+                'facility': validation_result.get('facility'),
+                'class_instance': validation_result.get('class_instance')
+            })
+        
+        return render(request, self.template_name, context)
+    
+    def post(self, request):
+        """Handle QR code attendance submission"""
+        from core.services import QRCodeService
+        from core.utils.gps_utils import verify_teacher_location
+        from core.models import TeacherAttendance
+        from academics.models import Class
+        
+        # Get form data
+        data_param = request.POST.get('qr_data')
+        clock_type = request.POST.get('clock_type', 'clock_in')
+        selected_classes = request.POST.getlist('classes')
+        latitude = request.POST.get('latitude')
+        longitude = request.POST.get('longitude')
+        
+        if not data_param:
+            return JsonResponse({
+                'success': False,
+                'message': 'QR code data is required'
+            })
+        
+        # Validate QR code
+        validation_result = QRCodeService.validate_qr_code(data_param)
+        
+        if not validation_result['valid']:
+            return JsonResponse({
+                'success': False,
+                'message': validation_result.get('error', 'Invalid QR code')
+            })
+        
+        facility = validation_result['facility']
+        
+        # Verify GPS location if provided
+        if latitude and longitude:
+            try:
+                lat_float = float(latitude)
+                lon_float = float(longitude)
+                
+                location_result = verify_teacher_location(lat_float, lon_float)
+                
+                if not location_result['valid']:
+                    return JsonResponse({
+                        'success': False,
+                        'message': location_result.get('error', 'Location verification failed')
+                    })
+                    
+                # Ensure GPS location matches facility from QR code
+                if location_result['facility'].id != facility.id:
+                    return JsonResponse({
+                        'success': False,
+                        'message': f'GPS location does not match QR code facility. You are at {location_result["facility"].name} but QR code is for {facility.name}'
+                    })
+                    
+            except (ValueError, TypeError):
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Invalid GPS coordinates'
+                })
+        else:
+            # No GPS provided, use facility coordinates from QR code
+            lat_float = float(facility.latitude) if facility.latitude else 0
+            lon_float = float(facility.longitude) if facility.longitude else 0
+        
+        # Create attendance record
+        try:
+            attendance = TeacherAttendance.objects.create(
+                teacher=request.user,
+                facility=facility,
+                clock_type=clock_type,
+                latitude=lat_float,
+                longitude=lon_float,
+                location_verified=True,
+                ip_address=request.META.get('REMOTE_ADDR', ''),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                notes=f'QR Code attendance for {facility.name}'
+            )
+            
+            # Add selected classes if any
+            if selected_classes:
+                classes = Class.objects.filter(
+                    id__in=selected_classes,
+                    facility=facility,
+                    is_active=True
+                )
+                attendance.classes.set(classes)
+            
+            # Invalidate the QR token to prevent reuse
+            QRCodeService.invalidate_qr_token(validation_result['token'])
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Successfully clocked {clock_type.replace("_", " ")} at {facility.name}',
+                'attendance_id': attendance.id,
+                'timestamp': attendance.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error recording attendance: {str(e)}'
+            })
+
+
+class QRCodeManagementView(LoginRequiredMixin, TemplateView):
+    """
+    QR Code Management View for administrators
+    """
+    template_name = 'core/qr_codes/management.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Ensure only administrators can access this view
+        if not hasattr(request.user, 'role') or request.user.role != 'admin':
+            messages.error(request, 'Access denied. This page is for administrators only.')
+            return redirect('core:dashboard')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        from facilities.models import Facility
+        
+        # Get all active facilities
+        context['facilities'] = Facility.objects.filter(is_active=True).order_by('name')
+        
+        return context
+
+
+class GenerateFacilityQRCodesView(LoginRequiredMixin, View):
+    """
+    Generate QR codes for a specific facility
+    """
+    template_name = 'core/qr_codes/facility_qr_codes.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Ensure only administrators can access this view
+        if not hasattr(request.user, 'role') or request.user.role != 'admin':
+            messages.error(request, 'Access denied. This page is for administrators only.')
+            return redirect('core:dashboard')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get(self, request, facility_id):
+        """Display QR codes for facility"""
+        from facilities.models import Facility
+        from core.services import QRCodeService
+        
+        facility = get_object_or_404(Facility, id=facility_id, is_active=True)
+        
+        # Get days ahead parameter
+        days_ahead = int(request.GET.get('days_ahead', 7))
+        
+        # Generate QR codes for facility
+        qr_result = QRCodeService.generate_facility_qr_codes(facility, days_ahead=days_ahead)
+        
+        context = {
+            'facility': facility,
+            'qr_result': qr_result,
+            'days_ahead': days_ahead
+        }
+        
+        return render(request, self.template_name, context)
+    
+    def post(self, request, facility_id):
+        """Handle AJAX request for generating QR codes"""
+        from facilities.models import Facility
+        from core.services import QRCodeService
+        
+        facility = get_object_or_404(Facility, id=facility_id, is_active=True)
+        days_ahead = int(request.POST.get('days_ahead', 7))
+        
+        qr_result = QRCodeService.generate_facility_qr_codes(facility, days_ahead=days_ahead)
+        
+        if qr_result['success']:
+            return JsonResponse({
+                'success': True,
+                'qr_codes': qr_result['qr_codes'],
+                'total_generated': qr_result['total_generated']
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': qr_result['error']
+            })
+
+
+# Timesheet Export Views
+
+class TimesheetExportView(LoginRequiredMixin, TemplateView):
+    """
+    Timesheet Export Interface for administrators and teachers
+    """
+    template_name = 'core/timesheet/export.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        from accounts.models import Staff
+        from datetime import date, timedelta
+        
+        # Get all teachers for selection
+        context['teachers'] = Staff.objects.filter(
+            role='teacher', 
+            is_active=True
+        ).order_by('first_name', 'last_name')
+        
+        # Set default date range (last month)
+        today = date.today()
+        context['default_end_date'] = today.strftime('%Y-%m-%d')
+        context['default_start_date'] = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        # Current user context
+        context['is_admin'] = hasattr(self.request.user, 'role') and self.request.user.role == 'admin'
+        context['current_teacher'] = self.request.user if hasattr(self.request.user, 'role') and self.request.user.role == 'teacher' else None
+        
+        return context
+    
+    def post(self, request):
+        """Handle timesheet export requests"""
+        from core.services import TimesheetExportService
+        from accounts.models import Staff
+        from datetime import datetime
+        
+        # Get form data
+        teacher_id = request.POST.get('teacher_id')
+        start_date_str = request.POST.get('start_date')
+        end_date_str = request.POST.get('end_date')
+        export_format = request.POST.get('format', 'excel')
+        
+        # Parse dates
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+        except ValueError:
+            messages.error(request, 'Invalid date format')
+            return redirect('core:timesheet_export')
+        
+        # Get teacher if specified
+        teacher = None
+        if teacher_id:
+            try:
+                teacher = Staff.objects.get(id=teacher_id, role='teacher')
+                
+                # Check permissions - teachers can only export their own data
+                if (hasattr(request.user, 'role') and 
+                    request.user.role == 'teacher' and 
+                    request.user.id != teacher.id):
+                    messages.error(request, 'You can only export your own timesheet')
+                    return redirect('core:timesheet_export')
+                    
+            except Staff.DoesNotExist:
+                messages.error(request, 'Teacher not found')
+                return redirect('core:timesheet_export')
+        else:
+            # If no teacher specified and user is a teacher, use current user
+            if hasattr(request.user, 'role') and request.user.role == 'teacher':
+                teacher = request.user
+        
+        # Generate export
+        try:
+            if export_format == 'excel':
+                return TimesheetExportService.export_teacher_timesheet(
+                    teacher=teacher,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+            else:
+                messages.error(request, 'Unsupported export format')
+                return redirect('core:timesheet_export')
+                
+        except Exception as e:
+            logger.error(f"Timesheet export error: {str(e)}")
+            messages.error(request, f'Export failed: {str(e)}')
+            return redirect('core:timesheet_export')
+
+
+class MonthlyTimesheetView(LoginRequiredMixin, View):
+    """
+    Monthly timesheet summary export
+    """
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Ensure only administrators can access monthly summary
+        if not hasattr(request.user, 'role') or request.user.role != 'admin':
+            messages.error(request, 'Access denied. This feature is for administrators only.')
+            return redirect('core:timesheet_export')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get(self, request, year, month):
+        """Generate and download monthly summary"""
+        from core.services import TimesheetExportService
+        
+        try:
+            return TimesheetExportService.generate_monthly_summary(year, month)
+        except Exception as e:
+            logger.error(f"Monthly timesheet export error: {str(e)}")
+            messages.error(request, f'Monthly export failed: {str(e)}')
+            return redirect('core:timesheet_export')

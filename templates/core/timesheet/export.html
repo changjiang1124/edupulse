@@ -1,0 +1,379 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Timesheet Export - Perth Art School{% endblock %}
+
+{% block extra_css %}
+<style>
+    .export-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .export-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 30px;
+        color: white;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .export-card h2 {
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    
+    .export-card p {
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+    
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    .form-section {
+        margin-bottom: 25px;
+    }
+    
+    .form-section h5 {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 15px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .date-inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+    
+    .export-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: transform 0.2s ease;
+        margin-right: 10px;
+    }
+    
+    .export-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+    }
+    
+    .monthly-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 30px;
+    }
+    
+    .monthly-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .monthly-btn {
+        background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+        border: none;
+        color: white;
+        padding: 8px 15px;
+        border-radius: 6px;
+        font-size: 14px;
+        text-decoration: none;
+        transition: transform 0.2s ease;
+    }
+    
+    .monthly-btn:hover {
+        transform: translateY(-1px);
+        color: white;
+    }
+    
+    .info-box {
+        background: #e3f2fd;
+        border: 1px solid #2196f3;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 20px 0;
+    }
+    
+    .info-box .info-icon {
+        color: #2196f3;
+        font-size: 18px;
+        margin-right: 10px;
+    }
+    
+    .warning-box {
+        background: #fff3e0;
+        border: 1px solid #ff9800;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 20px 0;
+    }
+    
+    .warning-box .warning-icon {
+        color: #ff9800;
+        font-size: 18px;
+        margin-right: 10px;
+    }
+    
+    @media (max-width: 768px) {
+        .export-container {
+            padding: 15px;
+        }
+        
+        .export-card,
+        .form-card {
+            padding: 20px;
+        }
+        
+        .date-inputs {
+            grid-template-columns: 1fr;
+        }
+        
+        .monthly-buttons {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="export-container">
+        <!-- Header -->
+        <div class="export-card">
+            <h2>📊 Timesheet Export</h2>
+            <p>Export teacher attendance and working hours data to Excel format</p>
+        </div>
+        
+        <!-- Export Form -->
+        <div class="form-card">
+            <form method="post" id="export-form">
+                {% csrf_token %}
+                
+                <!-- Teacher Selection -->
+                {% if is_admin %}
+                <div class="form-section">
+                    <h5>Teacher Selection</h5>
+                    <div class="form-group">
+                        <label for="teacher_id">Select Teacher (leave blank for all teachers):</label>
+                        <select name="teacher_id" id="teacher_id" class="form-control">
+                            <option value="">All Teachers</option>
+                            {% for teacher in teachers %}
+                            <option value="{{ teacher.id }}">{{ teacher.get_full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                {% else %}
+                <div class="info-box">
+                    <span class="info-icon">ℹ️</span>
+                    <strong>Teacher Mode:</strong> You can only export your own timesheet data.
+                </div>
+                <input type="hidden" name="teacher_id" value="{{ current_teacher.id }}">
+                {% endif %}
+                
+                <!-- Date Range -->
+                <div class="form-section">
+                    <h5>Date Range</h5>
+                    <div class="date-inputs">
+                        <div class="form-group">
+                            <label for="start_date">From Date:</label>
+                            <input type="date" name="start_date" id="start_date" 
+                                   class="form-control" value="{{ default_start_date }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="end_date">To Date:</label>
+                            <input type="date" name="end_date" id="end_date" 
+                                   class="form-control" value="{{ default_end_date }}" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Export Format -->
+                <div class="form-section">
+                    <h5>Export Format</h5>
+                    <div class="form-group">
+                        <label for="format">Format:</label>
+                        <select name="format" id="format" class="form-control">
+                            <option value="excel">Excel (.xlsx)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Export Button -->
+                <div class="form-section">
+                    <button type="submit" class="export-btn">
+                        📥 Export Timesheet
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">
+                        🔄 Reset Form
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Monthly Summary Section (Admin Only) -->
+        {% if is_admin %}
+        <div class="monthly-section">
+            <h5>📅 Monthly Summary Reports</h5>
+            <p>Generate comprehensive monthly reports for all teachers:</p>
+            
+            <div class="warning-box">
+                <span class="warning-icon">⚠️</span>
+                <strong>Note:</strong> Monthly reports include summary data for all teachers and are available to administrators only.
+            </div>
+            
+            <div class="monthly-buttons">
+                {% now "Y" as current_year %}
+                {% now "n" as current_month %}
+                
+                <!-- Current and previous months -->
+                {% for i in "123456" %}
+                {% with month_offset=forloop.counter0 %}
+                {% with target_month=current_month|add:month_offset|add:"-12" %}
+                {% if target_month > 0 %}
+                <a href="{% url 'core:monthly_timesheet' current_year target_month %}" 
+                   class="monthly-btn">
+                    {{ target_month }}/{{ current_year }}
+                </a>
+                {% endif %}
+                {% endwith %}
+                {% endwith %}
+                {% endfor %}
+                
+                <!-- Previous year months -->
+                {% with prev_year=current_year|add:"-1" %}
+                <a href="{% url 'core:monthly_timesheet' prev_year 12 %}" class="monthly-btn">12/{{ prev_year }}</a>
+                <a href="{% url 'core:monthly_timesheet' prev_year 11 %}" class="monthly-btn">11/{{ prev_year }}</a>
+                <a href="{% url 'core:monthly_timesheet' prev_year 10 %}" class="monthly-btn">10/{{ prev_year }}</a>
+                {% endwith %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Usage Instructions -->
+        <div class="info-box">
+            <span class="info-icon">💡</span>
+            <strong>Export Instructions:</strong>
+            <ul class="mt-2 mb-0">
+                <li>Select the date range for the timesheet data you want to export</li>
+                {% if is_admin %}
+                <li>Choose a specific teacher or leave blank to export all teachers</li>
+                {% endif %}
+                <li>Click "Export Timesheet" to download the Excel file</li>
+                <li>The exported file will include clock in/out times, duration calculations, and class information</li>
+                {% if is_admin %}
+                <li>Use monthly summary reports for payroll and administrative purposes</li>
+                {% endif %}
+            </ul>
+        </div>
+        
+        <!-- Back Navigation -->
+        <div class="text-center mt-4">
+            <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary">
+                ← Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.getElementById('export-form');
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+    
+    form.addEventListener('submit', function(e) {
+        const startDate = new Date(startDateInput.value);
+        const endDate = new Date(endDateInput.value);
+        
+        // Validate date range
+        if (startDate > endDate) {
+            e.preventDefault();
+            alert('Start date cannot be later than end date');
+            return;
+        }
+        
+        // Check if date range is too large (more than 1 year)
+        const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+        if (daysDiff > 365) {
+            e.preventDefault();
+            if (!confirm('The selected date range spans more than 1 year. This may result in a large file. Continue?')) {
+                return;
+            }
+        }
+        
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '⏳ Generating Export...';
+        submitBtn.disabled = true;
+        
+        // Reset button state after 10 seconds (in case of errors)
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 10000);
+    });
+    
+    // Quick date range buttons
+    const quickRangeButtons = [
+        { label: 'Last 7 Days', days: 7 },
+        { label: 'Last 30 Days', days: 30 },
+        { label: 'Last 90 Days', days: 90 }
+    ];
+    
+    // Add quick range buttons
+    const dateSection = document.querySelector('.date-inputs').parentElement;
+    const quickRangeDiv = document.createElement('div');
+    quickRangeDiv.className = 'mb-3';
+    quickRangeDiv.innerHTML = '<small class="text-muted">Quick ranges:</small> ';
+    
+    quickRangeButtons.forEach(range => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-outline-info me-2 mb-1';
+        btn.textContent = range.label;
+        btn.onclick = () => setDateRange(range.days);
+        quickRangeDiv.appendChild(btn);
+    });
+    
+    dateSection.appendChild(quickRangeDiv);
+});
+
+function setDateRange(days) {
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000));
+    
+    document.getElementById('end_date').value = endDate.toISOString().split('T')[0];
+    document.getElementById('start_date').value = startDate.toISOString().split('T')[0];
+}
+
+function resetForm() {
+    document.getElementById('export-form').reset();
+    // Reset to default dates
+    document.getElementById('start_date').value = '{{ default_start_date }}';
+    document.getElementById('end_date').value = '{{ default_end_date }}';
+    {% if is_admin %}
+    document.getElementById('teacher_id').value = '';
+    {% endif %}
+}
+</script>
+{% endblock %}

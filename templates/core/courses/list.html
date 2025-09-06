@@ -12,13 +12,21 @@
 </div>
 
 <div class="row mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="search-box">
             <input type="text" name="search" class="form-control" 
                    placeholder="Search courses..." value="{{ request.GET.search }}">
         </div>
     </div>
-    <div class="col-md-8 text-end">
+    <div class="col-md-3">
+        <select name="status" class="form-select" onchange="filterCourses()">
+            <option value="all" {% if current_status == 'all' %}selected{% endif %}>All Status</option>
+            {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-6 text-end">
         <a href="{% url 'academics:course_add' %}" class="btn btn-primary">
             Add New Course
         </a>
@@ -131,4 +139,33 @@
         </div>
     </div>
 </div>
+
+<script>
+function filterCourses() {
+    const statusSelect = document.querySelector('select[name="status"]');
+    const searchInput = document.querySelector('input[name="search"]');
+    const currentUrl = new URL(window.location);
+    
+    // Update URL parameters
+    if (statusSelect.value === 'all') {
+        currentUrl.searchParams.delete('status');
+    } else {
+        currentUrl.searchParams.set('status', statusSelect.value);
+    }
+    
+    if (searchInput.value) {
+        currentUrl.searchParams.set('search', searchInput.value);
+    }
+    
+    // Navigate to new URL
+    window.location = currentUrl.toString();
+}
+
+// Handle search on Enter key
+document.querySelector('input[name="search"]').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        filterCourses();
+    }
+});
+</script>
 {% endblock %}

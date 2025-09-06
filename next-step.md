@@ -88,4 +88,20 @@ is contact email in enrolment sharing one for either student or guardian, depend
 
 - [x] you can see from the screenshot, the 3 dots pop up could be covered, i guess it's the hover effects, triggering other divs above the popup. and class statistics with empty string of students number. and mark attendance response error
 
-- [] attendance for teacher, this is standalone page as i want to teacher scan a QRcode on the site, and fill a form to clock in and out. teachers need to sign in their account first for ID, and then clock in by specifying their class and time, class could be multiple checked, class options are today's class of the facility by detecting their current location. we also need to collect their GPS to calculate (does Google GEOAPI have such feature?) if they are near the facility (so the facility address will also collect GPS, could use google GEOAPI to suggest the location when editing facility). let me know what I should provide, e.g. GEOAPI key or any others, in the .env (dotenv).
+- [x] attendance for teacher, this is standalone page as i want to teacher scan a QRcode on the site, and fill a form to clock in and out. teachers need to sign in their account first for ID, and then clock in by specifying their class and time, class could be multiple checked, class options are today's class of the facility by detecting their current location. we also need to collect their GPS to calculate (does Google GEOAPI have such feature?) if they are near the facility (so the facility address will also collect GPS, could use google GEOAPI to suggest the location when editing facility). let me know what I should provide, e.g. GEOAPI key or any others, in the .env (dotenv).
+
+- [x] enrolment submitted, then send email as welcome email and including bank transfer information (you can generate a mockup so i can change later). and when enrolment is marked as confirmed, information emailed to contact in enrolment as well, and have activity history under student for such thing
+
+
+
+## test item 
+### course 
+create: 
+- course feature image synchronisation -- need to release on public
+- image show in description 
+- button link to enrolment 
+- registration fee included in the enrolment submission confirmation letter if new student is detected. 
+- vacancy update as confirmed enrolment (manually changed by operator after confirming the information and bank transfer received, not submission)
+- enrolment deadline should be included as part of the description of the course when sync to woocommerce. 
+- [x] #bug course list only have published, no draft. and make sure when marked as published, ask for confirmation with modal popup and indicate this will be sync to woocommerce website as well. 
+- [ ] if the course status has been changed especially from published to unpublished or any non-published the status, the correlate post on WooCommerce should be marked as draft as well and in the description of  Wordpress all the fields that are essential to the users should be included as well. for example vacancy, enrolment deadline, fees, dates, facility (location). dont indicate the teachers and classroom as they might be changed. and when Edit course, all the existing values of fields should be prefilled, i noticed that enrolment deadline is empty for example. please check that as well. 

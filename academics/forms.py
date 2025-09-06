@@ -103,6 +103,24 @@ class CourseForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+        # For existing instances, ensure all fields are properly pre-filled
+        if self.instance and self.instance.pk:
+            # Set widget values directly to ensure proper pre-filling
+            if self.instance.enrollment_deadline:
+                self.fields['enrollment_deadline'].widget.attrs['value'] = self.instance.enrollment_deadline.strftime('%Y-%m-%d')
+            
+            if self.instance.registration_fee is not None:
+                self.fields['registration_fee'].widget.attrs['value'] = self.instance.registration_fee
+                
+            if self.instance.end_date:
+                self.fields['end_date'].widget.attrs['value'] = self.instance.end_date.strftime('%Y-%m-%d')
+            
+            if self.instance.start_date:
+                self.fields['start_date'].widget.attrs['value'] = self.instance.start_date.strftime('%Y-%m-%d')
+                
+            if self.instance.start_time:
+                self.fields['start_time'].widget.attrs['value'] = self.instance.start_time.strftime('%H:%M')
+        
         # Create day of month choices (1-31)
         day_choices = [('', 'Select day...')] + [(i, f'{i}') for i in range(1, 32)]
         self.fields['repeat_day_of_month'] = forms.ChoiceField(
@@ -110,6 +128,11 @@ class CourseForm(forms.ModelForm):
             required=False,
             widget=forms.Select(attrs={'class': 'form-select'})
         )
+        
+        # Set initial value for repeat_day_of_month if editing
+        if self.instance and self.instance.pk and self.instance.repeat_day_of_month is not None:
+            self.fields['repeat_day_of_month'].initial = self.instance.repeat_day_of_month
+            self.fields['repeat_day_of_month'].widget.attrs['selected'] = self.instance.repeat_day_of_month
         
     def clean_featured_image(self):
         """Validate featured image file"""
@@ -171,6 +194,31 @@ class CourseUpdateForm(CourseForm):
     def __init__(self, *args, **kwargs):
         self.instance = kwargs.get('instance')
         super().__init__(*args, **kwargs)
+        
+        # Ensure all fields are properly pre-filled for edit mode
+        if self.instance and self.instance.pk:
+            # Set widget values directly for better pre-filling
+            if self.instance.enrollment_deadline:
+                self.fields['enrollment_deadline'].widget.attrs['value'] = self.instance.enrollment_deadline.strftime('%Y-%m-%d')
+            
+            if self.instance.registration_fee is not None:
+                self.fields['registration_fee'].widget.attrs['value'] = self.instance.registration_fee
+                
+            if self.instance.repeat_weekday is not None:
+                self.fields['repeat_weekday'].initial = self.instance.repeat_weekday
+                
+            if self.instance.repeat_day_of_month is not None:
+                self.fields['repeat_day_of_month'].initial = self.instance.repeat_day_of_month
+                
+            # Set date and time field values
+            if self.instance.end_date:
+                self.fields['end_date'].widget.attrs['value'] = self.instance.end_date.strftime('%Y-%m-%d')
+                
+            if self.instance.start_date:
+                self.fields['start_date'].widget.attrs['value'] = self.instance.start_date.strftime('%Y-%m-%d')
+                
+            if self.instance.start_time:
+                self.fields['start_time'].widget.attrs['value'] = self.instance.start_time.strftime('%H:%M')
         
         if self.instance and self.instance.pk:
             # Disable fields that shouldn't be changed in edit mode to avoid complications

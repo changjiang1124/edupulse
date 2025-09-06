@@ -1,0 +1,44 @@
+PERTH ART SCHOOL - CLASS REMINDER ⏰
+
+Hello {{ recipient_name }},
+
+{% if days_ahead == 1 %}Just a friendly reminder that {{ student.first_name }} has a class tomorrow!{% else %}We wanted to remind you that {{ student.first_name }} has an upcoming class in {{ days_ahead }} days.{% endif %}
+
+CLASS INFORMATION
+=================
+Course: {{ course.name }}
+Date: {{ class_date|date:"l, d F Y" }}
+Time: {{ class_time|time:"g:i A" }}
+Duration: {{ course.duration_display }}
+Instructor: {{ teacher.get_full_name }}
+
+{% if facility %}
+LOCATION DETAILS
+================
+Venue: {{ facility.name }}
+{% if classroom %}Room: {{ classroom.name }}{% endif %}
+Address: {{ facility.address }}
+{% if facility.phone %}Phone: {{ facility.phone }}{% endif %}
+{% endif %}
+
+IMPORTANT REMINDERS
+===================
+* Please arrive 5-10 minutes early to allow time for setup
+* Bring comfortable clothes that you don't mind getting a bit messy
+* All art materials and supplies are provided
+* Water bottles are recommended for longer classes
+{% if days_ahead == 1 %}* Don't forget - class is tomorrow!{% endif %}
+
+{% if days_ahead == 1 %}We're excited to see {{ student.first_name }} in class tomorrow!{% else %}We're looking forward to seeing {{ student.first_name }} in class.{% endif %} If you have any questions or need to make any changes, please don't hesitate to contact us.
+
+CONTACT INFORMATION
+==================
+Email: {{ contact_email }}
+Phone: {{ contact_phone }}
+
+--
+This reminder was sent to {{ recipient_email }} for {{ student.first_name }}'s class at Perth Art School.
+© 2025 Perth Art School. All rights reserved.
+
+Visit our website: https://{{ site_domain }}
+Contact us: {{ contact_email }}

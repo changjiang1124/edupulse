@@ -441,11 +441,46 @@
 
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'academics:course_list' %}" class="btn btn-outline-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="submitButton">
                             {% if form.instance.pk %}Update Course{% else %}Create Course{% endif %}
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Publish Confirmation Modal -->
+<div class="modal fade" id="publishConfirmModal" tabindex="-1" aria-labelledby="publishConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="publishConfirmModalLabel">Confirm Course Publication</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Publishing this course will:</strong>
+                </div>
+                <ul class="mb-3">
+                    <li>Make the course available for student enrollment</li>
+                    <li><strong>Automatically sync to WooCommerce website</strong></li>
+                    <li>Create an external product on your Perth Art School website</li>
+                    <li>Enable the "Enrol Now" button to redirect to EduPulse enrollment form</li>
+                </ul>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Note:</strong> Changes to published courses will be automatically synchronized with your WooCommerce website. 
+                    Students who have already enrolled may be affected by schedule changes.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmPublish">
+                    <i class="fas fa-sync me-2"></i>Publish & Sync to Website
+                </button>
             </div>
         </div>
     </div>
@@ -738,6 +773,41 @@ function autoSetDayOfMonthFromStartDate() {
 
 // Main initialization
 document.addEventListener('DOMContentLoaded', function() {
+    // Store initial status value to detect changes
+    const statusField = document.getElementById('{{ form.status.id_for_label }}');
+    const submitButton = document.getElementById('submitButton');
+    const courseForm = document.querySelector('form');
+    const publishModal = new bootstrap.Modal(document.getElementById('publishConfirmModal'));
+    let initialStatusValue = statusField ? statusField.value : '';
+    
+    // Publish confirmation logic
+    function handleFormSubmit(event) {
+        if (statusField && statusField.value === 'published' && initialStatusValue !== 'published') {
+            // Prevent default form submission
+            event.preventDefault();
+            
+            // Show confirmation modal
+            publishModal.show();
+            
+            // Handle confirmation
+            document.getElementById('confirmPublish').addEventListener('click', function() {
+                publishModal.hide();
+                // Submit the form after confirmation
+                courseForm.submit();
+            }, { once: true });
+            
+            return false;
+        }
+        
+        // Allow normal form submission for other cases
+        return true;
+    }
+    
+    // Attach submit handler
+    if (courseForm) {
+        courseForm.addEventListener('submit', handleFormSubmit);
+    }
+    
     // Repeat pattern handler
     const repeatPatternSelect = document.getElementById('{{ form.repeat_pattern.id_for_label }}');
     if (repeatPatternSelect) {
