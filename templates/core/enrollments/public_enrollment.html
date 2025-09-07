@@ -63,7 +63,12 @@
                                         Select Course <span class="text-danger">*</span>
                                     {% endif %}
                                 </label>
-                                {{ form.course_id }}
+                                {% if selected_course %}
+                                    {{ form.course_id.as_widget(attrs={'disabled': 'disabled'}) }}
+                                    <input type="hidden" name="course_id" value="{{ selected_course.pk }}">
+                                {% else %}
+                                    {{ form.course_id }}
+                                {% endif %}
                                 {% if form.course_id.errors %}
                                     <div class="invalid-feedback d-block">
                                         {% for error in form.course_id.errors %}

@@ -29,12 +29,14 @@ def sync_course_to_woocommerce(sender, instance, created, **kwargs):
             else:
                 logger.error(f"Failed to sync course to WooCommerce: {result.get('message')}")
         else:
-            # If course is not published but has external_id, remove from WooCommerce
+            # If course is not published but has external_id, sync status to WooCommerce (don't delete)
             if instance.external_id:
                 sync_service = WooCommerceSyncService()
-                result = sync_service.remove_course_from_woocommerce(instance)
+                result = sync_service.sync_course_to_woocommerce(instance)
                 if result['status'] == 'success':
-                    logger.info(f"Removed unpublished course from WooCommerce: {instance.name}")
+                    logger.info(f"Updated WooCommerce product status to draft for course: {instance.name}")
+                else:
+                    logger.error(f"Failed to update WooCommerce product status: {result.get('message')}")
                     
     except Exception as e:
         logger.error(f"Error in course WooCommerce sync signal: {str(e)}")

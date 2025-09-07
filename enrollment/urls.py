@@ -7,9 +7,14 @@ urlpatterns = [
     # Staff Enrollment Management (require authentication)
     path('enrollments/', views.EnrollmentListView.as_view(), name='enrollment_list'),
     path('enrollments/create/', views.EnrollmentCreateView.as_view(), name='enrollment_create'),
+    path('enrollments/staff/create/', views.StaffEnrollmentCreateView.as_view(), name='staff_enrollment_create'),
+    path('enrollments/staff/create/<int:course_id>/', views.StaffEnrollmentCreateView.as_view(), name='staff_enrollment_create_with_course'),
     path('enrollments/<int:pk>/', views.EnrollmentDetailView.as_view(), name='enrollment_detail'),
     path('enrollments/<int:pk>/edit/', views.EnrollmentUpdateView.as_view(), name='enrollment_update'),
     path('enrollments/<int:pk>/delete/', views.EnrollmentDeleteView.as_view(), name='enrollment_delete'),
+    
+    # Student Search API for staff
+    path('api/students/search/', views.StudentSearchAPIView.as_view(), name='student_search_api'),
     
     # Public Enrollment (no authentication required)
     path('', views.PublicEnrollmentView.as_view(), name='public_enrollment'),

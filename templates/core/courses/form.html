@@ -698,6 +698,7 @@ function handleRepeatPatternChange() {
     const monthlyConfig = document.getElementById('monthlyConfig');
     const classGenerationSection = document.getElementById('classGenerationSection');
     const endDateField = document.getElementById('{{ form.end_date.id_for_label }}');
+    const isEditMode = {{ form.instance.pk|yesno:"true,false" }};
     
     // Hide all configuration sections first
     weeklyConfig.style.display = 'none';
@@ -713,8 +714,8 @@ function handleRepeatPatternChange() {
             classGenerationSection.style.display = 'none';
         }
         
-        // Clear end date
-        if (endDateField) {
+        // Clear end date only for creating new course
+        if (endDateField && !isEditMode) {
             endDateField.value = '';
         }
     } else {

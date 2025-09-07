@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.http import JsonResponse
 
 from .models import Enrollment, Attendance
-from .forms import EnrollmentForm, PublicEnrollmentForm
+from .forms import EnrollmentForm, PublicEnrollmentForm, StaffEnrollmentForm, QuickStudentCreateForm
 from students.models import Student
 from academics.models import Course
 
@@ -183,16 +183,221 @@ class AttendanceListView(LoginRequiredMixin, ListView):
 
 
 class EnrollmentCreateView(LoginRequiredMixin, CreateView):
-    """Create enrollment (staff use)"""
-    model = Enrollment
-    form_class = EnrollmentForm
-    template_name = 'core/enrollments/create.html'
-    success_url = reverse_lazy('enrollment:enrollment_list')
+    """Create enrollment (staff use) - Legacy view, redirects to enhanced version"""
     
-    def form_valid(self, form):
-        form.instance.source_channel = 'staff'
-        messages.success(self.request, 'Enrollment created successfully.')
-        return super().form_valid(form)
+    def get(self, request, *args, **kwargs):
+        # Redirect to the enhanced staff enrollment creation view
+        return redirect('enrollment:staff_enrollment_create')
+    
+    def post(self, request, *args, **kwargs):
+        # Redirect to the enhanced staff enrollment creation view
+        return redirect('enrollment:staff_enrollment_create')
+
+
+class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
+    """
+    Enhanced enrollment creation view for staff members with student search and creation
+    """
+    template_name = 'core/enrollments/staff_create.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Only allow staff members to access this view
+        if not request.user.is_staff:
+            messages.error(request, 'Access denied. Staff members only.')
+            return redirect('core:dashboard')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Get course_id from URL if provided
+        course_id = self.kwargs.get('course_id')
+        selected_course = None
+        
+        # Get form instances
+        enrollment_form = StaffEnrollmentForm(
+            course_id=course_id, 
+            user=self.request.user
+        )
+        student_form = QuickStudentCreateForm()
+        
+        context.update({
+            'enrollment_form': enrollment_form,
+            'student_form': student_form,
+            'course_id': course_id,
+        })
+        
+        # Handle pre-selected course
+        if course_id:
+            try:
+                selected_course = Course.objects.get(pk=course_id)
+                context['selected_course'] = selected_course
+                context['page_title'] = f'Add Enrolment - {selected_course.name}'
+            except Course.DoesNotExist:
+                messages.error(self.request, 'Course not found.')
+                return redirect('academics:course_list')
+        else:
+            context['page_title'] = 'Create New Enrolment'
+        
+        return context
+    
+    def post(self, request, *args, **kwargs):
+        course_id = self.kwargs.get('course_id')
+        action = request.POST.get('action')
+        
+        if action == 'create_student':
+            return self._handle_student_creation(request, course_id)
+        elif action == 'create_enrollment':
+            return self._handle_enrollment_creation(request, course_id)
+        else:
+            messages.error(request, 'Invalid action.')
+            return self.get(request, *args, **kwargs)
+    
+    def _handle_student_creation(self, request, course_id):
+        """Handle AJAX student creation"""
+        student_form = QuickStudentCreateForm(request.POST)
+        
+        if student_form.is_valid():
+            try:
+                student = student_form.save()
+                
+                # Create activity record
+                from students.models import StudentActivity
+                StudentActivity.create_activity(
+                    student=student,
+                    activity_type='student_created',
+                    title='Student profile created',
+                    description='Student profile created by staff member during enrollment process.',
+                    performed_by=request.user,
+                    metadata={
+                        'created_during_enrollment': True,
+                        'course_id': course_id
+                    }
+                )
+                
+                return JsonResponse({
+                    'success': True,
+                    'student': {
+                        'id': student.id,
+                        'name': student.get_full_name(),
+                        'email': student.get_contact_email(),
+                        'phone': student.get_contact_phone()
+                    },
+                    'message': f'Student {student.get_full_name()} created successfully.'
+                })
+                
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'form': [f'Error creating student: {str(e)}']},
+                    'message': 'Failed to create student.'
+                })
+        else:
+            return JsonResponse({
+                'success': False,
+                'errors': student_form.errors,
+                'message': 'Please correct the errors below.'
+            })
+    
+    def _handle_enrollment_creation(self, request, course_id):
+        """Handle enrollment creation"""
+        enrollment_form = StaffEnrollmentForm(
+            request.POST, 
+            course_id=course_id, 
+            user=request.user
+        )
+        
+        if enrollment_form.is_valid():
+            try:
+                enrollment = enrollment_form.save()
+                
+                # Send enrollment confirmation email if status is pending
+                if enrollment.status == 'pending':
+                    self._send_enrollment_notification(enrollment)
+                
+                messages.success(
+                    request,
+                    f'Enrollment created successfully for {enrollment.student.get_full_name()} '
+                    f'in {enrollment.course.name}. Status: {enrollment.get_status_display()}'
+                )
+                
+                # Redirect based on context
+                if course_id:
+                    return redirect('academics:course_detail', pk=course_id)
+                else:
+                    return redirect('enrollment:enrollment_detail', pk=enrollment.pk)
+                    
+            except Exception as e:
+                messages.error(request, f'Error creating enrollment: {str(e)}')
+                
+        # If form is not valid, re-render with errors
+        context = self.get_context_data()
+        context['enrollment_form'] = enrollment_form
+        return render(request, self.template_name, context)
+    
+    def _send_enrollment_notification(self, enrollment):
+        """Send enrollment confirmation email with fee information"""
+        try:
+            from core.services import NotificationService
+            
+            # Calculate total fee
+            course_fee = enrollment.course.price
+            charge_registration_fee = enrollment.form_data.get('charge_registration_fee', True)
+            registration_fee = 0
+            
+            if charge_registration_fee and enrollment.course.has_registration_fee():
+                registration_fee = enrollment.course.registration_fee
+            
+            total_fee = course_fee + registration_fee
+            
+            # Get contact information
+            contact_info = enrollment.student.get_contact_email()
+            if not contact_info and hasattr(enrollment, 'form_data'):
+                contact_info = enrollment.form_data.get('contact_info', {}).get('primary_email')
+            
+            if contact_info:
+                # Send notification with fee breakdown
+                NotificationService.send_enrollment_pending_email(
+                    enrollment=enrollment,
+                    recipient_email=contact_info,
+                    fee_breakdown={
+                        'course_fee': course_fee,
+                        'registration_fee': registration_fee,
+                        'total_fee': total_fee,
+                        'charge_registration_fee': charge_registration_fee
+                    }
+                )
+                
+        except Exception as e:
+            # Log error but don't fail the enrollment creation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Failed to send enrollment notification: {str(e)}')
+
+
+class StudentSearchAPIView(LoginRequiredMixin, View):
+    """
+    AJAX API for student search functionality
+    """
+    
+    def get(self, request):
+        if not request.user.is_staff:
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        from .forms import StudentSearchForm
+        form = StudentSearchForm(request.GET)
+        
+        if form.is_valid():
+            results = form.search_students()
+            return JsonResponse({
+                'success': True,
+                'results': results
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors
+            })
 
 
 class EnrollmentUpdateView(LoginRequiredMixin, UpdateView):

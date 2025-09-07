@@ -86,7 +86,7 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
     model = Course
     form_class = CourseUpdateForm
     template_name = 'core/courses/form.html'
-    
+
     def form_valid(self, form):
         response = super().form_valid(form)
         
@@ -132,14 +132,14 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
             messages.success(self.request, f'Course updated successfully!')
         
         return response
-    
+
     def get_success_url(self):
         return reverse_lazy('academics:course_detail', kwargs={'pk': self.object.pk})
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Add information about existing classes
+        # Add information about existing classes (counts)
         if self.object and self.object.pk:
             context['existing_classes'] = self.object.classes.filter(
                 is_active=True,
@@ -193,6 +193,35 @@ class ClassCreateView(LoginRequiredMixin, CreateView):
     form_class = ClassForm
     template_name = 'core/classes/form.html'
     success_url = reverse_lazy('academics:class_list')
+
+    def get_initial(self):
+        initial = super().get_initial()
+        course_id = self.request.GET.get('course')
+        if course_id:
+            try:
+                course = Course.objects.get(pk=course_id)
+                initial['course'] = course.pk
+            except Course.DoesNotExist:
+                pass
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Provide selected_course to template to disable dropdown and render hidden input
+        course_id = self.request.GET.get('course')
+        selected_course = None
+        if course_id:
+            selected_course = Course.objects.filter(pk=course_id).first()
+        context['selected_course'] = selected_course
+        return context
+
+    def form_valid(self, form):
+        # Ensure course is set from GET when dropdown is disabled
+        if not form.cleaned_data.get('course'):
+            course_id = self.request.GET.get('course')
+            if course_id:
+                form.instance.course = Course.objects.filter(pk=course_id).first()
+        return super().form_valid(form)
 
 
 class ClassDetailView(LoginRequiredMixin, DetailView):

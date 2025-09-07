@@ -233,10 +233,19 @@ class WooCommerceAPI:
                 'alt': f"{course_data['name']} featured image"
             })
         
+        # Map EduPulse status to WooCommerce status
+        wc_status = 'draft'  # Default to draft for safety
+        if course_data.get('status') == 'published':
+            wc_status = 'publish'
+        elif course_data.get('status') in ['draft', 'expired']:
+            wc_status = 'draft'
+        
+        logger.info(f"Mapping course status '{course_data.get('status')}' to WooCommerce status '{wc_status}'")
+        
         product_data = {
             'name': course_data['name'],
             'type': 'external',  # External/Affiliate product type
-            'status': 'publish' if course_data.get('status') == 'published' else 'draft',
+            'status': wc_status,
             'featured': False,
             'catalog_visibility': 'visible',
             'description': self._generate_enhanced_description(course_data),
@@ -287,9 +296,18 @@ class WooCommerceAPI:
                 'alt': f"{course_data['name']} featured image"
             })
         
+        # Map EduPulse status to WooCommerce status
+        wc_status = 'draft'  # Default to draft for safety
+        if course_data.get('status') == 'published':
+            wc_status = 'publish'
+        elif course_data.get('status') in ['draft', 'expired']:
+            wc_status = 'draft'
+        
+        logger.info(f"Updating course status '{course_data.get('status')}' to WooCommerce status '{wc_status}' for product {wc_product_id}")
+        
         product_data = {
             'name': course_data['name'],
-            'status': 'publish' if course_data.get('status') == 'published' else 'draft',
+            'status': wc_status,
             'description': self._generate_enhanced_description(course_data),
             'short_description': course_data.get('short_description', ''),
             'regular_price': str(course_data.get('price', '0')),

@@ -1,0 +1,537 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - EduPulse{% endblock %}
+
+{% block extra_css %}
+<style>
+.student-search-results {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    max-height: 300px;
+    overflow-y: auto;
+    background: white;
+    position: absolute;
+    width: 100%;
+    z-index: 1000;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.student-search-item {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.student-search-item:hover {
+    background-color: #f8f9fa;
+}
+
+.student-search-item:last-child {
+    border-bottom: none;
+}
+
+.search-container {
+    position: relative;
+}
+
+.selected-student-info {
+    background: #e7f3ff;
+    border: 1px solid #b6d7ff;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-top: 0.5rem;
+}
+
+.fee-breakdown {
+    background: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.modal-xl {
+    max-width: 90%;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    {% if selected_course %}
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-graduation-cap me-1"></i>
+                        Pre-selected: {{ selected_course.name }}
+                    </p>
+                    {% endif %}
+                </div>
+                <div>
+                    <a href="{% if selected_course %}{% url 'academics:course_detail' selected_course.pk %}{% else %}{% url 'enrollment:enrollment_list' %}{% endif %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back
+                    </a>
+                </div>
+            </div>
+
+            <!-- Main Form -->
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-user-plus me-2"></i>Enrollment Details
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" id="enrollmentForm">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="create_enrollment">
+
+                                <!-- Student Search Section -->
+                                <div class="mb-4">
+                                    <h6 class="fw-bold mb-3">
+                                        <i class="fas fa-search me-1"></i>Find or Create Student
+                                    </h6>
+                                    
+                                    <!-- Student Search Input -->
+                                    <div class="search-container">
+                                        {{ enrollment_form.student_search.label_tag }}
+                                        {{ enrollment_form.student_search }}
+                                        <div class="student-search-results" id="searchResults" style="display: none;"></div>
+                                        
+                                        <!-- Create New Student Button -->
+                                        <div class="mt-2">
+                                            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createStudentModal">
+                                                <i class="fas fa-plus me-1"></i>Create New Student
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Selected Student Info -->
+                                    <div id="selectedStudentInfo" class="selected-student-info" style="display: none;">
+                                        <h6 class="mb-2">Selected Student:</h6>
+                                        <div id="selectedStudentDetails"></div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="clearSelectedStudent()">
+                                            <i class="fas fa-times me-1"></i>Clear Selection
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Hidden Student Field -->
+                                    {{ enrollment_form.student }}
+                                </div>
+
+                                <!-- Course Section -->
+                                <div class="mb-4">
+                                    <h6 class="fw-bold mb-3">
+                                        <i class="fas fa-graduation-cap me-1"></i>Course Information
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            {{ enrollment_form.course.label_tag }}
+                                            {{ enrollment_form.course }}
+                                            {% if enrollment_form.course.help_text %}
+                                                <div class="form-text">{{ enrollment_form.course.help_text }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Enrollment Options -->
+                                <div class="mb-4">
+                                    <h6 class="fw-bold mb-3">
+                                        <i class="fas fa-cog me-1"></i>Enrollment Options
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            {{ enrollment_form.status.label_tag }}
+                                            {{ enrollment_form.status }}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check mt-4">
+                                                {{ enrollment_form.charge_registration_fee }}
+                                                {{ enrollment_form.charge_registration_fee.label_tag }}
+                                            </div>
+                                            {% if enrollment_form.charge_registration_fee.help_text %}
+                                                <div class="form-text">{{ enrollment_form.charge_registration_fee.help_text }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Staff Notes -->
+                                <div class="mb-4">
+                                    {{ enrollment_form.staff_notes.label_tag }}
+                                    {{ enrollment_form.staff_notes }}
+                                    {% if enrollment_form.staff_notes.help_text %}
+                                        <div class="form-text">{{ enrollment_form.staff_notes.help_text }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Hidden Fields -->
+                                {{ enrollment_form.source_channel }}
+
+                                <!-- Form Errors -->
+                                {% if enrollment_form.errors %}
+                                    <div class="alert alert-danger">
+                                        <h6>Please correct the following errors:</h6>
+                                        {{ enrollment_form.errors }}
+                                    </div>
+                                {% endif %}
+
+                                <!-- Submit Button -->
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-save me-2"></i>Create Enrollment
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fee Information Sidebar -->
+                <div class="col-lg-4">
+                    {% if selected_course %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-calculator me-1"></i>Fee Information
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="fee-breakdown">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Course Fee:</span>
+                                    <span class="fw-bold">${{ selected_course.price }}</span>
+                                </div>
+                                {% if selected_course.has_registration_fee %}
+                                <div class="d-flex justify-content-between mb-2" id="registrationFeeRow">
+                                    <span>Registration Fee:</span>
+                                    <span class="fw-bold">${{ selected_course.registration_fee }}</span>
+                                </div>
+                                {% endif %}
+                                <hr>
+                                <div class="d-flex justify-content-between">
+                                    <span class="fw-bold">Total:</span>
+                                    <span class="fw-bold fs-5 text-success" id="totalFee">
+                                        ${{ selected_course.price }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <h6 class="fw-bold">Course Details:</h6>
+                                <ul class="list-unstyled small">
+                                    <li><strong>Type:</strong> {{ selected_course.get_course_type_display }}</li>
+                                    <li><strong>Capacity:</strong> {{ selected_course.vacancy }} students</li>
+                                    {% if selected_course.start_date %}
+                                    <li><strong>Starts:</strong> {{ selected_course.start_date|date:"d M Y" }}</li>
+                                    {% endif %}
+                                    {% if selected_course.teacher %}
+                                    <li><strong>Teacher:</strong> {{ selected_course.teacher.get_full_name }}</li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Student Modal -->
+<div class="modal fade" id="createStudentModal" tabindex="-1" aria-labelledby="createStudentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createStudentModalLabel">
+                    <i class="fas fa-user-plus me-2"></i>Create New Student
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="createStudentForm" method="post">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="create_student">
+                    
+                    <!-- Student Basic Info -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            {{ student_form.first_name.label_tag }}
+                            {{ student_form.first_name }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ student_form.last_name.label_tag }}
+                            {{ student_form.last_name }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ student_form.birth_date.label_tag }}
+                            {{ student_form.birth_date }}
+                        </div>
+                    </div>
+                    
+                    <!-- Contact Info -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ student_form.email.label_tag }}
+                            {{ student_form.email }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ student_form.phone.label_tag }}
+                            {{ student_form.phone }}
+                        </div>
+                    </div>
+                    
+                    <!-- Address -->
+                    <div class="mb-3">
+                        {{ student_form.address.label_tag }}
+                        {{ student_form.address }}
+                    </div>
+                    
+                    <!-- Guardian Info (for under 18) -->
+                    <h6 class="fw-bold mb-3">Guardian Information (Required for students under 18)</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            {{ student_form.guardian_name.label_tag }}
+                            {{ student_form.guardian_name }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ student_form.guardian_email.label_tag }}
+                            {{ student_form.guardian_email }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ student_form.guardian_phone.label_tag }}
+                            {{ student_form.guardian_phone }}
+                        </div>
+                    </div>
+                    
+                    <!-- Emergency Contact -->
+                    <h6 class="fw-bold mb-3">Emergency Contact</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ student_form.emergency_contact_name.label_tag }}
+                            {{ student_form.emergency_contact_name }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ student_form.emergency_contact_phone.label_tag }}
+                            {{ student_form.emergency_contact_phone }}
+                        </div>
+                    </div>
+                    
+                    <!-- Medical & Special Requirements -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ student_form.medical_conditions.label_tag }}
+                            {{ student_form.medical_conditions }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ student_form.special_requirements.label_tag }}
+                            {{ student_form.special_requirements }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Create Student
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('id_student_search');
+    const searchResults = document.getElementById('searchResults');
+    const studentSelect = document.getElementById('id_student');
+    const selectedStudentInfo = document.getElementById('selectedStudentInfo');
+    const selectedStudentDetails = document.getElementById('selectedStudentDetails');
+    const registrationFeeCheckbox = document.getElementById('id_charge_registration_fee');
+    
+    let searchTimeout = null;
+
+    // Student Search Functionality
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+            
+            searchTimeout = setTimeout(() => {
+                performStudentSearch(query);
+            }, 300);
+        });
+    }
+
+    function performStudentSearch(query) {
+        const url = new URL('{% url "enrollment:student_search_api" %}', window.location.origin);
+        url.searchParams.append('query', query);
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displaySearchResults(data.results);
+                } else {
+                    console.error('Search failed:', data.errors);
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+            });
+    }
+
+    function displaySearchResults(results) {
+        if (results.length === 0) {
+            searchResults.innerHTML = '<div class="student-search-item text-muted">No students found</div>';
+        } else {
+            searchResults.innerHTML = results.map(student => `
+                <div class="student-search-item" onclick="selectStudent(${student.id}, '${student.name}', '${student.email}', '${student.phone}')">
+                    <div class="fw-bold">${student.name}</div>
+                    <div class="small text-muted">${student.email} | ${student.phone}</div>
+                </div>
+            `).join('');
+        }
+        searchResults.style.display = 'block';
+    }
+
+    // Global function for student selection
+    window.selectStudent = function(id, name, email, phone) {
+        // Set the hidden select field
+        studentSelect.value = id;
+        
+        // Update the search input
+        searchInput.value = name;
+        
+        // Show selected student info
+        selectedStudentDetails.innerHTML = `
+            <div class="row">
+                <div class="col-md-4"><strong>Name:</strong><br>${name}</div>
+                <div class="col-md-4"><strong>Email:</strong><br>${email}</div>
+                <div class="col-md-4"><strong>Phone:</strong><br>${phone}</div>
+            </div>
+        `;
+        selectedStudentInfo.style.display = 'block';
+        
+        // Hide search results
+        searchResults.style.display = 'none';
+    };
+
+    // Global function to clear student selection
+    window.clearSelectedStudent = function() {
+        studentSelect.value = '';
+        searchInput.value = '';
+        selectedStudentInfo.style.display = 'none';
+        searchResults.style.display = 'none';
+    };
+
+    // Hide search results when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!searchInput.contains(event.target) && !searchResults.contains(event.target)) {
+            searchResults.style.display = 'none';
+        }
+    });
+
+    // Fee calculation
+    {% if selected_course and selected_course.has_registration_fee %}
+    if (registrationFeeCheckbox) {
+        registrationFeeCheckbox.addEventListener('change', function() {
+            updateFeeTotal();
+        });
+        updateFeeTotal(); // Initial calculation
+    }
+
+    function updateFeeTotal() {
+        const courseFee = {{ selected_course.price }};
+        const registrationFee = {{ selected_course.registration_fee|default:0 }};
+        const includeRegistrationFee = registrationFeeCheckbox.checked;
+        
+        const total = courseFee + (includeRegistrationFee ? registrationFee : 0);
+        document.getElementById('totalFee').textContent = '$' + total;
+        
+        // Update registration fee row visibility
+        const regFeeRow = document.getElementById('registrationFeeRow');
+        if (regFeeRow) {
+            regFeeRow.style.opacity = includeRegistrationFee ? '1' : '0.5';
+        }
+    }
+    {% endif %}
+
+    // Handle create student form submission
+    const createStudentForm = document.getElementById('createStudentForm');
+    if (createStudentForm) {
+        createStudentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('createStudentModal'));
+                    modal.hide();
+                    
+                    // Select the newly created student
+                    selectStudent(data.student.id, data.student.name, data.student.email, data.student.phone);
+                    
+                    // Show success message
+                    showAlert('success', data.message);
+                    
+                    // Reset form
+                    createStudentForm.reset();
+                } else {
+                    // Show form errors
+                    showAlert('danger', data.message);
+                    console.error('Form errors:', data.errors);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'An error occurred while creating the student.');
+            });
+        });
+    }
+
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.container-fluid');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        // Auto dismiss after 5 seconds
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}
