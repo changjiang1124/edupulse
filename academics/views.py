@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import date
@@ -216,12 +216,35 @@ class ClassCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
+        from django.contrib import messages
+        
         # Ensure course is set from GET when dropdown is disabled
         if not form.cleaned_data.get('course'):
             course_id = self.request.GET.get('course')
             if course_id:
                 form.instance.course = Course.objects.filter(pk=course_id).first()
+        
+        # Add success message based on course type
+        course = form.instance.course
+        if course and course.repeat_pattern == 'once':
+            messages.success(
+                self.request,
+                f'Single session for "{course.name}" has been scheduled successfully.'
+            )
+        else:
+            messages.success(
+                self.request,
+                f'Class for "{course.name if course else "course"}" has been created successfully.'
+            )
+        
         return super().form_valid(form)
+    
+    def get_success_url(self):
+        # Redirect back to course detail if course was pre-selected
+        course_id = self.request.GET.get('course')
+        if course_id:
+            return reverse('academics:course_detail', kwargs={'pk': course_id})
+        return super().get_success_url()
 
 
 class ClassDetailView(LoginRequiredMixin, DetailView):

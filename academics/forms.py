@@ -326,3 +326,31 @@ class ClassForm(forms.ModelForm):
                 'class': 'form-check-input'
             }),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set default value for new classes
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
+    
+    def clean(self):
+        """Validate form data, including single session course restrictions"""
+        cleaned_data = super().clean()
+        course = cleaned_data.get('course')
+        
+        # Check if single session course already has a class
+        if course and course.repeat_pattern == 'once':
+            existing_classes = Class.objects.filter(course=course)
+            
+            # Exclude current instance if editing
+            if self.instance and self.instance.pk:
+                existing_classes = existing_classes.exclude(pk=self.instance.pk)
+            
+            if existing_classes.exists():
+                raise forms.ValidationError(
+                    'This single session course already has a scheduled class. '
+                    'Only one class can be created for single session courses. '
+                    'Please edit the existing class instead.'
+                )
+        
+        return cleaned_data

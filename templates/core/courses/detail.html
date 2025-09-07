@@ -69,9 +69,6 @@
                 
                 <!-- Admin Actions (Right) -->
                 <div class="btn-group">
-                    <a href="{% url 'enrollment:staff_enrollment_create_with_course' course.pk %}" class="btn btn-success me-2">
-                        <i class="fas fa-user-plus me-2"></i>Add Enrolment
-                    </a>
                     <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-light">
                         <i class="fas fa-edit me-2"></i>Edit Course
                     </a>
@@ -264,11 +261,10 @@
                     <i class="fas fa-chalkboard-teacher me-2 text-primary"></i>
                     Scheduled Classes <span class="badge bg-primary ms-2">{{ classes.count }}</span>
                 </h5>
-                {% if course.repeat_pattern != 'once' %}
                 <a href="{% url 'academics:class_add' %}?course={{ course.pk }}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-plus me-1"></i>Add Class
+                    <i class="fas fa-plus me-1"></i>
+                    {% if course.repeat_pattern == 'once' %}Schedule Session{% else %}Add Class{% endif %}
                 </a>
-                {% endif %}
             </div>
             <div class="card-body">
                 {% if classes %}
@@ -327,13 +323,16 @@
                     <div class="text-center py-5">
                         <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
                         <h6 class="text-muted">No classes scheduled</h6>
-                        {% if course.repeat_pattern != 'once' %}
+                        {% if course.repeat_pattern == 'once' %}
+                        <p class="text-muted mb-3">This single session course needs to be scheduled</p>
+                        <a href="{% url 'academics:class_add' %}?course={{ course.pk }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Schedule Session
+                        </a>
+                        {% else %}
                         <p class="text-muted mb-3">Get started by adding your first class</p>
                         <a href="{% url 'academics:class_add' %}?course={{ course.pk }}" class="btn btn-primary">
                             <i class="fas fa-plus me-2"></i>Schedule First Class
                         </a>
-                        {% else %}
-                        <p class="text-muted mb-0">This is a single session course</p>
                         {% endif %}
                     </div>
                 {% endif %}
@@ -344,9 +343,14 @@
         <div class="card course-meta-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-users me-2 text-primary"></i>Recent Enrolments</h5>
-                <a href="{% url 'enrollment:enrollment_list' %}?course={{ course.pk }}" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-list me-1"></i>View All Enrolments
-                </a>
+                <div class="btn-group">
+                    <a href="{% url 'enrollment:staff_enrollment_create_with_course' course.pk %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-user-plus me-1"></i>Add Enrolment
+                    </a>
+                    <a href="{% url 'enrollment:enrollment_list' %}?course={{ course.pk }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-list me-1"></i>View All Enrolments
+                    </a>
+                </div>
             </div>
             <div class="card-body">
                 {% if enrollments %}

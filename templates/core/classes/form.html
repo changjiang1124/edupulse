@@ -115,7 +115,6 @@
                     </div>
 
                     <!-- Status -->
-                    {% if form.instance.pk %}
                     <div class="mb-4">
                         <h6 class="text-muted mb-3">Status</h6>
                         
@@ -124,9 +123,11 @@
                             <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
                                 Active Class
                             </label>
+                            {% if not form.instance.pk %}
+                                <div class="form-text">New classes are active by default</div>
+                            {% endif %}
                         </div>
                     </div>
-                    {% endif %}
 
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'academics:class_list' %}" class="btn btn-outline-secondary">Cancel</a>
