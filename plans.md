@@ -1,3 +1,6 @@
+## Bug Fixes (2025-09-08)
+- 修复首页 Dashboard UnboundLocalError：移除 core/views.py 中 DashboardView.get_context_data 内部的局部导入，避免遮蔽顶层导入变量，已本地验证通过。
+
 # enrollment/forms.py 新增三個考勤表單類
 - AttendanceForm: 單個學生考勤表單
 - BulkAttendanceForm: 批量考勤管理表單，動態生成學生字段  
@@ -95,6 +98,47 @@
 #### 管理界面整合
 - **即將到來的班級**: 自動顯示需要標記考勤的班級
 - **歷史記錄**: 可按多條件篩選的考勤記錄列表
+
+## GST 設置簡化 (2025-09-08) ✅ 已完成
+
+### 實施目標
+簡化組織設置中的 GST 配置界面，將澳洲固定的 10% GST 率和 "GST" 標籤硬編碼，只保留"價格是否含稅"開關，符合澳洲客戶使用習慣。
+
+### 主要變更
+
+#### 1. 視圖函數簡化 ✅
+- **core/views.py**: 移除 `organisation_settings_view` 中對 `gst_rate`、`gst_label`、`show_gst_breakdown` 的處理
+- **路由清理**: 刪除 `test_gst_calculation` 函數和相關 URL 路由
+- **表單處理**: 僅保留 `prices_include_gst` 的讀取和保存邏輯
+
+#### 2. 模板界面精簡 ✅
+- **organisation.html**: 大幅精簡 GST Configuration 卡片
+- **保留功能**: 僅保留 "Prices Include GST" 開關和說明文字
+- **移除組件**: GST Rate 輸入框、GST Label 輸入框、Show Breakdown 開關、GST Calculator、Configuration Preview
+- **JavaScript 清理**: 移除所有相關的交互邏輯和預覽功能
+
+#### 3. 後端配置固化 ✅
+- **OrganisationSettings.get_gst_config()**: 返回固定的澳洲 GST 配置
+  - `rate`: 固定為 `Decimal('0.1000')` (10%)
+  - `label`: 固定為 `'GST'`
+  - `show_breakdown`: 固定為 `False`
+  - `includes_gst`: 從實例讀取（保持用戶可控）
+- **gst_rate_percentage**: 固定返回 `10`
+
+#### 4. 模板標籤優化 ✅
+- **percentage 過濾器**: 修改輸出格式從 "10.0%" 改為 "10%"（無小數位）
+- **向後兼容**: 其他 GST 計算函數保持不變
+
+### 用戶體驗改進
+- **簡化設置**: 用戶只需關注"價格是否含稅"這一核心開關
+- **標準化**: GST 率和標籤統一為澳洲標準（10% GST）
+- **直觀界面**: 類似 WooCommerce 的簡潔價格顯示機制
+- **減少困惑**: 消除不必要的配置選項和複雜預覽
+
+### 技術特點
+- **無數據庫遷移**: 現有字段保留，僅在代碼層面固化配置
+- **向後兼容**: 現有價格計算邏輯完全保持功能
+- **澳洲本地化**: 符合澳洲商業環境的 GST 處理標準
 - **編輯功能**: 支持修改已記錄的考勤信息
 
 ### 技術創新點

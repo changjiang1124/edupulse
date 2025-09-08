@@ -43,7 +43,6 @@ urlpatterns = [
     
     # Organisation settings URLs
     path('settings/organisation/', views.organisation_settings_view, name='organisation_settings'),
-    path('settings/organisation/test-gst/', views.test_gst_calculation, name='test_gst_calculation'),
     
     # Notification system URLs
     path('notifications/send/', views.send_notification_view, name='send_notification'),

@@ -112,19 +112,19 @@ class OrganisationSettings(models.Model):
     
     @classmethod
     def get_gst_config(cls):
-        """Get GST configuration as dictionary"""
+        """Get GST configuration as dictionary with fixed Australian GST settings"""
         instance = cls.get_instance()
         return {
             'includes_gst': instance.prices_include_gst,
-            'rate': instance.gst_rate,
-            'show_breakdown': instance.show_gst_breakdown,
-            'label': instance.gst_label
+            'rate': Decimal('0.1000'),  # Fixed 10% GST for Australia
+            'show_breakdown': False,    # Simplified - no breakdown display
+            'label': 'GST'             # Fixed GST label
         }
     
     @property
     def gst_rate_percentage(self):
-        """Get GST rate as percentage"""
-        return self.gst_rate * 100
+        """Get GST rate as percentage - fixed at 10% for Australia"""
+        return 10
 
 
 class EmailSettings(models.Model):

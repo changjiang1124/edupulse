@@ -128,7 +128,10 @@ create:
 
 ### enrolment
 - [ ] after submission, the email should include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the course should have a new enrolment added as well, with pending status. and the vacancy should not be changed until the enrolment is confirmed by operator.
-
+- [ ] The enrollment URL copied from course detail page should be identical to the public enrollment URL, with the only addition being a course ID parameter. When accessing this URL, the course selection dropdown should automatically pre-select the specified course. For example:
+  - Public enrollment URL: `/enroll/public`
+  - Course-specific enrollment URL: `/enroll/public?course=123`
+  - Test: Access the course-specific URL and verify that the course selection dropdown pre-selects the specified course.
 
 ### settings 
 - [ ] SMS configuration should be only visible to admin user of the organisation, so as the email configuration.
@@ -144,5 +147,4 @@ create:
   - [ ] test staff user can mark attendance for their classes.
   - [ ] test staff user can clock in and out.
 
-
-                                
+- [] the current implementation of GST in settings is verbose, and should be simplified. as in Australia, everyone knows how GST works, it's unncesary to ask for rate and label, and show GST with too many 0 after the dot, just 10% is enough. and no test GST preview, and preview. Just a pure Price inputted with GST or not as checkbox for global configuration. this is quite like woocommerce price with GST display. 

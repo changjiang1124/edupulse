@@ -101,12 +101,12 @@ def currency(value):
 @register.filter
 def percentage(value):
     """
-    Format decimal as percentage
-    Usage: {{ 0.10|percentage }}
+    Convert decimal to percentage format without decimal places
+    Usage: {{ 0.10|percentage }} -> "10%"
     """
     if not value:
         return "0%"
-    return f"{float(value) * 100:.1f}%"
+    return f"{int(float(value) * 100)}%"
 
 
 @register.simple_tag

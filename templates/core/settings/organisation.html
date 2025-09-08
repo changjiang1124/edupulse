@@ -116,7 +116,7 @@
                         <h5 class="mb-0"><i class="bi bi-calculator me-2"></i>GST Configuration</h5>
                     </div>
                     <div class="card-body p-4">
-                        <div class="mb-3">
+                        <div class="mb-0">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="prices_include_gst" name="prices_include_gst" 
                                        {% if org_settings.prices_include_gst %}checked{% endif %}>
@@ -124,69 +124,11 @@
                                     <strong>Prices Include GST</strong>
                                 </label>
                             </div>
-                            <div class="form-text">When enabled, all displayed prices include GST. When disabled, GST will be added to displayed prices.</div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="gst_rate" class="form-label">GST Rate <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="gst_rate" name="gst_rate" 
-                                       value="{{ org_settings.gst_rate }}" step="0.0001" min="0" max="1" required>
-                                <span class="input-group-text">
-                                    (<span id="gst_percentage">{{ org_settings.gst_rate_percentage }}</span>%)
-                                </span>
-                            </div>
-                            <div class="form-text">Enter as decimal (e.g., 0.1000 for 10%)</div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="gst_label" class="form-label">GST Label</label>
-                            <input type="text" class="form-control" id="gst_label" name="gst_label" 
-                                   value="{{ org_settings.gst_label }}" placeholder="GST">
-                            <div class="form-text">Label to display for GST (e.g., "GST", "Tax")</div>
-                        </div>
-                        
-                        <div class="mb-0">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="show_gst_breakdown" name="show_gst_breakdown" 
-                                       {% if org_settings.show_gst_breakdown %}checked{% endif %}>
-                                <label class="form-check-label" for="show_gst_breakdown">
-                                    <strong>Show GST Breakdown</strong>
-                                </label>
-                            </div>
-                            <div class="form-text">Display detailed GST breakdown in prices and confirmations</div>
-                        </div>
-                        
-                        <!-- GST Calculator -->
-                        <div class="gst-calculator">
-                            <h6 class="mb-3"><i class="bi bi-calculator-fill me-2"></i>GST Calculator Preview</h6>
-                            <div class="row">
-                                <div class="col-6">
-                                    <label for="test_price" class="form-label">Test Price ($)</label>
-                                    <input type="number" class="form-control" id="test_price" value="100.00" step="0.01" min="0">
-                                </div>
-                                <div class="col-6 d-flex align-items-end">
-                                    <button type="button" class="btn btn-test w-100" id="calculate_gst">
-                                        <i class="bi bi-calculator me-2"></i>Calculate
-                                    </button>
-                                </div>
-                            </div>
+                            <div class="form-text">When enabled, all displayed prices include GST (10%). When disabled, GST will be added to displayed prices at checkout.</div>
                             
-                            <div id="calculation_result" class="calculation-result" style="display: none;">
-                                <div class="row text-center">
-                                    <div class="col-4">
-                                        <small class="text-muted">Excluding GST</small>
-                                        <div class="fw-bold" id="price_ex_gst">$0.00</div>
-                                    </div>
-                                    <div class="col-4">
-                                        <small class="text-muted">GST Amount</small>
-                                        <div class="fw-bold text-primary" id="gst_amount">$0.00</div>
-                                    </div>
-                                    <div class="col-4">
-                                        <small class="text-muted">Including GST</small>
-                                        <div class="fw-bold" id="price_inc_gst">$0.00</div>
-                                    </div>
-                                </div>
+                            <div class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Note:</strong> GST is automatically calculated at the standard Australian rate of 10%. This setting only controls whether your displayed prices include or exclude GST.
                             </div>
                         </div>
                     </div>
@@ -194,36 +136,7 @@
             </div>
         </div>
         
-        <!-- Configuration Preview -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card settings-card mb-4">
-                    <div class="settings-header">
-                        <h5 class="mb-0"><i class="bi bi-eye me-2"></i>Configuration Preview</h5>
-                    </div>
-                    <div class="card-body p-4">
-                        <h6>How prices will be displayed:</h6>
-                        <div class="gst-preview">
-<span class="text-warning">Example Course:</span> $150.00 <span class="text-muted" id="preview_label">{% if org_settings.prices_include_gst %}(inc {{ org_settings.gst_label }}){% else %}(ex {{ org_settings.gst_label }}){% endif %}</span>
 
-<span class="text-warning">Breakdown Display:</span>
-{% if org_settings.show_gst_breakdown %}
-Course fee (ex {{ org_settings.gst_label }}): $136.36
-{{ org_settings.gst_label }} ({{ org_settings.gst_rate_percentage }}%):      $ 13.64
-Total (inc {{ org_settings.gst_label }}):       $150.00
-{% else %}
-<span class="text-muted">// GST breakdown hidden</span>
-{% endif %}
-                        </div>
-                        
-                        <div class="alert alert-info mt-3">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <strong>Note:</strong> These settings affect how prices are displayed in course listings, enrollment confirmations, and WooCommerce integration.
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
         
         <!-- Save Button -->
         <div class="row">
@@ -245,85 +158,13 @@ Total (inc {{ org_settings.gst_label }}):       $150.00
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Update GST percentage display when rate changes
-    const gstRateInput = document.getElementById('gst_rate');
-    const gstPercentageSpan = document.getElementById('gst_percentage');
-    
-    gstRateInput.addEventListener('input', function() {
-        const percentage = (parseFloat(this.value || 0) * 100).toFixed(1);
-        gstPercentageSpan.textContent = percentage;
-        updatePreview();
-    });
-    
-    // Update preview when settings change
-    document.getElementById('prices_include_gst').addEventListener('change', updatePreview);
-    document.getElementById('gst_label').addEventListener('input', updatePreview);
-    document.getElementById('show_gst_breakdown').addEventListener('change', updatePreview);
-    
-    // GST Calculator
-    document.getElementById('calculate_gst').addEventListener('click', function() {
-        const testPrice = parseFloat(document.getElementById('test_price').value || 100);
-        const includesGst = document.getElementById('prices_include_gst').checked;
-        const gstRate = parseFloat(document.getElementById('gst_rate').value || 0.1);
-        
-        fetch('{% url "core:test_gst_calculation" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: new URLSearchParams({
-                'test_price': testPrice,
-                'prices_include_gst': includesGst,
-                'gst_rate': gstRate
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const breakdown = data.breakdown;
-                document.getElementById('price_ex_gst').textContent = '$' + breakdown.price_ex_gst.toFixed(2);
-                document.getElementById('gst_amount').textContent = '$' + breakdown.gst_amount.toFixed(2);
-                document.getElementById('price_inc_gst').textContent = '$' + breakdown.price_inc_gst.toFixed(2);
-                document.getElementById('calculation_result').style.display = 'block';
-            } else {
-                alert('Calculation error: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to calculate GST breakdown');
+    // Simple form validation for organisation settings
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Basic validation can be added here if needed
+            console.log('Organisation settings form submitted');
         });
-    });
-    
-    function updatePreview() {
-        const includesGst = document.getElementById('prices_include_gst').checked;
-        const gstLabel = document.getElementById('gst_label').value || 'GST';
-        const showBreakdown = document.getElementById('show_gst_breakdown').checked;
-        const gstRate = parseFloat(document.getElementById('gst_rate').value || 0.1);
-        
-        // Update price display preview
-        const previewLabel = document.getElementById('preview_label');
-        previewLabel.textContent = includesGst ? `(inc ${gstLabel})` : `(ex ${gstLabel})`;
-        
-        // Update breakdown preview
-        const gstPreview = document.querySelector('.gst-preview');
-        const percentage = (gstRate * 100).toFixed(1);
-        
-        let previewText = `Example Course: $150.00 (${includesGst ? 'inc' : 'ex'} ${gstLabel})
-
-Breakdown Display:
-`;
-        
-        if (showBreakdown) {
-            previewText += `Course fee (ex ${gstLabel}): $136.36
-${gstLabel} (${percentage}%):      $ 13.64
-Total (inc ${gstLabel}):       $150.00`;
-        } else {
-            previewText += `<span class="text-muted">// GST breakdown hidden</span>`;
-        }
-        
-        gstPreview.innerHTML = previewText;
     }
 });
 </script>

@@ -269,5 +269,30 @@ Ensure regular backups of:
 - Environment configuration
 - Custom static files
 
+## Recent Changes
+
+### GST Settings Simplification (2025-09-08)
+**Impact**: Code-level changes only, no database migration required
+
+**Changes Made**:
+- Simplified organisation settings GST configuration interface
+- Fixed Australian GST rate at 10% and label as "GST" in code
+- Removed complex GST calculator and preview components
+- Only "Prices Include GST" toggle remains user-configurable
+
+**Deployment Notes**:
+- ✅ **No migration required**: Existing database fields preserved
+- ✅ **Backward compatible**: All existing price calculation logic maintained
+- ✅ **No configuration changes**: Environment variables unchanged
+- ✅ **Static files**: No new static assets added
+
+**Verification Steps**:
+1. Access `/core/settings/organisation/` after deployment
+2. Confirm GST Configuration card shows only "Prices Include GST" toggle
+3. Test price display functionality on course pages
+4. Verify GST calculations use fixed 10% rate
+
+**Rollback**: If needed, revert commits related to GST simplification - no data loss risk
+
 ## Support
 For technical support or questions about deployment, refer to the project documentation or contact the development team.
