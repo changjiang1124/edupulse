@@ -208,19 +208,19 @@
                             <div class="fee-breakdown">
                                 <div class="d-flex justify-content-between mb-2">
                                     <span>Course Fee:</span>
-                                    <span class="fw-bold">${{ selected_course.price }}</span>
+                                    <span class="fw-bold">{% load price_tags %}{% price_with_gst_label selected_course.price %}</span>
                                 </div>
                                 {% if selected_course.has_registration_fee %}
                                 <div class="d-flex justify-content-between mb-2" id="registrationFeeRow">
                                     <span>Registration Fee:</span>
-                                    <span class="fw-bold">${{ selected_course.registration_fee }}</span>
+                                    <span class="fw-bold">{% load price_tags %}{% price_with_gst_label selected_course.registration_fee %}</span>
                                 </div>
                                 {% endif %}
                                 <hr>
                                 <div class="d-flex justify-content-between">
                                     <span class="fw-bold">Total:</span>
                                     <span class="fw-bold fs-5 text-success" id="totalFee">
-                                        ${{ selected_course.price }}
+                                        {% load price_tags %}{% price_with_gst_label selected_course.price %}
                                     </span>
                                 </div>
                             </div>

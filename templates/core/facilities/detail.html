@@ -191,7 +191,7 @@
                                     <td>
                                         <span class="badge bg-info">{{ course.get_course_type_display }}</span>
                                     </td>
-                                    <td>${{ course.price }}</td>
+                                    <td>{% load price_tags %}{% price_with_gst_label course.price %}</td>
                                     <td>
                                         <span class="badge {% if course.status == 'published' %}bg-success{% elif course.status == 'draft' %}bg-warning{% else %}bg-secondary{% endif %}">
                                             {{ course.get_status_display }}

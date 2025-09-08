@@ -147,4 +147,9 @@ create:
   - [ ] test staff user can mark attendance for their classes.
   - [ ] test staff user can clock in and out.
 
-- [] the current implementation of GST in settings is verbose, and should be simplified. as in Australia, everyone knows how GST works, it's unncesary to ask for rate and label, and show GST with too many 0 after the dot, just 10% is enough. and no test GST preview, and preview. Just a pure Price inputted with GST or not as checkbox for global configuration. this is quite like woocommerce price with GST display. 
+- [x] the current implementation of GST in settings is verbose, and should be simplified. as in Australia, everyone knows how GST works, it's unncesary to ask for rate and label, and show GST with too many 0 after the dot, just 10% is enough. and no test GST preview, and preview. Just a pure Price inputted with GST or not as checkbox for global configuration. this is quite like woocommerce price with GST display. 
+  - [x] test GST setting in organisational setting, and course price shown in woocommerce product page.
+  - [x] test enrolment submission confirmation email, indicate the price include GST or not.
+  - [x] test course create and edit, with price include GST or not.
+  - [ ] test enrolment creation by operator, with registration fee included in the total amount.
+  - [ ] test enrolment creation by student, with registration fee included in the total amount.

@@ -156,7 +156,7 @@
                                     <td>
                                         <strong>{{ enrollment.course.name }}</strong>
                                         <br>
-                                        <small class="text-muted">${{ enrollment.course.price }}</small>
+                                        <small class="text-muted">{% load price_tags %}{% price_with_gst_label enrollment.course.price %}</small>
                                     </td>
                                     <td>
                                         <span class="badge {% if enrollment.status == 'enrolled' %}bg-success{% elif enrollment.status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %}">

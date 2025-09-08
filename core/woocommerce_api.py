@@ -105,15 +105,50 @@ class WooCommerceAPI:
         # Course details section
         course_details = []
         
-        # Price information
+        # Price information with GST details
         price = course_data.get('price', 0)
         registration_fee = course_data.get('registration_fee')
-        if registration_fee and registration_fee > 0:
-            course_details.append(f"<strong>Course Fee:</strong> ${price}")
-            course_details.append(f"<strong>Registration Fee:</strong> ${registration_fee} (for new students)")
-            course_details.append(f"<strong>Total for New Students:</strong> ${float(price) + float(registration_fee)}")
+        
+        # Use price_display if available (includes GST label)
+        if course_data.get('price_display'):
+            price_display = course_data['price_display']
         else:
-            course_details.append(f"<strong>Course Fee:</strong> ${price}")
+            price_display = f"${price}"
+            if course_data.get('gst_info', {}).get('includes_gst'):
+                price_display += " (inc GST)"
+            else:
+                price_display += " (ex GST)"
+        
+        if registration_fee and registration_fee > 0:
+            reg_fee_display = f"${registration_fee}"
+            if course_data.get('gst_info', {}).get('includes_gst'):
+                reg_fee_display += " (inc GST)"
+            else:
+                reg_fee_display += " (ex GST)"
+            
+            total_fee = float(price) + float(registration_fee)
+            total_display = f"${total_fee}"
+            if course_data.get('gst_info', {}).get('includes_gst'):
+                total_display += " (inc GST)"
+            else:
+                total_display += " (ex GST)"
+            
+            course_details.append(f"<strong>Course Fee:</strong> {price_display}")
+            course_details.append(f"<strong>Registration Fee:</strong> {reg_fee_display} (for new students)")
+            course_details.append(f"<strong>Total for New Students:</strong> {total_display}")
+        else:
+            course_details.append(f"<strong>Course Fee:</strong> {price_display}")
+        
+        # Add GST information note if available
+        if course_data.get('gst_info'):
+            gst_info = course_data['gst_info']
+            gst_note = "<em>Note: All prices are displayed "
+            if gst_info['includes_gst']:
+                gst_note += f"inclusive of {gst_info['label']} ({gst_info['rate']*100:.0f}%)."
+            else:
+                gst_note += f"exclusive of {gst_info['label']} ({gst_info['rate']*100:.0f}%), which will be added at checkout."
+            gst_note += "</em>"
+            course_details.append(gst_note)
         
         # Vacancy information
         vacancy = course_data.get('vacancy')
@@ -489,12 +524,30 @@ class WooCommerceSyncService:
                 logger.warning(f"Failed to create/get category {category_name}, using default")
                 categories = [{'name': category_name}]  # Fallback to name-based
             
+            # Get GST configuration for price display
+            from core.models import OrganisationSettings
+            org_settings = OrganisationSettings.get_instance()
+            gst_config = OrganisationSettings.get_gst_config()
+            
+            # Format price with GST label for WooCommerce
+            price_display = f"${course.price:.2f}"
+            if org_settings.prices_include_gst:
+                price_display += " (inc GST)"
+            else:
+                price_display += " (ex GST)"
+            
             course_data = {
                 'course_id': course.id,
                 'name': course.name,
                 'description': course.description or '',
                 'short_description': course.short_description or '',
                 'price': float(course.price),
+                'price_display': price_display,
+                'gst_info': {
+                    'includes_gst': gst_config['includes_gst'],
+                    'rate': float(gst_config['rate']),
+                    'label': gst_config['label']
+                },
                 'registration_fee': float(course.registration_fee) if course.registration_fee else None,
                 'vacancy': course.vacancy,
                 'enrollment_deadline': course.enrollment_deadline.isoformat() if course.enrollment_deadline else None,

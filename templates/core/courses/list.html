@@ -86,7 +86,7 @@
                                         {% endif %}
                                     </td>
                                     <td>{{ course.start_date|date:"d/m/Y" }}</td>
-                                    <td>${{ course.price }}</td>
+                                    <td>{% load price_tags %}{% price_with_gst_label course.price %}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
                                             <a href="{% url 'academics:course_detail' course.pk %}" class="btn btn-outline-primary">View</a>
