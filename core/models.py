@@ -4,9 +4,127 @@ from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.conf import settings
 from accounts.models import Staff
+from decimal import Decimal
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class OrganisationSettings(models.Model):
+    """
+    Organisation settings model - Singleton for global configuration
+    """
+    # Organisation Details
+    organisation_name = models.CharField(
+        max_length=200,
+        default='Perth Art School',
+        verbose_name='Organisation Name'
+    )
+    abn_number = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name='ABN Number',
+        help_text='Australian Business Number'
+    )
+    
+    # GST Configuration
+    prices_include_gst = models.BooleanField(
+        default=True,
+        verbose_name='Prices Include GST',
+        help_text='When enabled, all displayed prices include GST (10%). When disabled, GST will be added to displayed prices.'
+    )
+    gst_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        default=Decimal('0.1000'),
+        verbose_name='GST Rate',
+        help_text='GST rate as decimal (e.g., 0.1000 for 10%)'
+    )
+    show_gst_breakdown = models.BooleanField(
+        default=True,
+        verbose_name='Show GST Breakdown',
+        help_text='Display detailed GST breakdown in prices and confirmations'
+    )
+    gst_label = models.CharField(
+        max_length=50,
+        default='GST',
+        verbose_name='GST Label',
+        help_text='Label to use for GST (e.g., "GST", "Tax")'
+    )
+    
+    # Contact Information
+    contact_email = models.EmailField(
+        default='info@perthartschool.com.au',
+        verbose_name='Contact Email'
+    )
+    contact_phone = models.CharField(
+        max_length=20,
+        default='(08) 9000 0000',
+        verbose_name='Contact Phone'
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Updated By'
+    )
+    
+    class Meta:
+        verbose_name = 'Organisation Setting'
+        verbose_name_plural = 'Organisation Settings'
+    
+    def __str__(self):
+        return f'{self.organisation_name} Settings'
+    
+    def clean(self):
+        """Validate organisation settings"""
+        super().clean()
+        
+        # Validate GST rate
+        if self.gst_rate < 0 or self.gst_rate > 1:
+            raise ValidationError('GST rate must be between 0 and 1 (e.g., 0.1 for 10%)')
+    
+    def save(self, *args, **kwargs):
+        """Override save to ensure only one instance exists (singleton)"""
+        if not self.pk and OrganisationSettings.objects.exists():
+            raise ValidationError('Only one Organisation Settings instance is allowed')
+        return super().save(*args, **kwargs)
+    
+    @classmethod
+    def get_instance(cls):
+        """Get the singleton instance, create if doesn't exist"""
+        instance, created = cls.objects.get_or_create(
+            id=1,
+            defaults={
+                'organisation_name': 'Perth Art School',
+                'prices_include_gst': True,
+                'gst_rate': Decimal('0.1000'),
+                'show_gst_breakdown': True,
+                'contact_email': 'info@perthartschool.com.au'
+            }
+        )
+        return instance
+    
+    @classmethod
+    def get_gst_config(cls):
+        """Get GST configuration as dictionary"""
+        instance = cls.get_instance()
+        return {
+            'includes_gst': instance.prices_include_gst,
+            'rate': instance.gst_rate,
+            'show_breakdown': instance.show_gst_breakdown,
+            'label': instance.gst_label
+        }
+    
+    @property
+    def gst_rate_percentage(self):
+        """Get GST rate as percentage"""
+        return self.gst_rate * 100
 
 
 class EmailSettings(models.Model):

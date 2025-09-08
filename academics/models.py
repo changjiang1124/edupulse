@@ -505,6 +505,124 @@ class Course(models.Model):
             self.save(update_fields=['status', 'bookable_state'])
         
         return updated
+    
+    def get_price_breakdown(self):
+        """Get price breakdown with GST calculations"""
+        from core.models import OrganisationSettings
+        from decimal import Decimal, ROUND_HALF_UP
+        
+        settings = OrganisationSettings.get_instance()
+        
+        if settings.prices_include_gst:
+            # Database price is inclusive of GST
+            price_inc_gst = self.price
+            gst_amount = price_inc_gst / (1 + settings.gst_rate) * settings.gst_rate
+            price_ex_gst = price_inc_gst - gst_amount
+        else:
+            # Database price is exclusive of GST
+            price_ex_gst = self.price
+            gst_amount = price_ex_gst * settings.gst_rate
+            price_inc_gst = price_ex_gst + gst_amount
+        
+        # Round to 2 decimal places
+        price_ex_gst = price_ex_gst.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        gst_amount = gst_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        price_inc_gst = price_inc_gst.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        
+        return {
+            'stored_price': self.price,
+            'price_ex_gst': price_ex_gst,
+            'gst_amount': gst_amount,
+            'price_inc_gst': price_inc_gst,
+            'display_price': self.price,
+            'includes_gst': settings.prices_include_gst,
+            'gst_rate': settings.gst_rate,
+            'gst_label': settings.gst_label
+        }
+    
+    def get_registration_fee_breakdown(self):
+        """Get registration fee breakdown with GST calculations"""
+        if not self.registration_fee:
+            return None
+            
+        from core.models import OrganisationSettings
+        from decimal import Decimal, ROUND_HALF_UP
+        
+        settings = OrganisationSettings.get_instance()
+        
+        if settings.prices_include_gst:
+            # Database price is inclusive of GST
+            price_inc_gst = self.registration_fee
+            gst_amount = price_inc_gst / (1 + settings.gst_rate) * settings.gst_rate
+            price_ex_gst = price_inc_gst - gst_amount
+        else:
+            # Database price is exclusive of GST
+            price_ex_gst = self.registration_fee
+            gst_amount = price_ex_gst * settings.gst_rate
+            price_inc_gst = price_ex_gst + gst_amount
+        
+        # Round to 2 decimal places
+        price_ex_gst = price_ex_gst.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        gst_amount = gst_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        price_inc_gst = price_inc_gst.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        
+        return {
+            'stored_price': self.registration_fee,
+            'price_ex_gst': price_ex_gst,
+            'gst_amount': gst_amount,
+            'price_inc_gst': price_inc_gst,
+            'display_price': self.registration_fee,
+            'includes_gst': settings.prices_include_gst,
+            'gst_rate': settings.gst_rate,
+            'gst_label': settings.gst_label
+        }
+    
+    def get_price_display(self, show_gst_label=True):
+        """Get formatted price display with GST label"""
+        from core.models import OrganisationSettings
+        
+        settings = OrganisationSettings.get_instance()
+        formatted_price = f"${self.price:,.2f}"
+        
+        if show_gst_label:
+            gst_label = " (inc GST)" if settings.prices_include_gst else " (ex GST)"
+            formatted_price += gst_label
+        
+        return formatted_price
+    
+    def get_total_course_fee_breakdown(self):
+        """Get total course fee including registration fee with GST breakdown"""
+        from decimal import Decimal
+        
+        course_breakdown = self.get_price_breakdown()
+        total_breakdown = {
+            'course_fee_ex_gst': course_breakdown['price_ex_gst'],
+            'course_fee_gst': course_breakdown['gst_amount'],
+            'course_fee_inc_gst': course_breakdown['price_inc_gst'],
+            'registration_fee_ex_gst': Decimal('0.00'),
+            'registration_fee_gst': Decimal('0.00'),  
+            'registration_fee_inc_gst': Decimal('0.00'),
+            'total_ex_gst': course_breakdown['price_ex_gst'],
+            'total_gst': course_breakdown['gst_amount'],
+            'total_inc_gst': course_breakdown['price_inc_gst'],
+            'includes_gst': course_breakdown['includes_gst'],
+            'gst_rate': course_breakdown['gst_rate'],
+            'gst_label': course_breakdown['gst_label']
+        }
+        
+        # Add registration fee if exists
+        if self.registration_fee:
+            reg_breakdown = self.get_registration_fee_breakdown()
+            total_breakdown.update({
+                'registration_fee_ex_gst': reg_breakdown['price_ex_gst'],
+                'registration_fee_gst': reg_breakdown['gst_amount'],
+                'registration_fee_inc_gst': reg_breakdown['price_inc_gst'],
+                'total_ex_gst': course_breakdown['price_ex_gst'] + reg_breakdown['price_ex_gst'],
+                'total_gst': course_breakdown['gst_amount'] + reg_breakdown['gst_amount'],
+                'total_inc_gst': course_breakdown['price_inc_gst'] + reg_breakdown['price_inc_gst']
+            })
+        
+        return total_breakdown
 
 
 class Class(models.Model):

@@ -402,7 +402,7 @@ document.addEventListener('DOMContentLoaded', function() {
             searchResults.innerHTML = '<div class="student-search-item text-muted">No students found</div>';
         } else {
             searchResults.innerHTML = results.map(student => `
-                <div class="student-search-item" onclick="selectStudent(${student.id}, '${student.name}', '${student.email}', '${student.phone}')">
+                <div class="student-search-item" data-student-id="${student.id}" data-student-name="${student.name}" data-student-email="${student.email}" data-student-phone="${student.phone}">
                     <div class="fw-bold">${student.name}</div>
                     <div class="small text-muted">${student.email} | ${student.phone}</div>
                 </div>
@@ -411,34 +411,84 @@ document.addEventListener('DOMContentLoaded', function() {
         searchResults.style.display = 'block';
     }
 
+    // Add event delegation for search result clicks
+    if (searchResults) {
+        searchResults.addEventListener('click', function(event) {
+            const studentItem = event.target.closest('.student-search-item');
+            if (studentItem && studentItem.dataset.studentId) {
+                const id = studentItem.dataset.studentId;
+                const name = studentItem.dataset.studentName;
+                const email = studentItem.dataset.studentEmail;
+                const phone = studentItem.dataset.studentPhone;
+                
+                window.selectStudent(id, name, email, phone);
+            }
+        });
+    }
+
     // Global function for student selection
     window.selectStudent = function(id, name, email, phone) {
-        // Set the hidden select field
-        studentSelect.value = id;
+        // Add error checking
+        if (!studentSelect) {
+            console.error('Student select element not found');
+            return;
+        }
+        if (!searchInput) {
+            console.error('Search input element not found');
+            return;
+        }
+        if (!selectedStudentInfo || !selectedStudentDetails) {
+            console.error('Selected student info elements not found');
+            return;
+        }
         
-        // Update the search input
-        searchInput.value = name;
-        
-        // Show selected student info
-        selectedStudentDetails.innerHTML = `
-            <div class="row">
-                <div class="col-md-4"><strong>Name:</strong><br>${name}</div>
-                <div class="col-md-4"><strong>Email:</strong><br>${email}</div>
-                <div class="col-md-4"><strong>Phone:</strong><br>${phone}</div>
-            </div>
-        `;
-        selectedStudentInfo.style.display = 'block';
-        
-        // Hide search results
-        searchResults.style.display = 'none';
+        try {
+            // Set the hidden select field
+            studentSelect.value = id;
+            
+            // Update the search input
+            searchInput.value = name;
+            
+            // Show selected student info
+            selectedStudentDetails.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4"><strong>Name:</strong><br>${name}</div>
+                    <div class="col-md-4"><strong>Email:</strong><br>${email}</div>
+                    <div class="col-md-4"><strong>Phone:</strong><br>${phone}</div>
+                </div>
+            `;
+            selectedStudentInfo.style.display = 'block';
+            
+            // Hide search results
+            if (searchResults) {
+                searchResults.style.display = 'none';
+            }
+            
+            console.log('Student selected successfully:', name);
+        } catch (error) {
+            console.error('Error selecting student:', error);
+        }
     };
 
     // Global function to clear student selection
     window.clearSelectedStudent = function() {
-        studentSelect.value = '';
-        searchInput.value = '';
-        selectedStudentInfo.style.display = 'none';
-        searchResults.style.display = 'none';
+        try {
+            if (studentSelect) {
+                studentSelect.value = '';
+            }
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            if (selectedStudentInfo) {
+                selectedStudentInfo.style.display = 'none';
+            }
+            if (searchResults) {
+                searchResults.style.display = 'none';
+            }
+            console.log('Student selection cleared successfully');
+        } catch (error) {
+            console.error('Error clearing student selection:', error);
+        }
     };
 
     // Hide search results when clicking outside

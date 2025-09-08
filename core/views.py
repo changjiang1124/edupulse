@@ -21,7 +21,7 @@ from students.models import Student
 from academics.models import Course, Class
 from facilities.models import Facility, Classroom
 from enrollment.models import Enrollment, Attendance
-from .models import ClockInOut, EmailSettings, SMSSettings, EmailLog, SMSLog, NotificationQuota, TeacherAttendance
+from .models import ClockInOut, EmailSettings, SMSSettings, EmailLog, SMSLog, NotificationQuota, TeacherAttendance, OrganisationSettings
 from .forms import EmailSettingsForm, TestEmailForm, SMSSettingsForm, TestSMSForm, NotificationForm, BulkNotificationForm
 from .utils.gps_utils import (
     verify_teacher_location, 
@@ -1253,3 +1253,112 @@ class MonthlyTimesheetView(LoginRequiredMixin, View):
             logger.error(f"Monthly timesheet export error: {str(e)}")
             messages.error(request, f'Monthly export failed: {str(e)}')
             return redirect('core:timesheet_export')
+
+
+# Organisation Settings Views
+
+@login_required
+def organisation_settings_view(request):
+    """Organisation settings management view"""
+    
+    # Check if user is admin
+    if not request.user.is_superuser and request.user.role != 'admin':
+        messages.error(request, 'Only administrators can access organisation settings.')
+        return redirect('core:dashboard')
+    
+    # Get or create organisation settings instance
+    org_settings = OrganisationSettings.get_instance()
+    
+    if request.method == 'POST':
+        # Handle form submission
+        organisation_name = request.POST.get('organisation_name')
+        abn_number = request.POST.get('abn_number')
+        contact_email = request.POST.get('contact_email')
+        contact_phone = request.POST.get('contact_phone')
+        prices_include_gst = request.POST.get('prices_include_gst') == 'on'
+        gst_rate = request.POST.get('gst_rate')
+        show_gst_breakdown = request.POST.get('show_gst_breakdown') == 'on'
+        gst_label = request.POST.get('gst_label')
+        
+        try:
+            # Update organisation settings
+            org_settings.organisation_name = organisation_name
+            org_settings.abn_number = abn_number
+            org_settings.contact_email = contact_email
+            org_settings.contact_phone = contact_phone
+            org_settings.prices_include_gst = prices_include_gst
+            org_settings.gst_rate = Decimal(gst_rate)
+            org_settings.show_gst_breakdown = show_gst_breakdown
+            org_settings.gst_label = gst_label
+            org_settings.updated_by = request.user
+            org_settings.save()
+            
+            messages.success(request, 'Organisation settings updated successfully.')
+            return redirect('core:organisation_settings')
+            
+        except (ValueError, InvalidOperation) as e:
+            messages.error(request, f'Invalid GST rate: {str(e)}')
+        except Exception as e:
+            messages.error(request, f'Error updating settings: {str(e)}')
+    
+    context = {
+        'org_settings': org_settings,
+        'page_title': 'Organisation Settings'
+    }
+    
+    return render(request, 'core/settings/organisation.html', context)
+
+
+@require_http_methods(['POST'])
+@login_required
+def test_gst_calculation(request):
+    """AJAX view to test GST calculation with current settings"""
+    
+    # Check if user is admin
+    if not request.user.is_superuser and request.user.role != 'admin':
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        test_price = Decimal(request.POST.get('test_price', '100.00'))
+        prices_include_gst = request.POST.get('prices_include_gst') == 'true'
+        gst_rate = Decimal(request.POST.get('gst_rate', '0.10'))
+        
+        # Calculate GST breakdown
+        if prices_include_gst:
+            # Price includes GST - extract GST amount
+            price_inc_gst = test_price
+            gst_amount = price_inc_gst / (1 + gst_rate) * gst_rate
+            price_ex_gst = price_inc_gst - gst_amount
+        else:
+            # Price excludes GST - calculate GST amount
+            price_ex_gst = test_price
+            gst_amount = price_ex_gst * gst_rate
+            price_inc_gst = price_ex_gst + gst_amount
+        
+        # Round to 2 decimal places
+        price_ex_gst = price_ex_gst.quantize(Decimal('0.01'))
+        gst_amount = gst_amount.quantize(Decimal('0.01'))
+        price_inc_gst = price_inc_gst.quantize(Decimal('0.01'))
+        
+        return JsonResponse({
+            'success': True,
+            'breakdown': {
+                'input_price': float(test_price),
+                'price_ex_gst': float(price_ex_gst),
+                'gst_amount': float(gst_amount),
+                'price_inc_gst': float(price_inc_gst),
+                'gst_rate_percentage': float(gst_rate * 100),
+                'includes_gst': prices_include_gst
+            }
+        })
+        
+    except (ValueError, InvalidOperation) as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Invalid input: {str(e)}'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

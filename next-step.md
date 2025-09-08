@@ -3,7 +3,7 @@ students related to a certain class should be edited manually as well, due to so
 
 ## for next step implementation 
 [x] in course detail page, should we change the layout of description as it is rich content with potential images and other html content? or is there any other better layout structure for the course detail page?
-  - [ ] need test
+  - [x] need test
 - staff edit/ create, when click update, the page has no response, and not take effect. check if similar issues in other modules. 
   - [ ] need test 
 
@@ -110,8 +110,29 @@ create:
 
 - [ ] when add class from course detail page, the class creation form should have course prefilled to avoid user mistake. and make the course select fields disabled. -- trae WIP. 
 
-- [ ] in the course detail page, there should be a enrolment public url copy button, to copy the url to clipboard and share. this enrolment url should be publicly accessible, while there is a arg to specify the course selection. this should be the same when used as `enrol now` button link when synchronise with WooCommerce.  
+- [x] in the course detail page, there should be a enrolment public url copy button, to copy the url to clipboard and share. this enrolment url should be publicly accessible, while there is a arg to specify the course selection. this should be the same when used as `enrol now` button link when synchronise with WooCommerce.  --WIP 
+  - [ ] test copy 
+  - [ ] test public access with preselected course.
+  - [ ] test woocommerce button link with preselected course.
 
 - [x] enrolment should be able to added from course detail page, with a button to add enrolment. and the enrolment form should have course prefilled to avoid user mistake. and make the course select fields disabled. noted the enrolment form should be for operator of the organisatoin, able to cover all the fields. but to make it user friendly, first we need the operator to select student by search to find, if not exists, create a new student first. and in the enrolment, let the operator check if this enrolment has registration fee or not. and default with pending status, which mean after the enrolment created with pending, the email for enrolment confirmation will be sent to the contact of the enrolment, along with the right amount of fee. as there is a enrolment creation under enrolment page `/enroll/enrollments/create/`, you should refine this part as well, because the only different is course selection is prefilled or not. the rest of requirmenets are exactly the same.  -- claude code planning 
 
 - [x] the single session class should have add class as well, to keep the consistency of interaction, but it can only create one. which means either it was created along with the course creation, or added thru the interaction in the course detail page. and the class creation form should have course prefilled to avoid user mistake. and make the course select fields disabled.
+
+- [x] considering australia has GST, we should have Price include GST in organisational setting, so as the price shown in woocommerce product page. and in the enrolment submission confirmation email, we should indicate the price include GST or not. marked as checked by default. and check if you have any additional logic relevant to this to be added.
+  - [] test GST setting in organisational setting, and course price shown in woocommerce product page.
+  - [] test enrolment submission confirmation email, indicate the price include GST or not.
+  - [] test course create and edit, with price include GST or not.
+  - [] test enrolment creation by operator, with registration fee included in the total amount 
+
+
+### enrolment
+- [ ] after submission, the email should include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the course should have a new enrolment added as well, with pending status. and the vacancy should not be changed until the enrolment is confirmed by operator.
+
+
+### settings 
+- [ ] SMS configuration should be only visible to admin user of the organisation, so as the email configuration.
+- [ ] the staff user should only be able to see their profile and change password, see their upcoming classes with students, and mark attendance, and clock in and out
+
+
+to test the email and phone notification, make emails "changjiang1124@gmail.com". if with unique restraints, use +random to create email (e.g. changjiang1124+423452@gmail.com). and phone number with "0401909771"                                 

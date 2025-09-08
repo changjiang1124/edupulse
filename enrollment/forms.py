@@ -445,8 +445,8 @@ class StaffEnrollmentForm(forms.ModelForm):
         fields = ['student', 'course', 'status', 'source_channel']
         widgets = {
             'student': forms.Select(attrs={
-                'class': 'form-select',
-                'style': 'display: none;'  # Hidden by default, shown when student is selected
+                'class': 'form-select d-none',  # Hidden by default using Bootstrap class
+                'required': False  # Remove browser-level required validation since we handle it manually
             }),
             'course': forms.Select(attrs={
                 'class': 'form-select'
@@ -466,6 +466,12 @@ class StaffEnrollmentForm(forms.ModelForm):
         # Set default values
         self.fields['status'].initial = 'pending'
         self.fields['source_channel'].initial = 'staff'
+        
+        # Configure student field for search functionality
+        self.fields['student'].required = False  # Disable Django form-level validation
+        self.fields['student'].widget.attrs.update({
+            'required': False  # Remove HTML5 required attribute
+        })
         
         # Handle course pre-selection
         if self.course_id:
@@ -686,7 +692,8 @@ class StudentSearchForm(forms.Form):
         initial=10,
         min_value=1,
         max_value=50,
-        widget=forms.HiddenInput()
+        widget=forms.HiddenInput(),
+        required=False  # Make this field optional
     )
     
     def search_students(self):

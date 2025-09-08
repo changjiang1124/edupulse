@@ -1,0 +1,84 @@
+{% load price_tags %}
+
+<div class="price-breakdown-wrapper">
+    <div class="course-price-info">
+        <div class="price-display">
+            <span class="price-amount">{{ breakdown.price_inc_gst|currency }}</span>
+            <span class="gst-label text-muted small">
+                {% if breakdown.includes_gst %}
+                    (inc {{ breakdown.gst_label }})
+                {% else %}
+                    (ex {{ breakdown.gst_label }})
+                {% endif %}
+            </span>
+        </div>
+        
+        {% if show_details %}
+            <div class="price-details mt-2">
+                <small class="text-muted">
+                    <div class="row">
+                        <div class="col-6">Price (ex {{ breakdown.gst_label }}):</div>
+                        <div class="col-6 text-end">{{ breakdown.price_ex_gst|currency }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">{{ breakdown.gst_label }} ({{ breakdown.gst_rate|percentage }}):</div>
+                        <div class="col-6 text-end">{{ breakdown.gst_amount|currency }}</div>
+                    </div>
+                    <div class="row border-top pt-1">
+                        <div class="col-6"><strong>Total (inc {{ breakdown.gst_label }}):</strong></div>
+                        <div class="col-6 text-end"><strong>{{ breakdown.price_inc_gst|currency }}</strong></div>
+                    </div>
+                </small>
+            </div>
+        {% endif %}
+        
+        {% if show_registration_fee and course.registration_fee %}
+            <div class="registration-fee mt-3">
+                <h6 class="text-muted">Registration Fee</h6>
+                <div class="price-display">
+                    <span class="price-amount">{{ reg_breakdown.price_inc_gst|currency }}</span>
+                    <span class="gst-label text-muted small">
+                        {% if reg_breakdown.includes_gst %}
+                            (inc {{ reg_breakdown.gst_label }})
+                        {% else %}
+                            (ex {{ reg_breakdown.gst_label }})
+                        {% endif %}
+                    </span>
+                </div>
+                
+                {% if show_details %}
+                    <div class="price-details mt-2">
+                        <small class="text-muted">
+                            <div class="row">
+                                <div class="col-6">Registration (ex {{ reg_breakdown.gst_label }}):</div>
+                                <div class="col-6 text-end">{{ reg_breakdown.price_ex_gst|currency }}</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6">{{ reg_breakdown.gst_label }} ({{ reg_breakdown.gst_rate|percentage }}):</div>
+                                <div class="col-6 text-end">{{ reg_breakdown.gst_amount|currency }}</div>
+                            </div>
+                            <div class="row border-top pt-1">
+                                <div class="col-6"><strong>Total (inc {{ reg_breakdown.gst_label }}):</strong></div>
+                                <div class="col-6 text-end"><strong>{{ reg_breakdown.price_inc_gst|currency }}</strong></div>
+                            </div>
+                        </small>
+                    </div>
+                {% endif %}
+                
+                <div class="total-course-fee mt-3 p-2 bg-light rounded">
+                    <div class="row">
+                        <div class="col-6"><strong>Total Course Fee:</strong></div>
+                        <div class="col-6 text-end"><strong>{{ total_breakdown.total_inc_gst|currency }}</strong></div>
+                    </div>
+                    <small class="text-muted">
+                        {% if total_breakdown.includes_gst %}
+                            (inc {{ total_breakdown.gst_label }})
+                        {% else %}
+                            (ex {{ total_breakdown.gst_label }})
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>

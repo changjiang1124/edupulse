@@ -13,12 +13,34 @@ Duration: {{ course.duration_display }}
 Start Date: {{ course.start_date|date:"d F Y" }}
 {% if course.course_type == 'multiple' %}End Date: {{ course.end_date|date:"d F Y" }}{% endif %}
 
+{% load price_tags %}
 {% if not is_fully_paid %}
 FEE INFORMATION
 ===============
-Course Fee: ${{ enrollment.course_fee|floatformat:2 }}
-{% if enrollment.registration_fee %}Registration Fee: ${{ enrollment.registration_fee|floatformat:2 }}{% endif %}
-Total Outstanding: ${{ outstanding_fee|floatformat:2 }}
+Course Fee: {% price_with_gst_label course.price %}
+{% if course.registration_fee %}Registration Fee: {% price_with_gst_label course.registration_fee %}{% endif %}
+
+{% gst_config as gst_settings %}
+{% if gst_settings.show_breakdown %}
+TAX BREAKDOWN
+=============
+{% with course.get_price_breakdown as course_breakdown %}
+Course (ex {{ gst_settings.label }}): {{ course_breakdown.price_ex_gst|currency }}
+{{ gst_settings.label }} ({{ gst_settings.rate|percentage }}): {{ course_breakdown.gst_amount|currency }}
+{% endwith %}
+{% if course.registration_fee %}
+{% with course.get_registration_fee_breakdown as reg_breakdown %}
+Registration (ex {{ gst_settings.label }}): {{ reg_breakdown.price_ex_gst|currency }}
+{{ gst_settings.label }} on registration: {{ reg_breakdown.gst_amount|currency }}
+{% endwith %}
+
+{% with course.get_total_course_fee_breakdown as total_breakdown %}
+Total {{ gst_settings.label }}: {{ total_breakdown.total_gst|currency }}
+{% endwith %}
+{% endif %}
+{% endif %}
+
+Total Outstanding: {{ outstanding_fee|currency }} {% if gst_settings.includes_gst %}(inc {{ gst_settings.label }}){% else %}(ex {{ gst_settings.label }}){% endif %}
 
 NEXT STEPS
 ==========

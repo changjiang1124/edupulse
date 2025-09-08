@@ -86,7 +86,25 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
     model = Course
     form_class = CourseUpdateForm
     template_name = 'core/courses/form.html'
+    
+    def form_valid(self, form):
+        # Save course changes
+        response = super().form_valid(form)
+        # Handle class update logic
+        update_existing = form.cleaned_data.get('update_existing_classes', False)
+        if update_existing:
+            self.object.update_related_classes()
+        return response
 
+    def get_success_url(self):
+        return reverse('academics:course_detail', kwargs={'pk': self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_edit_mode'] = True
+        context['existing_classes'] = self.object.classes.order_by('date', 'start_time')
+        return context
+    
     def form_valid(self, form):
         response = super().form_valid(form)
         
@@ -132,14 +150,14 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
             messages.success(self.request, f'Course updated successfully!')
         
         return response
-
+    
     def get_success_url(self):
         return reverse_lazy('academics:course_detail', kwargs={'pk': self.object.pk})
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Add information about existing classes (counts)
+        # Add information about existing classes
         if self.object and self.object.pk:
             context['existing_classes'] = self.object.classes.filter(
                 is_active=True,

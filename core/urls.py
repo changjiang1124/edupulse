@@ -41,6 +41,10 @@ urlpatterns = [
     path('settings/sms/send-test/', views.send_test_sms, name='send_test_sms'),
     path('settings/sms/logs/', views.sms_logs_view, name='sms_logs'),
     
+    # Organisation settings URLs
+    path('settings/organisation/', views.organisation_settings_view, name='organisation_settings'),
+    path('settings/organisation/test-gst/', views.test_gst_calculation, name='test_gst_calculation'),
+    
     # Notification system URLs
     path('notifications/send/', views.send_notification_view, name='send_notification'),
     path('notifications/quotas/', views.get_notification_quotas, name='get_notification_quotas'),

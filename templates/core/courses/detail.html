@@ -69,6 +69,10 @@
                 
                 <!-- Admin Actions (Right) -->
                 <div class="btn-group">
+                    <!-- Copy Public Enrollment URL Button -->
+                    <button type="button" class="btn btn-info" onclick="copyEnrollmentUrl()" title="Copy Public Enrollment URL">
+                        <i class="fas fa-link me-2"></i>Copy Enrol Link
+                    </button>
                     <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-light">
                         <i class="fas fa-edit me-2"></i>Edit Course
                     </a>
@@ -391,4 +395,91 @@
     </div>
 </div>
 
+<!-- Toast notification for copy feedback -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="copySuccessToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="fas fa-check-circle text-success me-2"></i>
+            <strong class="me-auto">Success</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            Enrollment URL copied to clipboard!
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Global function to copy enrollment URL
+    window.copyEnrollmentUrl = async function() {
+        // Generate the full public enrollment URL
+        const enrollmentUrl = "{{ request.build_absolute_uri }}{% url 'enrollment:public_enrollment_with_course' course.pk %}";
+        
+        try {
+            // Modern Clipboard API (preferred method)
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(enrollmentUrl);
+                showCopySuccess();
+            } else {
+                // Fallback for older browsers
+                copyToClipboardFallback(enrollmentUrl);
+            }
+        } catch (error) {
+            console.error('Failed to copy URL:', error);
+            showCopyError();
+        }
+    };
+
+    // Fallback copy method for older browsers
+    function copyToClipboardFallback(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'absolute';
+        textArea.style.left = '-999999px';
+        
+        document.body.prepend(textArea);
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            showCopySuccess();
+        } catch (error) {
+            console.error('Fallback copy failed:', error);
+            showCopyError();
+        } finally {
+            textArea.remove();
+        }
+    }
+
+    // Show success notification
+    function showCopySuccess() {
+        const toast = new bootstrap.Toast(document.getElementById('copySuccessToast'));
+        toast.show();
+        
+        // Temporarily change button text to show success
+        const button = document.querySelector('button[onclick="copyEnrollmentUrl()"]');
+        if (button) {
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+            button.classList.remove('btn-info');
+            button.classList.add('btn-success');
+            
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-info');
+            }, 2000);
+        }
+    }
+
+    // Show error notification
+    function showCopyError() {
+        alert('Failed to copy URL to clipboard. Please copy manually: {{ request.build_absolute_uri }}{% url "enrollment:public_enrollment_with_course" course.pk %}');
+    }
+});
+</script>
 {% endblock %}

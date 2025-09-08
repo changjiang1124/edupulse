@@ -1,0 +1,108 @@
+{% load price_tags %}
+
+<div class="enrollment-fee-breakdown">
+    <div class="course-fee-section">
+        <h6 class="mb-2">Course Fee</h6>
+        <div class="fee-item d-flex justify-content-between">
+            <span>{{ enrollment.course.name }}</span>
+            <span>{{ course_breakdown.price_inc_gst|currency }}
+                <small class="text-muted">
+                    {% if course_breakdown.includes_gst %}
+                        (inc {{ course_breakdown.gst_label }})
+                    {% else %}
+                        (ex {{ course_breakdown.gst_label }})
+                    {% endif %}
+                </small>
+            </span>
+        </div>
+        
+        {% if show_details %}
+            <div class="fee-details mt-2">
+                <small class="text-muted">
+                    <div class="d-flex justify-content-between">
+                        <span>Course fee (ex {{ course_breakdown.gst_label }}):</span>
+                        <span>{{ course_breakdown.price_ex_gst|currency }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>{{ course_breakdown.gst_label }} ({{ course_breakdown.gst_rate|percentage }}):</span>
+                        <span>{{ course_breakdown.gst_amount|currency }}</span>
+                    </div>
+                </small>
+            </div>
+        {% endif %}
+    </div>
+    
+    {% if enrollment.course.registration_fee %}
+        <div class="registration-fee-section mt-3">
+            <h6 class="mb-2">Registration Fee</h6>
+            <div class="fee-item d-flex justify-content-between">
+                <span>New Student Registration</span>
+                <span>{{ reg_breakdown.price_inc_gst|currency }}
+                    <small class="text-muted">
+                        {% if reg_breakdown.includes_gst %}
+                            (inc {{ reg_breakdown.gst_label }})
+                        {% else %}
+                            (ex {{ reg_breakdown.gst_label }})
+                        {% endif %}
+                    </small>
+                </span>
+            </div>
+            
+            {% if show_details %}
+                <div class="fee-details mt-2">
+                    <small class="text-muted">
+                        <div class="d-flex justify-content-between">
+                            <span>Registration (ex {{ reg_breakdown.gst_label }}):</span>
+                            <span>{{ reg_breakdown.price_ex_gst|currency }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>{{ reg_breakdown.gst_label }} ({{ reg_breakdown.gst_rate|percentage }}):</span>
+                            <span>{{ reg_breakdown.gst_amount|currency }}</span>
+                        </div>
+                    </small>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+    
+    <div class="total-section mt-3 pt-2 border-top">
+        <div class="d-flex justify-content-between mb-2">
+            <strong>Total Fee:</strong>
+            <strong>{{ total_fee|currency }}
+                <small class="text-muted">
+                    {% if settings.prices_include_gst %}
+                        (inc {{ settings.gst_label }})
+                    {% else %}
+                        (ex {{ settings.gst_label }})
+                    {% endif %}
+                </small>
+            </strong>
+        </div>
+        
+        {% if outstanding_fee and outstanding_fee != total_fee %}
+            <div class="d-flex justify-content-between">
+                <span class="text-warning">Outstanding:</span>
+                <span class="text-warning">{{ outstanding_fee|currency }}</span>
+            </div>
+        {% endif %}
+        
+        {% if show_details and total_breakdown %}
+            <div class="total-breakdown mt-2">
+                <small class="text-muted">
+                    <div class="d-flex justify-content-between">
+                        <span>Total (ex {{ total_breakdown.gst_label }}):</span>
+                        <span>{{ total_breakdown.total_ex_gst|currency }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>{{ total_breakdown.gst_label }} ({{ total_breakdown.gst_rate|percentage }}):</span>
+                        <span>{{ total_breakdown.total_gst|currency }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between border-top pt-1">
+                        <strong>Total (inc {{ total_breakdown.gst_label }}):</strong>
+                        <strong>{{ total_breakdown.total_inc_gst|currency }}</strong>
+                    </div>
+                </small>
+            </div>
+        {% endif %}
+    </div>
+</div>
