@@ -180,6 +180,10 @@ class ClassListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = Class.objects.select_related('course', 'teacher', 'facility', 'classroom').filter(is_active=True)
         
+        # Filter by user role - teachers can only see their classes
+        if hasattr(self.request.user, 'role') and self.request.user.role == 'teacher':
+            queryset = queryset.filter(course__teacher=self.request.user)
+        
         # Filter by date range (show upcoming classes by default)
         date_filter = self.request.GET.get('filter', 'upcoming')
         if date_filter == 'upcoming':
@@ -203,6 +207,8 @@ class ClassListView(LoginRequiredMixin, ListView):
         context['filter'] = self.request.GET.get('filter', 'upcoming')
         context['search_query'] = self.request.GET.get('search', '')
         context['today'] = timezone.now().date()
+        # Add user role context for template logic
+        context['is_teacher'] = hasattr(self.request.user, 'role') and self.request.user.role == 'teacher'
         return context
 
 
@@ -270,6 +276,13 @@ class ClassDetailView(LoginRequiredMixin, DetailView):
     template_name = 'core/classes/detail.html'
     context_object_name = 'class'
     
+    def get_queryset(self):
+        """Override to ensure teachers can only access their own classes"""
+        queryset = super().get_queryset()
+        if hasattr(self.request.user, 'role') and self.request.user.role == 'teacher':
+            queryset = queryset.filter(course__teacher=self.request.user)
+        return queryset
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
@@ -316,6 +329,9 @@ class ClassDetailView(LoginRequiredMixin, DetailView):
             context['class_students'] = []
             context['attendances'] = []
             context['attendance_stats'] = {'present': 0, 'absent': 0, 'late': 0}
+        
+        # Add user role context for template logic
+        context['is_teacher'] = hasattr(self.request.user, 'role') and self.request.user.role == 'teacher'
         
         return context
 

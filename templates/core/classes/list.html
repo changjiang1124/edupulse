@@ -127,10 +127,12 @@
                                        class="btn btn-outline-primary" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
+                                    {% if user.role == 'admin' %}
                                     <a href="{% url 'academics:class_edit' class.pk %}" 
                                        class="btn btn-outline-secondary" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </a>
+                                    {% endif %}
                                     {% if class.date >= today %}
                                     <a href="{% url 'enrollment:attendance_mark' class.pk %}" 
                                        class="btn btn-outline-success" title="Mark Attendance">
@@ -183,11 +185,14 @@
                     <h5 class="text-muted">No classes found</h5>
                     <p class="text-muted mb-3">Try adjusting your search or filter criteria</p>
                     <a href="{% url 'academics:class_list' %}" class="btn btn-outline-primary me-2">Clear Filters</a>
+                    {% if user.role == 'admin' %}
                     <a href="{% url 'academics:class_add' %}" class="btn btn-primary">Add First Class</a>
+                    {% endif %}
                 {% else %}
                     <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
                     <h5 class="text-muted">No classes scheduled</h5>
                     <p class="text-muted mb-3">Start by creating a course and scheduling your first class</p>
+                    {% if user.role == 'admin' %}
                     <div class="d-flex gap-2 justify-content-center">
                         <a href="{% url 'academics:course_add' %}" class="btn btn-primary">
                             <i class="fas fa-book me-2"></i>Create Course
@@ -196,6 +201,7 @@
                             <i class="fas fa-plus me-2"></i>Add Class
                         </a>
                     </div>
+                    {% endif %}
                 {% endif %}
             </div>
         {% endif %}

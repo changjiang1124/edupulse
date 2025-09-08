@@ -15,6 +15,34 @@ class AdminRequiredMixin(UserPassesTestMixin):
         return self.request.user.is_authenticated and self.request.user.role == 'admin'
 
 
+class ProfileView(LoginRequiredMixin, DetailView):
+    """User profile view - shows current user's staff profile"""
+    model = Staff
+    template_name = 'core/staff/detail.html'
+    context_object_name = 'staff'
+    
+    def get_object(self):
+        # Always return the current user
+        return self.request.user
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Add teacher-related courses and classes - with try/except to avoid errors
+        try:
+            # Import here to avoid circular imports
+            from academics.models import Course, Class
+            context['taught_courses'] = Course.objects.filter(teacher=self.object, status='published')
+            context['taught_classes'] = Class.objects.filter(
+                course__teacher=self.object
+            ).select_related('course').order_by('-date')[:5]
+        except ImportError:
+            context['taught_courses'] = []
+            context['taught_classes'] = []
+        # Add context flag to indicate this is profile view
+        context['is_profile_view'] = True
+        return context
+
+
 class StaffListView(AdminRequiredMixin, ListView):
     model = Staff
     template_name = 'core/staff/list.html'

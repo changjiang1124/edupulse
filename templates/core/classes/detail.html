@@ -107,9 +107,11 @@
                     <i class="fas fa-arrow-left me-2"></i>Back to Classes
                 </a>
                 <div class="btn-group">
+                    {% if user.role == 'admin' %}
                     <a href="{% url 'academics:class_edit' class.pk %}" class="btn btn-primary">
                         <i class="fas fa-edit me-2"></i>Edit Class
                     </a>
+                    {% endif %}
                     <a href="{% url 'academics:course_detail' class.course.pk %}" class="btn btn-outline-primary">
                         <i class="fas fa-book me-2"></i>View Course
                     </a>

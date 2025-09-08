@@ -11,12 +11,14 @@
             <span class="badge {% if staff.role == 'admin' %}bg-danger{% else %}bg-primary{% endif %} me-2">
                 {{ staff.get_role_display }}
             </span>
-            Staff Member Details
+            {% if is_profile_view %}My Profile{% else %}Staff Member Details{% endif %}
         </p>
     </div>
     <div class="col-md-4 text-end">
+        {% if user.role == 'admin' and not is_profile_view %}
         <a href="{% url 'accounts:staff_edit' staff.pk %}" class="btn btn-primary">Edit Staff</a>
         <a href="{% url 'accounts:staff_list' %}" class="btn btn-outline-secondary">Back to Staff</a>
+        {% endif %}
     </div>
 </div>
 
@@ -242,6 +244,7 @@
         </div>
         
         <!-- Quick Actions -->
+        {% if user.role == 'admin' and not is_profile_view %}
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">Quick Actions</h5>
@@ -254,6 +257,23 @@
                 </div>
             </div>
         </div>
+        {% elif is_profile_view %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Profile Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'password_change' %}" class="btn btn-primary">Change Password</a>
+                    {% if staff.role == 'teacher' %}
+                    <a href="{% url 'core:teacher_clock' %}" class="btn btn-outline-info">Clock In/Out</a>
+                    <a href="{% url 'core:teacher_attendance_history' %}" class="btn btn-outline-success">My Attendance History</a>
+                    <a href="{% url 'academics:class_list' %}" class="btn btn-outline-secondary">My Classes</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

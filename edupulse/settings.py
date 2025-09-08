@@ -34,7 +34,7 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 # Define allowed hosts. For production, set this to your domain name in environment variables.
 # e.g., ALLOWED_HOSTS=edupulse.perthartschool.com.au
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
 
 
 # Production security settings

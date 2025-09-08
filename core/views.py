@@ -38,24 +38,53 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Statistics
-        context.update({
-            'total_students': Student.objects.filter(is_active=True).count(),
-            'total_courses': Course.objects.filter(status='published').count(),
-            'total_staff': Staff.objects.filter(is_active_staff=True).count(),
-            'pending_enrollments': Enrollment.objects.filter(status='pending').count(),
-            
-            # Upcoming classes
-            'upcoming_classes': Class.objects.filter(
-                date__gte=timezone.now().date(),
-                is_active=True
-            ).order_by('date', 'start_time')[:5],
-            
-            # Recent enrollments
-            'recent_enrollments': Enrollment.objects.select_related(
-                'student', 'course'
-            ).order_by('-created_at')[:5],
-        })
+        # Check user role for data filtering
+        is_teacher = hasattr(self.request.user, 'role') and self.request.user.role == 'teacher'
+        
+        # Statistics - filter based on user role
+        if is_teacher:
+            # Teachers see limited statistics relevant to their work
+            from academics.models import Course, Class
+            context.update({
+                'total_students': 0,  # Hide global student count for teachers
+                'total_courses': Course.objects.filter(teacher=self.request.user, status='published').count(),
+                'total_staff': 0,  # Hide staff count for teachers 
+                'pending_enrollments': 0,  # Hide global enrollment count for teachers
+                
+                # Teacher-specific upcoming classes
+                'upcoming_classes': Class.objects.filter(
+                    course__teacher=self.request.user,
+                    date__gte=timezone.now().date(),
+                    is_active=True
+                ).order_by('date', 'start_time')[:5],
+                
+                # Recent enrollments for teacher's courses only
+                'recent_enrollments': Enrollment.objects.filter(
+                    course__teacher=self.request.user
+                ).select_related('student', 'course').order_by('-created_at')[:5],
+            })
+        else:
+            # Admin users see full statistics
+            context.update({
+                'total_students': Student.objects.filter(is_active=True).count(),
+                'total_courses': Course.objects.filter(status='published').count(),
+                'total_staff': Staff.objects.filter(is_active_staff=True).count(),
+                'pending_enrollments': Enrollment.objects.filter(status='pending').count(),
+                
+                # Upcoming classes for all courses
+                'upcoming_classes': Class.objects.filter(
+                    date__gte=timezone.now().date(),
+                    is_active=True
+                ).order_by('date', 'start_time')[:5],
+                
+                # Recent enrollments for all courses
+                'recent_enrollments': Enrollment.objects.select_related(
+                    'student', 'course'
+                ).order_by('-created_at')[:5],
+            })
+        
+        # Add role context for template logic
+        context['is_teacher'] = is_teacher
         
         return context
 

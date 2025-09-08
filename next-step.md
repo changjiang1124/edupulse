@@ -132,7 +132,17 @@ create:
 
 ### settings 
 - [ ] SMS configuration should be only visible to admin user of the organisation, so as the email configuration.
-- [ ] the staff user should only be able to see their profile and change password, see their upcoming classes with students, and mark attendance, and clock in and out
+- [x] the staff user should only be able to see their profile and change password, see their upcoming classes with students, and mark attendance, and clock in and out. ref: 00-plans/staff-teacher-portal-minimal-changes.md. -- WIP 
+  - [ ] test staff user can only see their profile and change password, see their upcoming classes with students, and mark attendance, and clock in and out.
+  - [ ] test admin user can see all settings including SMS and email configuration.
+  - [ ] test email and SMS configuration only visible to admin user of the organisation.
+  - [ ] test staff user cannot see SMS and email configuration.
+  - [ ] test admin user can see all staff and their details.
+  - [ ] test staff user can only see their own details.
+  - [ ] test staff user can change their own password.
+  - [ ] test staff user can see their upcoming classes with students.
+  - [ ] test staff user can mark attendance for their classes.
+  - [ ] test staff user can clock in and out.
 
 
-to test the email and phone notification, make emails "changjiang1124@gmail.com". if with unique restraints, use +random to create email (e.g. changjiang1124+423452@gmail.com). and phone number with "0401909771"                                 
+                                

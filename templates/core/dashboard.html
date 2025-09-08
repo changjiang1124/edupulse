@@ -105,9 +105,11 @@
                 {% else %}
                     <div class="text-center py-4">
                         <p class="text-muted mb-3">No upcoming classes scheduled</p>
+                        {% if user.role == 'admin' %}
                         <a href="{% url 'academics:class_add' %}" class="btn btn-primary">
                             Add Class
                         </a>
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>
@@ -165,6 +167,7 @@
                 <h5 class="mb-0">Quick Actions</h5>
             </div>
             <div class="card-body">
+                {% if user.role == 'admin' %}
                 <div class="row g-3">
                     <div class="col-md-3">
                         <a href="{% url 'students:student_add' %}" class="btn btn-primary w-100 py-3">
@@ -178,15 +181,34 @@
                     </div>
                     <div class="col-md-3">
                         <a href="{% url 'enrollment:attendance_list' %}" class="btn btn-primary w-100 py-3">
-                            Mark Attendance
+                            Attendance Reports
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="{% url 'core:clockinout' %}" class="btn btn-primary w-100 py-3">
-                            Staff Clock In/Out
+                        <a href="{% url 'enrollment:enrollment_create' %}" class="btn btn-primary w-100 py-3">
+                            Manual Enrollment
                         </a>
                     </div>
                 </div>
+                {% else %}
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <a href="{% url 'academics:class_list' %}" class="btn btn-primary w-100 py-3">
+                            My Classes
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{% url 'core:teacher_clock' %}" class="btn btn-primary w-100 py-3">
+                            Clock In/Out
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{% url 'core:teacher_attendance_history' %}" class="btn btn-primary w-100 py-3">
+                            My Attendance
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

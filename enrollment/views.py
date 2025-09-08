@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.views.generic import (
     ListView, DetailView, TemplateView, CreateView, UpdateView, DeleteView, View
@@ -13,6 +13,12 @@ from .models import Enrollment, Attendance
 from .forms import EnrollmentForm, PublicEnrollmentForm, StaffEnrollmentForm, QuickStudentCreateForm
 from students.models import Student
 from academics.models import Course
+
+
+class AdminRequiredMixin(UserPassesTestMixin):
+    """Admin permission check mixin"""
+    def test_func(self):
+        return self.request.user.is_authenticated and self.request.user.role == 'admin'
 
 
 class EnrollmentListView(LoginRequiredMixin, ListView):
@@ -129,7 +135,7 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
         return redirect('enrollment:enrollment_detail', pk=self.object.pk)
 
 
-class AttendanceListView(LoginRequiredMixin, ListView):
+class AttendanceListView(AdminRequiredMixin, ListView):
     model = Attendance
     template_name = 'core/attendance/list.html'
     context_object_name = 'attendance_records'
@@ -640,6 +646,12 @@ class AttendanceMarkView(LoginRequiredMixin, View):
         from academics.models import Class
         class_instance = get_object_or_404(Class, pk=class_id)
         
+        # Permission check - admin can access all classes, teachers only their own
+        if (hasattr(request.user, 'role') and request.user.role == 'teacher' and 
+            class_instance.course.teacher != request.user):
+            messages.error(request, 'You can only mark attendance for your own classes.')
+            return redirect('academics:class_list')
+        
         context = self.get_context_data(class_instance)
         return render(request, self.template_name, context)
     
@@ -649,6 +661,13 @@ class AttendanceMarkView(LoginRequiredMixin, View):
         from .forms import BulkAttendanceForm
         
         class_instance = get_object_or_404(Class, pk=class_id)
+        
+        # Permission check - admin can access all classes, teachers only their own
+        if (hasattr(request.user, 'role') and request.user.role == 'teacher' and 
+            class_instance.course.teacher != request.user):
+            messages.error(request, 'You can only mark attendance for your own classes.')
+            return redirect('academics:class_list')
+        
         form = BulkAttendanceForm(request.POST, class_instance=class_instance)
         
         if form.is_valid():
