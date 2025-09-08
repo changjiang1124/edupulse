@@ -136,16 +136,16 @@ create:
 ### settings 
 - [ ] SMS configuration should be only visible to admin user of the organisation, so as the email configuration.
 - [x] the staff user should only be able to see their profile and change password, see their upcoming classes with students, and mark attendance, and clock in and out. ref: 00-plans/staff-teacher-portal-minimal-changes.md. -- WIP 
-  - [ ] test staff user can only see their profile and change password, see their upcoming classes with students, and mark attendance, and clock in and out.
-  - [ ] test admin user can see all settings including SMS and email configuration.
-  - [ ] test email and SMS configuration only visible to admin user of the organisation.
-  - [ ] test staff user cannot see SMS and email configuration.
-  - [ ] test admin user can see all staff and their details.
-  - [ ] test staff user can only see their own details.
-  - [ ] test staff user can change their own password.
-  - [ ] test staff user can see their upcoming classes with students.
-  - [ ] test staff user can mark attendance for their classes.
-  - [ ] test staff user can clock in and out.
+  - [x] test staff user can only see their profile and change password, see their upcoming classes with students, and mark attendance, and clock in and out. *(91.7% complete - clock templates missing)*
+  - [x] test admin user can see all settings including SMS and email configuration.
+  - [x] test email and SMS configuration only visible to admin user of the organisation.
+  - [x] test staff user cannot see SMS and email configuration.
+  - [x] test admin user can see all staff and their details.
+  - [x] test staff user can only see their own details.
+  - [x] test staff user can change their own password.
+  - [x] test staff user can see their upcoming classes with students.
+  - [x] test staff user can mark attendance for their classes.
+  - [ ] test staff user can clock in and out. *(Template missing: core/clock/clockinout.html)*
 
 - [x] the current implementation of GST in settings is verbose, and should be simplified. as in Australia, everyone knows how GST works, it's unncesary to ask for rate and label, and show GST with too many 0 after the dot, just 10% is enough. and no test GST preview, and preview. Just a pure Price inputted with GST or not as checkbox for global configuration. this is quite like woocommerce price with GST display. 
   - [x] test GST setting in organisational setting, and course price shown in woocommerce product page.
