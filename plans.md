@@ -1,3 +1,10 @@
+## Enrollment URL Enhancement (2025-09-08)
+- **课程特定报名URL功能**: 实现了通过查询参数预选课程的功能
+  - 修改 `PublicEnrollmentView` 支持 `?course=123` 查询参数
+  - 更新课程详情页面的复制URL功能，使用查询参数格式
+  - 报名表单现在可以自动预选指定的课程
+  - URL格式: `/enroll/public?course=123` 而不是 `/enroll/public/course/123/`
+
 ## Bug Fixes (2025-09-08)
 - 修复首页 Dashboard UnboundLocalError：移除 core/views.py 中 DashboardView.get_context_data 内部的局部导入，避免遮蔽顶层导入变量，已本地验证通过。
 

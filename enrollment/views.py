@@ -436,8 +436,8 @@ class PublicEnrollmentView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Get course_id from URL if present
-        course_id = self.kwargs.get('course_id')
+        # Get course_id from URL path parameter or query parameter
+        course_id = self.kwargs.get('course_id') or self.request.GET.get('course')
         selected_course = None
         
         # Only show published courses that allow online bookings
@@ -468,8 +468,8 @@ class PublicEnrollmentView(TemplateView):
     def post(self, request, *args, **kwargs):
         form = PublicEnrollmentForm(request.POST)
         
-        # Get course_id from URL if present
-        course_id = self.kwargs.get('course_id')
+        # Get course_id from URL path parameter or query parameter
+        course_id = self.kwargs.get('course_id') or request.GET.get('course')
         selected_course = None
         
         courses = Course.objects.filter(status='published', is_online_bookable=True).order_by('name')

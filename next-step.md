@@ -128,7 +128,7 @@ create:
 
 ### enrolment
 - [ ] after submission, the email should include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the course should have a new enrolment added as well, with pending status. and the vacancy should not be changed until the enrolment is confirmed by operator.
-- [ ] The enrollment URL copied from course detail page should be identical to the public enrollment URL, with the only addition being a course ID parameter. When accessing this URL, the course selection dropdown should automatically pre-select the specified course. For example:
+- [x] The enrollment URL copied from course detail page should be identical to the public enrollment URL, with the only addition being a course ID parameter. When accessing this URL, the course selection dropdown should automatically pre-select the specified course. For example:
   - Public enrollment URL: `/enroll/public`
   - Course-specific enrollment URL: `/enroll/public?course=123`
   - Test: Access the course-specific URL and verify that the course selection dropdown pre-selects the specified course.

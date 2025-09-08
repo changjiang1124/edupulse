@@ -64,7 +64,9 @@
                                     {% endif %}
                                 </label>
                                 {% if selected_course %}
-                                    {{ form.course_id.as_widget(attrs={'disabled': 'disabled'}) }}
+                                    <select class="form-select" disabled>
+                                        <option selected>{{ selected_course.name }}</option>
+                                    </select>
                                     <input type="hidden" name="course_id" value="{{ selected_course.pk }}">
                                 {% else %}
                                     {{ form.course_id }}

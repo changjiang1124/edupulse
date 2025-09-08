@@ -416,8 +416,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Global function to copy enrollment URL
     window.copyEnrollmentUrl = async function() {
-        // Generate the full public enrollment URL
-        const enrollmentUrl = "{{ request.build_absolute_uri }}{% url 'enrollment:public_enrollment_with_course' course.pk %}";
+        // Generate the full public enrollment URL with query parameter
+        const baseUrl = "{{ request.build_absolute_uri }}{% url 'enrollment:public_enrollment' %}";
+        const enrollmentUrl = baseUrl + "?course={{ course.pk }}";
         
         try {
             // Modern Clipboard API (preferred method)
@@ -478,7 +479,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Show error notification
     function showCopyError() {
-        alert('Failed to copy URL to clipboard. Please copy manually: {{ request.build_absolute_uri }}{% url "enrollment:public_enrollment_with_course" course.pk %}');
+        const baseUrl = "{{ request.build_absolute_uri }}{% url 'enrollment:public_enrollment' %}";
+        const enrollmentUrl = baseUrl + "?course={{ course.pk }}";
+        alert('Failed to copy URL to clipboard. Please copy manually: ' + enrollmentUrl);
     }
 });
 </script>
