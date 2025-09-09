@@ -141,7 +141,7 @@ create:
 
 
 ### enrolment
-- [ ] after submission, the email should include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the course should have a new enrolment added as well, with pending status. and the vacancy should not be changed until the enrolment is confirmed by operator.
+- [x] after submission, the email should include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the course should have a new enrolment added as well, with pending status. and the vacancy should not be changed until the enrolment is confirmed by operator.
 
 - [x] The enrollment URL copied from course detail page should be identical to the public enrollment URL, with the only addition being a course ID parameter. When accessing this URL, the course selection dropdown should automatically pre-select the specified course. For example:
   - Public enrollment URL: `/enroll/public`
@@ -162,6 +162,8 @@ Fixed: Added proper date/datetime serialization in PublicEnrollmentView POST met
 - [x] #bug IntegrityError when creating enrollment - FIXED
 NOT NULL constraint failed: enrollment_enrollment.student_id
 Fixed: Reordered logic to create student first, then enrollment with proper student reference
+
+- [] in the course detail, should remove `Enrol Now` button, as there should be only two ways to enrol, 1. copy the public enrolment link to this course for customers to fill, and 2. add enrolment by the operators, thru the button above the enrolment section in the course detail. and please help me test the operator adding enrolment. review the current implementation /enroll/enrollments/staff/create/39/. expected: 1. choose student first, create one if not exists; 2. remove the current adding new student modal popped in the enrolment create form, instead, new window open /students/add/ to maintain the same form for the same purpose. 
 
 - [] enrolement should have `referred by` to be optional, a textbox for referral name. and this should also be a field in the enroled student profile
 

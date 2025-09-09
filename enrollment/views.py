@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.http import JsonResponse
 
 from .models import Enrollment, Attendance
-from .forms import EnrollmentForm, PublicEnrollmentForm, StaffEnrollmentForm, QuickStudentCreateForm
+from .forms import EnrollmentForm, PublicEnrollmentForm, StaffEnrollmentForm
 from students.models import Student
 from academics.models import Course
 
@@ -225,11 +225,9 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
             course_id=course_id, 
             user=self.request.user
         )
-        student_form = QuickStudentCreateForm()
         
         context.update({
             'enrollment_form': enrollment_form,
-            'student_form': student_form,
             'course_id': course_id,
         })
         
@@ -249,61 +247,15 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
     
     def post(self, request, *args, **kwargs):
         course_id = self.kwargs.get('course_id')
-        action = request.POST.get('action')
+        action = request.POST.get('action', 'create_enrollment')
         
-        if action == 'create_student':
-            return self._handle_student_creation(request, course_id)
-        elif action == 'create_enrollment':
+        if action == 'create_enrollment':
             return self._handle_enrollment_creation(request, course_id)
         else:
             messages.error(request, 'Invalid action.')
             return self.get(request, *args, **kwargs)
     
-    def _handle_student_creation(self, request, course_id):
-        """Handle AJAX student creation"""
-        student_form = QuickStudentCreateForm(request.POST)
-        
-        if student_form.is_valid():
-            try:
-                student = student_form.save()
-                
-                # Create activity record
-                from students.models import StudentActivity
-                StudentActivity.create_activity(
-                    student=student,
-                    activity_type='student_created',
-                    title='Student profile created',
-                    description='Student profile created by staff member during enrollment process.',
-                    performed_by=request.user,
-                    metadata={
-                        'created_during_enrollment': True,
-                        'course_id': course_id
-                    }
-                )
-                
-                return JsonResponse({
-                    'success': True,
-                    'student': {
-                        'id': student.id,
-                        'name': student.get_full_name(),
-                        'email': student.get_contact_email(),
-                        'phone': student.get_contact_phone()
-                    },
-                    'message': f'Student {student.get_full_name()} created successfully.'
-                })
-                
-            except Exception as e:
-                return JsonResponse({
-                    'success': False,
-                    'errors': {'form': [f'Error creating student: {str(e)}']},
-                    'message': 'Failed to create student.'
-                })
-        else:
-            return JsonResponse({
-                'success': False,
-                'errors': student_form.errors,
-                'message': 'Please correct the errors below.'
-            })
+
     
     def _handle_enrollment_creation(self, request, course_id):
         """Handle enrollment creation"""
