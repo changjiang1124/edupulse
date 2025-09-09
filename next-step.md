@@ -149,10 +149,19 @@ create:
   - Test: Access the course-specific URL and verify that the course selection dropdown pre-selects the specified course.
 
 - [x] #bug the current copied url from the course detail is http://localhost:8000/academics/courses/36//enroll/?course=36, seems like the url pattern is not right, concated by wrong root url. 
-- [] #bug TypeError at /enroll/
+- [x] #bug TypeError at /enroll/ - FIXED
 context must be a dict rather than HttpResponseRedirect.
 Request Method:	GET
 Request URL:	http://localhost:8000/enroll/?course=37
+Fixed: Removed redirect() calls from get_context_data() method and improved error handling in POST method
+
+- [x] #bug JSON serialization error when submitting enrollment form - FIXED
+TypeError: Object of type date is not JSON serializable
+Fixed: Added proper date/datetime serialization in PublicEnrollmentView POST method
+
+- [x] #bug IntegrityError when creating enrollment - FIXED
+NOT NULL constraint failed: enrollment_enrollment.student_id
+Fixed: Reordered logic to create student first, then enrollment with proper student reference
 
 - [] enrolement should have `referred by` to be optional, a textbox for referral name. and this should also be a field in the enroled student profile
 

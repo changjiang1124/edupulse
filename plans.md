@@ -1,3 +1,154 @@
+## 注册表单IntegrityError修复 (2025-09-09) ✅ 已完成
+
+### 问题描述
+用户提交注册表单后出现数据库完整性错误：
+```
+django.db.utils.IntegrityError: NOT NULL constraint failed: enrollment_enrollment.student_id
+Request Method: POST
+Request URL: http://localhost:8000/enroll/?course=38
+```
+
+### 根本原因
+在 `PublicEnrollmentView` 的 POST 方法中，代码逻辑错误地先创建了 Enrollment 对象，但此时还没有创建或关联 Student 对象，导致 `student_id` 字段为空，违反了数据库的 NOT NULL 约束。
+
+### 修复方案
+
+#### 1. 重新组织创建逻辑 ✅
+**文件**: `enrollment/views.py`
+**问题逻辑**:
+```python
+# ❌ 错误：先创建 enrollment，此时没有 student_id
+enrollment = Enrollment.objects.create(...)
+student, was_created = StudentMatchingService.create_or_update_student(..., enrollment)
+```
+
+**修复逻辑**:
+```python
+# ✅ 正确：先创建 student，再创建 enrollment
+student, was_created = StudentMatchingService.create_or_update_student(..., None)
+enrollment = Enrollment.objects.create(student=student, ...)
+```
+
+#### 2. 更新学生匹配服务 ✅
+**文件**: `students/services.py`
+**修改**: 让 `create_or_update_student` 方法能够处理 `enrollment=None` 的情况
+```python
+if enrollment:  # 添加空值检查
+    enrollment.student = student
+    enrollment.save()
+```
+
+#### 3. 设置注册状态字段 ✅
+**文件**: `enrollment/views.py`
+**添加**: 在创建 Enrollment 时直接设置学生状态字段
+```python
+enrollment = Enrollment.objects.create(
+    student=student,
+    is_new_student=was_created,
+    matched_existing_student=not was_created,
+    ...
+)
+```
+
+### 技术细节
+- **数据库约束**: Enrollment 模型的 student 字段有 NOT NULL 约束
+- **创建顺序**: 必须先有 Student 对象才能创建 Enrollment 对象
+- **服务解耦**: StudentMatchingService 现在可以独立工作，不依赖 Enrollment 对象
+- **状态一致性**: 确保 enrollment 的学生状态字段与实际情况一致
+
+---
+
+## 注册表单JSON序列化错误修复 (2025-09-09) ✅ 已完成
+
+### 问题描述
+用户提交注册表单时出现TypeError错误：
+```
+TypeError: Object of type date is not JSON serializable
+Request Method: POST
+Request URL: http://localhost:8000/enroll/?course=38
+```
+
+### 根本原因
+在 `PublicEnrollmentView` 的 POST 方法中，`form.cleaned_data` 包含了 `date_of_birth` 字段的 date 对象，但直接将其保存到 `original_form_data` JSONField 时，Django 无法序列化 date 对象为 JSON 格式。
+
+### 修复方案
+
+#### 1. 数据序列化处理 ✅
+**文件**: `enrollment/views.py`
+**问题代码**:
+```python
+original_form_data=form.cleaned_data  # ❌ 错误：直接保存包含date对象的数据
+```
+
+**修复代码**:
+```python
+# Convert form data to JSON-serializable format
+serializable_form_data = {}
+for key, value in form.cleaned_data.items():
+    if hasattr(value, 'isoformat'):  # Handle date/datetime objects
+        serializable_form_data[key] = value.isoformat()
+    else:
+        serializable_form_data[key] = value
+
+original_form_data=serializable_form_data  # ✅ 正确：序列化后的数据
+```
+
+### 技术细节
+- **JSONField 限制**: Django JSONField 只能存储 JSON 可序列化的数据类型
+- **Date 对象处理**: 使用 `isoformat()` 方法将 date/datetime 对象转换为 ISO 格式字符串
+- **通用解决方案**: 检查对象是否有 `isoformat` 方法来处理所有日期时间类型
+- **数据完整性**: 保持原始表单数据的完整性，仅改变存储格式
+
+---
+
+## 公开注册页面TypeError错误修复 (2025-09-09) ✅ 已完成
+
+### 问题描述
+用户访问 `/enroll/?course=37` 时出现TypeError错误：
+```
+context must be a dict rather than HttpResponseRedirect.
+Request Method: GET
+Request URL: http://localhost:8000/enroll/?course=37
+```
+
+### 根本原因
+在 `PublicEnrollmentView` 的 `get_context_data()` 方法中，当指定的课程不存在或不可预订时，代码错误地返回了 `HttpResponseRedirect` 对象，但该方法应该返回字典类型的上下文数据。
+
+### 修复方案
+
+#### 1. get_context_data方法修复 ✅
+**文件**: `enrollment/views.py`
+**问题代码**:
+```python
+except Course.DoesNotExist:
+    from django.shortcuts import redirect
+    return redirect('enrollment:public_enrollment')  # ❌ 错误：返回重定向对象
+```
+
+**修复代码**:
+```python
+except Course.DoesNotExist:
+    # If course doesn't exist or isn't bookable, don't pre-select any course
+    selected_course = None  # ✅ 正确：设置为None继续处理
+```
+
+#### 2. POST方法错误处理改进 ✅
+**文件**: `enrollment/views.py`
+**修改**: 改进POST方法中的错误处理，添加用户友好的错误消息
+```python
+except Course.DoesNotExist:
+    # If course doesn't exist or isn't bookable, add error and continue
+    messages.error(request, 'The selected course is not available for online booking.')
+    selected_course = None
+```
+
+### 技术细节
+- **TemplateView.get_context_data()** 必须返回字典，不能返回HttpResponse对象
+- **错误处理策略**: 优雅降级而非硬重定向，提供更好的用户体验
+- **消息框架**: 使用Django messages框架向用户显示友好的错误信息
+
+---
+
 ## 课程注册URL复制功能修复 (2025-09-09) ✅ 已完成
 
 ### 问题描述
@@ -773,6 +924,23 @@ http://localhost:8000/enroll/?course=36
 - 移除了所有 `primary_contact_*` 字段的引用
 - 统一使用 `contact_email` 和 `contact_phone`
 - 保持与注册表单逻辑完全一致
+
+---
+
+## Bug 修复记录 (2025-09-09) ✅ 已完成
+
+### NoReverseMatch 错误修复
+**问题**: 注册成功页面出现 URL 反向解析错误
+```
+NoReverseMatch: Reverse for 'public_enrollment' with no arguments not found.
+```
+
+**根本原因**: `templates/enrollment/success.html` 模板中使用了错误的 URL 名称
+
+**修复方案**:
+- **文件**: `templates/enrollment/success.html`
+- **修改**: 将 `{% url 'public_enrollment' %}` 改为 `{% url 'enrollment:public_enrollment' %}`
+- **原因**: 需要包含命名空间前缀来正确解析 URL
 
 ---
 

@@ -453,9 +453,8 @@ class PublicEnrollmentView(TemplateView):
                 selected_course = courses.get(pk=course_id)
                 context['selected_course'] = selected_course
             except Course.DoesNotExist:
-                # If course doesn't exist or isn't bookable, redirect to main enrollment
-                from django.shortcuts import redirect
-                return redirect('enrollment:public_enrollment')
+                # If course doesn't exist or isn't bookable, don't pre-select any course
+                selected_course = None
         
         # Initialize form with selected course if available
         initial_data = {}
@@ -479,8 +478,9 @@ class PublicEnrollmentView(TemplateView):
             try:
                 selected_course = courses.get(pk=course_id)
             except Course.DoesNotExist:
-                from django.shortcuts import redirect
-                return redirect('enrollment:public_enrollment')
+                # If course doesn't exist or isn't bookable, add error and continue
+                messages.error(request, 'The selected course is not available for online booking.')
+                selected_course = None
         
         if form.is_valid():
             from students.services import StudentMatchingService, EnrollmentFeeCalculator
@@ -489,17 +489,28 @@ class PublicEnrollmentView(TemplateView):
             # Get course
             course = Course.objects.get(pk=form.cleaned_data['course_id'])
             
-            # Create enrollment first for reference
+            # Convert form data to JSON-serializable format
+            serializable_form_data = {}
+            for key, value in form.cleaned_data.items():
+                if hasattr(value, 'isoformat'):  # Handle date/datetime objects
+                    serializable_form_data[key] = value.isoformat()
+                else:
+                    serializable_form_data[key] = value
+            
+            # Use student matching service to create or find student first
+            student, was_created = StudentMatchingService.create_or_update_student(
+                form.cleaned_data, None  # Pass None for enrollment initially
+            )
+            
+            # Now create enrollment with the student
             enrollment = Enrollment.objects.create(
+                student=student,
                 course=course,
                 status='pending',
                 source_channel='website',
-                original_form_data=form.cleaned_data
-            )
-            
-            # Use student matching service to create or find student
-            student, was_created = StudentMatchingService.create_or_update_student(
-                form.cleaned_data, enrollment
+                original_form_data=serializable_form_data,
+                is_new_student=was_created,
+                matched_existing_student=not was_created
             )
             
             # Calculate and set enrollment fees
