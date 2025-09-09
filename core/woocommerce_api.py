@@ -255,6 +255,17 @@ class WooCommerceAPI:
         
         return enhanced_description
     
+    def check_product_exists(self, wc_product_id: int) -> bool:
+        """
+        Check if a WooCommerce product exists by ID
+        """
+        try:
+            result = self._make_request('GET', f'products/{wc_product_id}')
+            return result is not None and 'id' in result
+        except Exception as e:
+            logger.warning(f"Product {wc_product_id} does not exist or is not accessible: {str(e)}")
+            return False
+    
     def create_external_product(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create an external product in WooCommerce for a course
@@ -569,30 +580,51 @@ class WooCommerceSyncService:
                 sync_log.request_data = course_data
                 sync_log.save()
             
-            # Check if course already has WooCommerce product
+            # Check if course already has WooCommerce product ID
             if course.external_id:
-                # Update existing product
+                # First, try to update existing product
                 wc_product_id = int(course.external_id)
-                result = self.api.update_external_product(wc_product_id, course_data)
-                if result['status'] == 'success':
-                    logger.info(f"Successfully updated WooCommerce product for course {course.id}")
-                    success_result = {
-                        'status': 'success',
-                        'wc_product_id': wc_product_id,
-                        'data': result.get('data', {})
-                    }
+                logger.info(f"Attempting to update existing WooCommerce product {wc_product_id} for course {course.id}")
+                
+                # Check if product exists first, then update or create
+                product_exists = self.api.check_product_exists(wc_product_id)
+                
+                if product_exists:
+                    result = self.api.update_external_product(wc_product_id, course_data)
+                    if result['status'] == 'success':
+                        logger.info(f"Successfully updated WooCommerce product for course {course.id}")
+                        success_result = {
+                            'status': 'success',
+                            'wc_product_id': wc_product_id,
+                            'data': result.get('data', {})
+                        }
+                    else:
+                        logger.error(f"Failed to update WooCommerce product for course {course.id}: {result.get('message')}")
+                        success_result = result
                 else:
-                    logger.error(f"Failed to update WooCommerce product for course {course.id}: {result.get('message')}")
-                    success_result = result
+                    # Product doesn't exist, create new one and update external_id
+                    logger.warning(f"WooCommerce product {wc_product_id} not found for course {course.id}, creating new product")
+                    result = self.api.create_external_product(course_data)
+                    if result['status'] == 'success':
+                        # Update with new WooCommerce product ID
+                        new_wc_product_id = result['wc_product_id']
+                        course.external_id = str(new_wc_product_id)
+                        course.save(update_fields=['external_id'])
+                        logger.info(f"Successfully created new WooCommerce product {new_wc_product_id} for course {course.id}")
+                        success_result = result
+                    else:
+                        logger.error(f"Failed to create WooCommerce product for course {course.id}: {result.get('message')}")
+                        success_result = result
             else:
                 # Create new product
+                logger.info(f"Creating new WooCommerce product for course {course.id}")
                 result = self.api.create_external_product(course_data)
                 if result['status'] == 'success':
                     # Save WooCommerce product ID to course
                     wc_product_id = result['wc_product_id']
                     course.external_id = str(wc_product_id)
                     course.save(update_fields=['external_id'])
-                    logger.info(f"Successfully created WooCommerce product for course {course.id}")
+                    logger.info(f"Successfully created WooCommerce product {wc_product_id} for course {course.id}")
                     success_result = result
                 else:
                     logger.error(f"Failed to create WooCommerce product for course {course.id}: {result.get('message')}")

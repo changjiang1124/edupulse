@@ -168,4 +168,4 @@ create:
 
 
 ### Interaction design
-- [] We have list->detail page interaction for course, class, student, staff, enrolment and other modules. I want to make the layout of detail pages of different modules aligned. e.g. the first row should be a left-aligned link back to its list page, and the next row should be the title on the left and action buttons on the right, and then the main content below. please help me refine all the detail pages to align them. review if all the implementation is like this.
+- [x] We have list->detail page interaction for course, class, student, staff, enrolment and other modules. I want to make the layout of detail pages of different modules aligned. e.g. the first row should be a left-aligned link back to its list page, and the next row should be the title on the left and action buttons on the right, and then the main content below. please help me refine all the detail pages to align them. review if all the implementation is like this.
