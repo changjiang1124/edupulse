@@ -229,7 +229,7 @@
                                                 {% with student_id=student_data.student_id|add:0 %}
                                                     {% for enrollment in enrolled_students %}
                                                         {% if enrollment.student.id == student_id %}
-                                                            <small>{{ enrollment.student.primary_contact_email|default:enrollment.student.email|default:"No email" }}</small>
+                                                            <small>{{ enrollment.student.contact_email|default:"No email" }}</small>
                                                         {% endif %}
                                                     {% endfor %}
                                                 {% endwith %}

@@ -77,9 +77,6 @@ class StudentMatchingService:
         age = StudentMatchingService._calculate_age(form_data.get('date_of_birth'))
         is_minor = age is not None and age < 18
         
-        # Determine primary contact type
-        primary_contact_type = 'guardian' if is_minor else 'student'
-        
         # Create student
         student = Student.objects.create(
             first_name=form_data.get('first_name', '').strip(),
@@ -87,10 +84,9 @@ class StudentMatchingService:
             birth_date=form_data.get('date_of_birth'),
             address=form_data.get('address', ''),
             
-            # Primary contact (from unified enrollment form fields)
-            primary_contact_email=form_data.get('email', ''),
-            primary_contact_phone=form_data.get('phone', ''),
-            primary_contact_type=primary_contact_type,
+            # Contact information (unified - student or guardian depending on age)
+            contact_email=form_data.get('email', ''),
+            contact_phone=form_data.get('phone', ''),
             
             # Guardian information (for minors)
             guardian_name=form_data.get('guardian_name', '') if is_minor else '',
@@ -122,12 +118,12 @@ class StudentMatchingService:
             student.address = form_data['address']
             updated = True
         
-        if not student.primary_contact_email and form_data.get('email'):
-            student.primary_contact_email = form_data['email']
+        if not student.contact_email and form_data.get('email'):
+            student.contact_email = form_data['email']
             updated = True
         
-        if not student.primary_contact_phone and form_data.get('phone'):
-            student.primary_contact_phone = form_data['phone']
+        if not student.contact_phone and form_data.get('phone'):
+            student.contact_phone = form_data['phone']
             updated = True
         
         if not student.emergency_contact_name and form_data.get('emergency_contact_name'):

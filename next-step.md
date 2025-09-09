@@ -148,7 +148,13 @@ create:
   - Course-specific enrollment URL: `/enroll/public?course=123`
   - Test: Access the course-specific URL and verify that the course selection dropdown pre-selects the specified course.
 
-- [] #bug the current copied url from the course detail is http://localhost:8000/academics/courses/36//enroll/?course=36, seems like the url pattern is not right, concated by wrong root url. 
+- [x] #bug the current copied url from the course detail is http://localhost:8000/academics/courses/36//enroll/?course=36, seems like the url pattern is not right, concated by wrong root url. 
+- [] #bug TypeError at /enroll/
+context must be a dict rather than HttpResponseRedirect.
+Request Method:	GET
+Request URL:	http://localhost:8000/enroll/?course=37
+
+- [] enrolement should have `referred by` to be optional, a textbox for referral name. and this should also be a field in the enroled student profile
 
 ### settings 
 - [ ] SMS configuration should be only visible to admin user of the organisation, so as the email configuration.
@@ -171,7 +177,7 @@ create:
   - [ ] test enrolment creation by operator, with registration fee included in the total amount.
   - [ ] test enrolment creation by student, with registration fee included in the total amount.
 
-### Student 
-- [] based on our enrolment form, the contact should only have one email and one phone number, either it's student or guardian, depending on the age of the student. so in the student create and edit page, we should align with this logic. currently it has email address while guardian email address, which is not right. there should be only one contact email. no matter it's for guardian or student. and the same for phone number. in the future if want to use the contact, we detect if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's. 
-  - [] test student create and edit page, align with enrolment form logic, only one contact email and one phone number.
-  - [] test student create and edit page, if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's.
+## Student 
+- [x] based on our enrolment form, the contact should only have one email and one phone number, either it's student or guardian, depending on the age of the student. so in the student create and edit page, we should align with this logic. currently it has email address while guardian email address, which is not right. there should be only one contact email. no matter it's for guardian or student. and the same for phone number. in the future if want to use the contact, we detect if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's. 
+  - [x] test student create and edit page, align with enrolment form logic, only one contact email and one phone number.
+  - [x] test student create and edit page, if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's.

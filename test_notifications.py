@@ -32,7 +32,7 @@ def test_notification_system():
     if recent_enrollments.exists():
         for enrollment in recent_enrollments:
             print(f"   📋 Enrollment: {enrollment.student.get_full_name()} - {enrollment.course.name}")
-            print(f"      Email: {enrollment.student.primary_contact_email or enrollment.student.email}")
+            print(f"      Email: {enrollment.student.contact_email}")
             print(f"      Status: {enrollment.get_status_display()}")
             
             # Test enrollment confirmation email

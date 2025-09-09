@@ -28,7 +28,7 @@ class NotificationService:
         try:
             # Determine recipient based on student age
             student = enrollment.student
-            recipient_email = student.primary_contact_email or student.email
+            recipient_email = student.contact_email
             recipient_name = student.guardian_name if student.guardian_name else student.get_full_name()
             
             if not recipient_email:
@@ -85,7 +85,7 @@ class NotificationService:
         """
         try:
             student = enrollment.student
-            recipient_email = student.primary_contact_email or student.email
+            recipient_email = student.contact_email
             recipient_name = student.guardian_name if student.guardian_name else student.get_full_name()
             
             if not recipient_email:
@@ -139,7 +139,7 @@ class NotificationService:
         Send course reminder to student/guardian
         """
         try:
-            recipient_email = student.primary_contact_email or student.email
+            recipient_email = student.contact_email
             recipient_name = student.guardian_name if student.guardian_name else student.get_full_name()
             
             if not recipient_email:
@@ -201,7 +201,7 @@ class NotificationService:
                 # No need to send notice for present status
                 return True
                 
-            recipient_email = student.primary_contact_email or student.email
+            recipient_email = student.contact_email
             recipient_name = student.guardian_name if student.guardian_name else student.get_full_name()
             
             if not recipient_email:

@@ -715,6 +715,67 @@ http://localhost:8000/enroll/?course=36
 3. **第三方集成**: WooCommerce、Google Workspace、Twilio完整集成
 4. **现代化用户界面**: Bootstrap 5响应式设计，炫丽的用户体验
 
+## 学生联系信息逻辑统一 (2025-09-09) ✅ 已完成
+
+### 问题描述
+根据注册表单的设计，联系信息应该只有一个邮箱和一个电话号码，根据学生年龄决定是学生本人还是监护人的联系方式。但学生创建和编辑页面的逻辑与注册表单不一致。
+
+### 修复内容
+
+#### 1. 字段名统一 ✅
+**问题**: 代码中混用了新旧字段名
+- 旧字段: `primary_contact_email`, `primary_contact_phone`, `primary_contact_type`
+- 新字段: `contact_email`, `contact_phone`
+
+**修复文件**:
+- `students/services.py` - 学生匹配服务
+- `core/services/notification_service.py` - 通知服务
+- `core/management/commands/send_course_reminders.py` - 提醒命令
+- `test_notifications.py` - 测试文件
+- 多个模板文件中的字段引用
+
+#### 2. 表单和模板更新 ✅
+**文件**: `templates/core/students/form.html`
+**修改**: 更新联系信息说明文字，明确逻辑：
+```html
+<!-- 修改前 -->
+<p class="text-muted small">Primary contact details. For students under 18, these should be guardian's details.</p>
+
+<!-- 修改后 -->
+<p class="text-muted small">Primary contact details. If guardian name is provided below, these contact details should be the guardian's. Otherwise, they should be the student's contact details.</p>
+```
+
+#### 3. 功能测试验证 ✅
+**创建测试脚本**: `test_student_contact_logic.py`
+- 测试未成年学生（有监护人）的联系信息逻辑
+- 测试成年学生的联系信息逻辑
+- 验证模型字段一致性
+- 确认旧字段已完全移除
+
+**测试结果**:
+```
+✅ Contact fields are unified (contact_email, contact_phone)
+✅ Guardian logic works correctly based on age and guardian_name
+✅ Model methods get_contact_email() and get_contact_phone() work
+✅ No old primary_contact_* fields remain
+```
+
+### 技术细节
+
+#### 联系信息逻辑
+1. **统一字段**: 所有学生只有 `contact_email` 和 `contact_phone` 两个联系字段
+2. **逻辑判断**: 通过 `guardian_name` 字段是否为空来判断联系信息归属
+   - 有监护人姓名：联系信息为监护人的
+   - 无监护人姓名：联系信息为学生本人的
+3. **年龄辅助**: `is_minor()` 方法辅助判断，但不是决定性因素
+
+#### 数据一致性
+- 移除了所有 `primary_contact_*` 字段的引用
+- 统一使用 `contact_email` 和 `contact_phone`
+- 保持与注册表单逻辑完全一致
+
+---
+
 ## 🎯 下一步MVP完成计划
 
 基於需求审核结果，以下为达到生产就绪状态的优先任务：

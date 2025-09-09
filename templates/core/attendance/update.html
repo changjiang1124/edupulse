@@ -21,7 +21,7 @@
                         </div>
                         <div>
                             <h6 class="mb-1">{{ object.student.get_full_name }}</h6>
-                            <small>{{ object.student.primary_contact_email|default:object.student.email|default:"No email" }}</small>
+                            <small>{{ object.student.contact_email|default:"No email" }}</small>
                         </div>
                     </div>
                     <hr class="my-2">

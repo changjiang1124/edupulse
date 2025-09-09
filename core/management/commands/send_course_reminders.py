@@ -122,7 +122,7 @@ class Command(BaseCommand):
                 self.stdout.write('   Students:')
                 for enrollment in enrollments:
                     student = enrollment.student
-                    email = student.primary_contact_email or student.email
+                    email = student.contact_email
                     self.stdout.write(
                         f'     • {student.get_full_name()} ({email})'
                     )
