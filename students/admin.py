@@ -30,13 +30,12 @@ class StudentActivityInline(admin.TabularInline):
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
     list_display = [
-        'first_name', 'last_name', 'primary_contact_email', 'primary_contact_phone', 
-        'primary_contact_type', 'is_active', 'created_at'
+        'first_name', 'last_name', 'contact_email', 'contact_phone', 
+        'get_age_display', 'is_active', 'created_at'
     ]
-    list_filter = ['is_active', 'primary_contact_type', 'registration_status', 'created_at', 'tags']
+    list_filter = ['is_active', 'registration_status', 'created_at', 'tags']
     search_fields = [
-        'first_name', 'last_name', 'primary_contact_email', 'email', 
-        'guardian_email', 'primary_contact_phone', 'phone', 'guardian_phone'
+        'first_name', 'last_name', 'contact_email', 'contact_phone', 'guardian_name'
     ]
     readonly_fields = ['created_at', 'updated_at']
     
@@ -44,17 +43,13 @@ class StudentAdmin(admin.ModelAdmin):
         ('Basic Information', {
             'fields': ('first_name', 'last_name', 'birth_date', 'address')
         }),
-        ('Primary Contact', {
-            'fields': ('primary_contact_email', 'primary_contact_phone', 'primary_contact_type'),
-            'description': 'Primary contact information from enrollment form'
-        }),
-        ('Student Contact Details', {
-            'fields': ('email', 'phone'),
-            'classes': ('collapse',)
+        ('Contact Information', {
+            'fields': ('contact_email', 'contact_phone'),
+            'description': 'Primary contact information (student or guardian depending on age)'
         }),
         ('Guardian Information', {
-            'fields': ('guardian_name', 'guardian_email', 'guardian_phone'),
-            'classes': ('collapse',)
+            'fields': ('guardian_name',),
+            'description': 'Required for students under 18 years of age'
         }),
         ('Emergency Contact', {
             'fields': ('emergency_contact_name', 'emergency_contact_phone'),
@@ -78,6 +73,15 @@ class StudentAdmin(admin.ModelAdmin):
     inlines = [StudentActivityInline]
     
     actions = ['mark_as_active', 'mark_as_inactive']
+    
+    def get_age_display(self, obj):
+        """Display student age for admin list"""
+        age = obj.get_age()
+        if age is not None:
+            guardian_info = " (Minor)" if age < 18 else ""
+            return f"{age}{guardian_info}"
+        return "Unknown"
+    get_age_display.short_description = 'Age'
     
     def mark_as_active(self, request, queryset):
         updated = queryset.update(is_active=True)

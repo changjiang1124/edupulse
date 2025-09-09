@@ -60,23 +60,6 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="{{ form.phone.id_for_label }}" class="form-label">Phone Number</label>
-                                    {{ form.phone }}
-                                    {% if form.phone.errors %}
-                                        <div class="invalid-feedback d-block">{{ form.phone.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="{{ form.email.id_for_label }}" class="form-label">Email Address</label>
-                            {{ form.email }}
-                            {% if form.email.errors %}
-                                <div class="invalid-feedback d-block">{{ form.email.errors.0 }}</div>
-                            {% endif %}
                         </div>
                         
                         <div class="mb-3">
@@ -88,9 +71,43 @@
                         </div>
                     </div>
 
+                    <!-- Contact Information -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">Contact Information</h6>
+                        <p class="text-muted small">Primary contact details. For students under 18, these should be guardian's details.</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.contact_email.id_for_label }}" class="form-label">Contact Email</label>
+                                    {{ form.contact_email }}
+                                    {% if form.contact_email.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.contact_email.errors.0 }}</div>
+                                    {% endif %}
+                                    {% if form.contact_email.help_text %}
+                                        <div class="form-text">{{ form.contact_email.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.contact_phone.id_for_label }}" class="form-label">Contact Phone</label>
+                                    {{ form.contact_phone }}
+                                    {% if form.contact_phone.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.contact_phone.errors.0 }}</div>
+                                    {% endif %}
+                                    {% if form.contact_phone.help_text %}
+                                        <div class="form-text">{{ form.contact_phone.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Guardian Information -->
                     <div class="mb-4">
                         <h6 class="text-muted mb-3">Guardian Information</h6>
+                        <p class="text-muted small">Required for students under 18 years of age.</p>
                         
                         <div class="mb-3">
                             <label for="{{ form.guardian_name.id_for_label }}" class="form-label">Guardian Name</label>
@@ -98,27 +115,9 @@
                             {% if form.guardian_name.errors %}
                                 <div class="invalid-feedback d-block">{{ form.guardian_name.errors.0 }}</div>
                             {% endif %}
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="{{ form.guardian_phone.id_for_label }}" class="form-label">Guardian Phone</label>
-                                    {{ form.guardian_phone }}
-                                    {% if form.guardian_phone.errors %}
-                                        <div class="invalid-feedback d-block">{{ form.guardian_phone.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="{{ form.guardian_email.id_for_label }}" class="form-label">Guardian Email</label>
-                                    {{ form.guardian_email }}
-                                    {% if form.guardian_email.errors %}
-                                        <div class="invalid-feedback d-block">{{ form.guardian_email.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
+                            {% if form.guardian_name.help_text %}
+                                <div class="form-text">{{ form.guardian_name.help_text }}</div>
+                            {% endif %}
                         </div>
                     </div>
 

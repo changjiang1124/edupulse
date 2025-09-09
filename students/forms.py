@@ -10,12 +10,10 @@ class StudentForm(forms.ModelForm):
         fields = [
             # Basic Information
             'first_name', 'last_name', 'birth_date', 'address',
-            # Primary Contact (unified from enrollment)
-            'primary_contact_email', 'primary_contact_phone', 'primary_contact_type',
-            # Student Personal Contact
-            'email', 'phone',
+            # Contact Information (unified)
+            'contact_email', 'contact_phone',
             # Guardian Information
-            'guardian_name', 'guardian_phone', 'guardian_email',
+            'guardian_name',
             # Emergency Contact
             'emergency_contact_name', 'emergency_contact_phone',
             # Medical & Special Requirements
@@ -45,25 +43,12 @@ class StudentForm(forms.ModelForm):
                 'rows': 3
             }),
             
-            # Primary Contact Information
-            'primary_contact_email': forms.EmailInput(attrs={
+            # Contact Information (unified)
+            'contact_email': forms.EmailInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'primary@email.com'
+                'placeholder': 'contact@email.com'
             }),
-            'primary_contact_phone': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': '0412 345 678'
-            }),
-            'primary_contact_type': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            
-            # Student Personal Contact
-            'email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'student@email.com'
-            }),
-            'phone': forms.TextInput(attrs={
+            'contact_phone': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': '0412 345 678'
             }),
@@ -71,15 +56,7 @@ class StudentForm(forms.ModelForm):
             # Guardian Information
             'guardian_name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Guardian full name'
-            }),
-            'guardian_phone': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': '0412 345 678'
-            }),
-            'guardian_email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'guardian@email.com'
+                'placeholder': 'Guardian full name (required for under 18)'
             }),
             
             # Emergency Contact
@@ -132,16 +109,35 @@ class StudentForm(forms.ModelForm):
         }
         
         help_texts = {
-            'primary_contact_email': 'Main email address for course communications',
-            'primary_contact_phone': 'Main phone number for SMS notifications',
-            'primary_contact_type': 'Indicates if primary contact is the student or guardian',
-            'email': 'Student\'s personal email (if different from primary)',
-            'phone': 'Student\'s personal phone (if different from primary)',
+            'contact_email': 'Primary email address for communications (student or guardian depending on age)',
+            'contact_phone': 'Primary phone number for SMS notifications (student or guardian depending on age)',
+            'guardian_name': 'Required for students under 18 years of age',
             'medical_conditions': 'Any medical conditions we should be aware of',
             'special_requirements': 'Any special requirements or accommodations needed',
             'staff_notes': 'Internal notes for staff/teachers only (not visible to students)',
             'enrollment_source': 'Where/how the student enrolled (e.g., website, referral)',
         }
+    
+    def clean(self):
+        """Validate student form data, especially guardian requirements for minors"""
+        cleaned_data = super().clean()
+        birth_date = cleaned_data.get('birth_date')
+        guardian_name = cleaned_data.get('guardian_name')
+        
+        if birth_date:
+            from datetime import date
+            today = date.today()
+            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            
+            # Store calculated age for use in templates or other validation
+            cleaned_data['calculated_age'] = age
+            
+            if age < 18:
+                # Student is under 18, guardian name is required
+                if not guardian_name or guardian_name.strip() == '':
+                    self.add_error('guardian_name', 'Guardian name is required for students under 18 years of age.')
+        
+        return cleaned_data
 
 
 class StudentTagForm(forms.ModelForm):

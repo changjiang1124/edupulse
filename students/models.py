@@ -62,63 +62,28 @@ class Student(models.Model):
         verbose_name='Address'
     )
     
-    # Primary Contact Information (from enrollment form)
-    primary_contact_email = models.EmailField(
+    # Contact Information (unified as per enrollment form logic)
+    contact_email = models.EmailField(
         blank=True,
-        verbose_name='Primary Contact Email',
-        help_text='Main email address for course communications'
+        verbose_name='Contact Email',
+        help_text='Primary email address for communications (student or guardian depending on age)'
     )
-    primary_contact_phone = models.CharField(
+    contact_phone = models.CharField(
         max_length=20,
         blank=True,
         validators=[RegexValidator(
             r'^(0[4-5]\d{2}\s?\d{3}\s?\d{3}|0[2,3,7-9]\d?\s?\d{4}\s?\d{4}|0[2,3,7-9]\d{8})$', 
             'Please enter a valid Australian phone number (e.g., 0412 345 678, 02 1234 5678)'
         )],
-        verbose_name='Primary Contact Phone',
-        help_text='Main phone number for SMS notifications'
-    )
-    primary_contact_type = models.CharField(
-        max_length=20,
-        choices=[('student', 'Student'), ('guardian', 'Guardian')],
-        default='student',
-        verbose_name='Primary Contact Type',
-        help_text='Indicates if primary contact is the student or guardian'
+        verbose_name='Contact Phone',
+        help_text='Primary phone number for SMS notifications (student or guardian depending on age)'
     )
     
-    # Detailed Contact Information (for internal management)
-    email = models.EmailField(
-        blank=True,
-        verbose_name='Student Personal Email'
-    )
-    phone = models.CharField(
-        max_length=20,
-        blank=True,
-        validators=[RegexValidator(
-            r'^(0[4-5]\d{2}\s?\d{3}\s?\d{3}|0[2,3,7-9]\d?\s?\d{4}\s?\d{4}|0[2,3,7-9]\d{8})$', 
-            'Please enter a valid Australian phone number (e.g., 0412 345 678, 02 1234 5678)'
-        )],
-        verbose_name='Student Personal Phone'
-    )
-    
-    # Guardian Information
+    # Guardian Information (for students under 18)
     guardian_name = models.CharField(
         max_length=100,
         blank=True,
         verbose_name='Guardian Name'
-    )
-    guardian_phone = models.CharField(
-        max_length=20,
-        blank=True,
-        validators=[RegexValidator(
-            r'^(0[4-5]\d{2}\s?\d{3}\s?\d{3}|0[2,3,7-9]\d?\s?\d{4}\s?\d{4}|0[2,3,7-9]\d{8})$', 
-            'Please enter a valid Australian phone number (e.g., 0412 345 678, 02 1234 5678)'
-        )],
-        verbose_name='Guardian Phone'
-    )
-    guardian_email = models.EmailField(
-        blank=True,
-        verbose_name='Guardian Email'
     )
     
     # Emergency Contact Information
@@ -228,12 +193,12 @@ class Student(models.Model):
         return f"{self.first_name} {self.last_name}"
     
     def get_contact_email(self):
-        """Get primary contact email with fallback logic"""
-        return self.primary_contact_email or self.email or self.guardian_email
+        """Get primary contact email (student or guardian based on age)"""
+        return self.contact_email
     
     def get_contact_phone(self):
-        """Get primary contact phone with fallback logic"""
-        return self.primary_contact_phone or self.phone or self.guardian_phone
+        """Get primary contact phone (student or guardian based on age)"""
+        return self.contact_phone
     
     def get_age(self):
         """Calculate student's current age"""

@@ -56,20 +56,26 @@
                 </div>
                 {% endif %}
                 
-                {% if student.email %}
+                {% if student.contact_email %}
                 <div class="row mb-3">
-                    <div class="col-sm-4"><strong>Email:</strong></div>
+                    <div class="col-sm-4"><strong>Contact Email:</strong></div>
                     <div class="col-sm-8">
-                        <a href="mailto:{{ student.email }}">{{ student.email }}</a>
+                        <a href="mailto:{{ student.contact_email }}">{{ student.contact_email }}</a>
+                        {% if student.guardian_name %}
+                            <br><small class="text-muted">Guardian contact</small>
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
                 
-                {% if student.phone %}
+                {% if student.contact_phone %}
                 <div class="row mb-3">
-                    <div class="col-sm-4"><strong>Phone:</strong></div>
+                    <div class="col-sm-4"><strong>Contact Phone:</strong></div>
                     <div class="col-sm-8">
-                        <a href="tel:{{ student.phone }}">{{ student.phone }}</a>
+                        <a href="tel:{{ student.contact_phone }}">{{ student.contact_phone }}</a>
+                        {% if student.guardian_name %}
+                            <br><small class="text-muted">Guardian contact</small>
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
@@ -103,36 +109,21 @@
         </div>
         
         <!-- Guardian Information -->
-        {% if student.guardian_name or student.guardian_phone or student.guardian_email %}
+        {% if student.guardian_name %}
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0">Guardian Information</h5>
             </div>
             <div class="card-body">
-                {% if student.guardian_name %}
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>Name:</strong></div>
                     <div class="col-sm-8">{{ student.guardian_name }}</div>
                 </div>
-                {% endif %}
                 
-                {% if student.guardian_phone %}
-                <div class="row mb-3">
-                    <div class="col-sm-4"><strong>Phone:</strong></div>
-                    <div class="col-sm-8">
-                        <a href="tel:{{ student.guardian_phone }}">{{ student.guardian_phone }}</a>
-                    </div>
+                <div class="alert alert-info small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    The contact details above belong to this guardian as the student is under 18.
                 </div>
-                {% endif %}
-                
-                {% if student.guardian_email %}
-                <div class="row">
-                    <div class="col-sm-4"><strong>Email:</strong></div>
-                    <div class="col-sm-8">
-                        <a href="mailto:{{ student.guardian_email }}">{{ student.guardian_email }}</a>
-                    </div>
-                </div>
-                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -433,24 +424,21 @@ function getStudentContactDisplay() {
     let contactInfo = `<strong>${name}</strong><br>`;
     
     // Check if we have guardian info (under 18 logic)
-    {% if student.guardian_name or student.guardian_email or student.guardian_phone %}
-        contactInfo += '<i class="fas fa-user-friends me-1"></i>Guardian Contact: ';
-        {% if student.guardian_name %}
-            contactInfo += '{{ student.guardian_name }}';
+    {% if student.guardian_name %}
+        contactInfo += '<i class="fas fa-user-friends me-1"></i>Guardian Contact: {{ student.guardian_name }}';
+        {% if student.contact_email %}
+            contactInfo += ' ({{ student.contact_email }})';
         {% endif %}
-        {% if student.guardian_email %}
-            contactInfo += ' ({{ student.guardian_email }})';
-        {% endif %}
-        {% if student.guardian_phone %}
-            contactInfo += ' - {{ student.guardian_phone }}';
+        {% if student.contact_phone %}
+            contactInfo += ' - {{ student.contact_phone }}';
         {% endif %}
     {% else %}
         contactInfo += '<i class="fas fa-user me-1"></i>Direct Contact: ';
-        {% if student.email %}
-            contactInfo += '{{ student.email }}';
+        {% if student.contact_email %}
+            contactInfo += '{{ student.contact_email }}';
         {% endif %}
-        {% if student.phone %}
-            contactInfo += ' - {{ student.phone }}';
+        {% if student.contact_phone %}
+            contactInfo += ' - {{ student.contact_phone }}';
         {% endif %}
     {% endif %}
     

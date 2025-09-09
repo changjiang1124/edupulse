@@ -135,22 +135,23 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if student.email %}
-                                            <div><i class="fas fa-envelope text-muted"></i> {{ student.email }}</div>
+                                        {% if student.contact_email %}
+                                            <div><i class="fas fa-envelope text-muted"></i> {{ student.contact_email }}</div>
                                         {% endif %}
-                                        {% if student.phone %}
-                                            <div><i class="fas fa-phone text-muted"></i> {{ student.phone }}</div>
+                                        {% if student.contact_phone %}
+                                            <div><i class="fas fa-phone text-muted"></i> {{ student.contact_phone }}</div>
                                         {% endif %}
-                                        {% if not student.email and not student.phone %}
+                                        {% if not student.contact_email and not student.contact_phone %}
                                             <span class="text-muted">No contact info</span>
+                                        {% endif %}
+                                        {% if student.guardian_name %}
+                                            <br><small class="text-muted"><i class="fas fa-user-friends"></i> Guardian contact</small>
                                         {% endif %}
                                     </td>
                                     <td>
                                         {% if student.guardian_name %}
                                             <strong>{{ student.guardian_name }}</strong>
-                                            {% if student.guardian_phone %}
-                                                <br><small class="text-muted">{{ student.guardian_phone }}</small>
-                                            {% endif %}
+                                            <br><small class="text-muted">Student is {{ student.get_age|default:"unknown" }} years old</small>
                                         {% else %}
                                             <span class="text-muted">No guardian info</span>
                                         {% endif %}

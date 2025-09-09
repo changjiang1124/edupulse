@@ -1,3 +1,84 @@
+## 课程注册URL复制功能修复 (2025-09-09) ✅ 已完成
+
+### 问题描述
+用户反映从课程详情页面复制的注册URL格式错误：
+`http://localhost:8000/academics/courses/36//enroll/?course=36`
+
+问题分析：
+1. URL中出现双斜杠 `/academics/courses/36//enroll/`
+2. URL路径拼接错误，根路径构造有问题
+
+### 根本原因
+在主URL配置 `edupulse/urls.py` 中，enrollment应用被包含了两次：
+- `path('enroll/', include('enrollment.urls'))` - 公开注册路径
+- `path('enrollment/', include('enrollment.urls', namespace='staff_enrollment'))` - 员工管理路径
+
+这导致Django在URL反向解析时产生混乱，`{% url 'enrollment:public_enrollment' %}` 可能解析到错误的URL模式。
+
+### 修复方案
+
+#### 1. URL配置修复 ✅
+**文件**: `edupulse/urls.py`
+**修改**: 为staff_enrollment命名空间正确指定app_name
+```python
+# 修改前
+path('enrollment/', include('enrollment.urls', namespace='staff_enrollment'))
+
+# 修改后  
+path('enrollment/', include(('enrollment.urls', 'enrollment'), namespace='staff_enrollment'))
+```
+
+#### 2. 模板URL生成修复 ✅
+**文件**: `templates/core/courses/detail.html`
+**修改**: 简化URL构造逻辑，避免 `request.build_absolute_uri` 与URL反向解析的冲突
+
+```javascript
+// 修改前
+const baseUrl = "{{ request.build_absolute_uri }}{% url 'enrollment:public_enrollment' %}";
+const enrollmentUrl = baseUrl + "?course={{ course.pk }}";
+
+// 修改后
+const enrollmentUrl = "{{ request.scheme }}://{{ request.get_host }}{% url 'enrollment:public_enrollment' %}?course={{ course.pk }}";
+```
+
+### 技术细节
+
+#### URL命名空间冲突解决
+- **公开注册**: 使用默认命名空间，路径 `/enroll/`
+- **员工管理**: 使用 `staff_enrollment` 命名空间，路径 `/enrollment/`
+- **正确指定**: 为命名空间明确指定app_name，避免URL解析冲突
+
+#### 绝对URL构造优化
+- **分离组件**: 使用 `request.scheme` 和 `request.get_host` 分别获取协议和域名
+- **直接拼接**: 避免 `build_absolute_uri` 方法可能造成的路径重复问题
+- **查询参数**: 直接在URL字符串末尾添加查询参数
+
+### 实施结果
+
+#### 修复后的正确URL格式
+```
+http://localhost:8000/enroll/?course=36
+```
+
+#### 解决的问题
+1. **消除双斜杠**: URL路径现在完全正确
+2. **路径准确性**: 注册URL指向正确的公开注册页面 `/enroll/`
+3. **参数传递**: 课程ID通过查询参数正确传递
+
+#### 功能验证
+- **URL生成**: 课程详情页面生成的注册URL格式正确
+- **复制功能**: 浏览器剪贴板复制功能正常工作
+- **链接有效性**: 生成的URL能够正确打开注册页面并预选课程
+
+### 预防措施
+- **命名空间规范**: 确保所有URL命名空间都正确配置app_name
+- **URL构造标准**: 建立统一的绝对URL构造方法
+- **测试覆盖**: 为URL生成功能增加自动化测试
+
+这次修复解决了URL路径拼接错误的问题，确保课程详情页面的注册链接复制功能完全正常工作，为Perth Art School的课程推广提供了可靠的技术支持。
+
+---
+
 ## 考勤页面设计统一化 (2025-09-09) ✅ 已完成
 
 ### 实施目标

@@ -142,6 +142,7 @@ create:
 
 ### enrolment
 - [ ] after submission, the email should include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the course should have a new enrolment added as well, with pending status. and the vacancy should not be changed until the enrolment is confirmed by operator.
+
 - [x] The enrollment URL copied from course detail page should be identical to the public enrollment URL, with the only addition being a course ID parameter. When accessing this URL, the course selection dropdown should automatically pre-select the specified course. For example:
   - Public enrollment URL: `/enroll/public`
   - Course-specific enrollment URL: `/enroll/public?course=123`
@@ -170,3 +171,7 @@ create:
   - [ ] test enrolment creation by operator, with registration fee included in the total amount.
   - [ ] test enrolment creation by student, with registration fee included in the total amount.
 
+### Student 
+- [] based on our enrolment form, the contact should only have one email and one phone number, either it's student or guardian, depending on the age of the student. so in the student create and edit page, we should align with this logic. currently it has email address while guardian email address, which is not right. there should be only one contact email. no matter it's for guardian or student. and the same for phone number. in the future if want to use the contact, we detect if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's. 
+  - [] test student create and edit page, align with enrolment form logic, only one contact email and one phone number.
+  - [] test student create and edit page, if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's.

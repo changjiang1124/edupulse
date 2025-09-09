@@ -29,7 +29,7 @@ urlpatterns = [
     path('enroll/', include('enrollment.urls')),
     
     # Staff enrollment management URLs (accessible at /enrollment/)  
-    path('enrollment/', include('enrollment.urls', namespace='staff_enrollment')),
+    path('enrollment/', include(('enrollment.urls', 'enrollment'), namespace='staff_enrollment')),
     
     # TinyMCE URL
     path('tinymce/', include('tinymce.urls')),

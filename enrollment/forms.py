@@ -272,7 +272,7 @@ class AttendanceForm(forms.ModelForm):
                 status='confirmed'
             ).select_related('student')
             student_choices = [
-                (enrollment.student.id, f"{enrollment.student.get_full_name()} ({enrollment.student.primary_contact_email or enrollment.student.email or 'No email'})")
+                (enrollment.student.id, f"{enrollment.student.get_full_name()} ({enrollment.student.contact_email or 'No email'})")
                 for enrollment in enrolled_students
             ]
             self.fields['student'].queryset = Student.objects.filter(
@@ -577,8 +577,8 @@ class QuickStudentCreateForm(forms.ModelForm):
     class Meta:
         model = Student
         fields = [
-            'first_name', 'last_name', 'birth_date', 'email', 'phone',
-            'address', 'guardian_name', 'guardian_email', 'guardian_phone',
+            'first_name', 'last_name', 'birth_date', 'contact_email', 'contact_phone',
+            'address', 'guardian_name',
             'emergency_contact_name', 'emergency_contact_phone',
             'medical_conditions', 'special_requirements'
         ]
@@ -595,11 +595,11 @@ class QuickStudentCreateForm(forms.ModelForm):
                 'class': 'form-control',
                 'type': 'date'
             }),
-            'email': forms.EmailInput(attrs={
+            'contact_email': forms.EmailInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'student@email.com'
+                'placeholder': 'contact@email.com'
             }),
-            'phone': forms.TextInput(attrs={
+            'contact_phone': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': '0412 345 678'
             }),
@@ -611,14 +611,6 @@ class QuickStudentCreateForm(forms.ModelForm):
             'guardian_name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Parent/Guardian name (required for under 18)'
-            }),
-            'guardian_email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'guardian@email.com'
-            }),
-            'guardian_phone': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': '0412 345 678'
             }),
             'emergency_contact_name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -723,10 +715,8 @@ class StudentSearchForm(forms.Form):
         search_query = (
             Q(first_name__icontains=query) |
             Q(last_name__icontains=query) |
-            Q(email__icontains=query) |
-            Q(primary_contact_email__icontains=query) |
-            Q(phone__icontains=query) |
-            Q(primary_contact_phone__icontains=query)
+            Q(contact_email__icontains=query) |
+            Q(contact_phone__icontains=query)
         )
         
         students = students_qs.filter(search_query).distinct()[:limit]
@@ -737,9 +727,9 @@ class StudentSearchForm(forms.Form):
             results.append({
                 'id': student.id,
                 'name': student.get_full_name(),
-                'email': student.primary_contact_email or student.email or 'No email',
-                'phone': student.primary_contact_phone or student.phone or 'No phone',
-                'display': f"{student.get_full_name()} ({student.primary_contact_email or student.email or 'No email'})"
+                'email': student.contact_email or 'No email',
+                'phone': student.contact_phone or 'No phone',
+                'display': f"{student.get_full_name()} ({student.contact_email or 'No email'})"
             })
         
         return results
