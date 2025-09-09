@@ -4,24 +4,53 @@
 {% block title %}{{ enrollment.student.get_full_name }} - {{ enrollment.course.name }} - {{ block.super }}{% endblock %}
 
 {% block content %}
+<!-- Standard Detail Page Header -->
+<div class="mb-3">
+    <a href="{% url 'enrollment:enrollment_list' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-arrow-left me-2"></i>Back to Enrollments
+    </a>
+</div>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h2 fw-bold mb-2">{{ enrollment.student.get_full_name }}</h1>
+        <div class="text-muted mb-3">{{ enrollment.course.name }}</div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="badge 
+                {% if enrollment.status == 'confirmed' %}bg-success
+                {% elif enrollment.status == 'pending' %}bg-warning text-dark
+                {% else %}bg-secondary{% endif %} fs-6 px-3 py-2">
+                <i class="fas fa-{% if enrollment.status == 'confirmed' %}check-circle{% elif enrollment.status == 'pending' %}clock{% else %}times-circle{% endif %} me-1"></i>
+                {{ enrollment.get_status_display }}
+            </span>
+            <span class="badge 
+                {% if enrollment.source_channel == 'website' %}bg-info
+                {% elif enrollment.source_channel == 'form' %}bg-primary
+                {% else %}bg-dark{% endif %} px-3 py-2">
+                <i class="fas fa-{% if enrollment.source_channel == 'website' %}globe{% elif enrollment.source_channel == 'form' %}file-alt{% else %}desktop{% endif %} me-1"></i>
+                {{ enrollment.get_source_channel_display }}
+            </span>
+        </div>
+    </div>
+    <div class="d-flex flex-column gap-2">
+        <a href="{% url 'enrollment:enrollment_update' enrollment.pk %}" class="btn btn-primary">
+            <i class="fas fa-edit me-2"></i>Edit Enrollment
+        </a>
+        {% if enrollment.status == 'pending' %}
+        <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn-success w-100">
+                <i class="fas fa-check me-2"></i>Confirm Enrollment
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
 <div class="container-fluid py-4">
     <div class="row">
         <div class="col-12">
-            <!-- Header -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h1 class="h3 mb-1">Enrollment Details</h1>
-                    <p class="text-muted mb-0">{{ enrollment.student.get_full_name }} - {{ enrollment.course.name }}</p>
-                </div>
-                <div class="d-flex gap-2">
-                    <a href="{% url 'enrollment:enrollment_update' enrollment.pk %}" class="btn btn-primary">
-                        <i class="fas fa-edit me-2"></i>Edit Enrollment
-                    </a>
-                    <a href="{% url 'enrollment:enrollment_list' %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Enrollments
-                    </a>
-                </div>
-            </div>
 
             <div class="row">
                 <!-- Main Information -->
@@ -204,20 +233,6 @@
                             <h5 class="card-title mb-0">Quick Actions</h5>
                         </div>
                         <div class="card-body">
-                            {% if enrollment.status == 'pending' %}
-                                <form method="post" class="mb-3">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="confirm">
-                                    <button type="submit" class="btn btn-success w-100">
-                                        <i class="fas fa-check me-2"></i>Confirm Enrollment
-                                    </button>
-                                </form>
-                            {% endif %}
-                            
-                            <a href="{% url 'enrollment:enrollment_update' enrollment.pk %}" class="btn btn-primary w-100 mb-2">
-                                <i class="fas fa-edit me-2"></i>Edit Enrollment
-                            </a>
-                            
                             <a href="{% url 'enrollment:enrollment_delete' enrollment.pk %}" 
                                class="btn btn-danger w-100"
                                onclick="return confirm('Are you sure you want to delete this enrollment?')">

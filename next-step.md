@@ -125,6 +125,16 @@ create:
   - [] test course create and edit, with price include GST or not.
   - [] test enrolment creation by operator, with registration fee included in the total amount 
 
+- [] #bug when update course from draft to published, the woocommerce product is not created. and make the published status just above the save/create/update button, to make it more obvious.
+  - [] test course create with published status, and check woocommerce product created with right information.
+  - [] test course edit from draft to published, and check woocommerce product created with right
+  - [] test course edit from published to draft, and check woocommerce product marked as draft.
+  - [] test course edit from published to expired, and check woocommerce product marked as draft.
+  - [] test course edit from draft to expired, and check woocommerce product marked as draft.
+  - [] test course edit from expired to published, and check woocommerce product created or updated (if this item exists) with right information.
+  - [] test the mapping between the system and woocommerce product fields, are updated along with the editing of course. e.g. vacancy, enrolment deadline, fees, dates, facility (location). 
+  - [] test before create a new product on woocommerce, the system always check if there is an existing product with the external_id saved in the course, if exists, update it, otherwise create a new one.
+
 
 ### enrolment
 - [ ] after submission, the email should include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the course should have a new enrolment added as well, with pending status. and the vacancy should not be changed until the enrolment is confirmed by operator.
@@ -132,6 +142,8 @@ create:
   - Public enrollment URL: `/enroll/public`
   - Course-specific enrollment URL: `/enroll/public?course=123`
   - Test: Access the course-specific URL and verify that the course selection dropdown pre-selects the specified course.
+
+- [] #bug the current copied url from the course detail is http://localhost:8000/academics/courses/36//enroll/?course=36, seems like the url pattern is not right, concated by wrong root url. 
 
 ### settings 
 - [ ] SMS configuration should be only visible to admin user of the organisation, so as the email configuration.
@@ -153,3 +165,7 @@ create:
   - [x] test course create and edit, with price include GST or not.
   - [ ] test enrolment creation by operator, with registration fee included in the total amount.
   - [ ] test enrolment creation by student, with registration fee included in the total amount.
+
+
+### Interaction design
+- [] We have list->detail page interaction for course, class, student, staff, enrolment and other modules. I want to make the layout of detail pages of different modules aligned. e.g. the first row should be a left-aligned link back to its list page, and the next row should be the title on the left and action buttons on the right, and then the main content below. please help me refine all the detail pages to align them. review if all the implementation is like this.

@@ -50,67 +50,61 @@
 {% endblock %}
 
 {% block content %}
+<!-- Standard Detail Page Header -->
+<div class="mb-3">
+    <a href="{% url 'academics:course_list' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-arrow-left me-2"></i>Back to Courses
+    </a>
+</div>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="display-5 fw-bold mb-2">{{ course.name }}</h1>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="badge bg-success text-white px-3 py-2 fs-6">
+                <i class="fas fa-check-circle me-1"></i>{{ course.get_status_display }}
+            </span>
+            <span class="badge bg-white bg-opacity-25 text-dark px-3 py-2 fs-6 border">
+                <i class="fas fa-users me-1"></i>{{ course.get_course_type_display }}
+            </span>
+            <span class="badge bg-white bg-opacity-25 text-dark px-3 py-2 fs-6 border">
+                <i class="fas fa-dollar-sign me-1"></i>${{ course.price }}
+            </span>
+            {% if course.get_current_bookable_state != 'bookable' %}
+            <span class="badge bg-warning text-dark px-3 py-2 fs-6">
+                <i class="fas fa-info-circle me-1"></i>{{ course.get_bookable_state_display }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="d-flex flex-column flex-sm-row gap-2">
+        {% if course.status == 'published' and course.is_online_bookable and course.get_current_bookable_state == 'bookable' %}
+        <a href="{% url 'enrollment:public_enrollment_with_course' course.pk %}" class="btn btn-success">
+            <i class="fas fa-user-plus me-2"></i>Enrol Now
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-info" onclick="copyEnrollmentUrl()" title="Copy Public Enrollment URL">
+            <i class="fas fa-link me-2"></i>Copy Enrol Link
+        </button>
+        <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-primary">
+            <i class="fas fa-edit me-2"></i>Edit Course
+        </a>
+    </div>
+</div>
+
 <!-- Course Hero Section -->
 <div class="course-hero">
     <div class="row align-items-start">
         <div class="col-12 {% if course.featured_image %}col-lg-8{% endif %}">
-            <!-- Action Buttons Row -->
-            <div class="d-flex justify-content-between mb-1">
-                <!-- Enrollment Button (Left) -->
-                {% if course.status == 'published' and course.is_online_bookable and course.get_current_bookable_state == 'bookable' %}
-                <div>
-                    <a href="{% url 'enrollment:public_enrollment_with_course' course.pk %}" class="btn btn-success">
-                        <i class="fas fa-user-plus me-2"></i>Enrol Now
-                    </a>
-                </div>
-                {% else %}
-                <div></div>
-                {% endif %}
-                
-                <!-- Admin Actions (Right) -->
-                <div class="btn-group">
-                    <!-- Copy Public Enrollment URL Button -->
-                    <button type="button" class="btn btn-info" onclick="copyEnrollmentUrl()" title="Copy Public Enrollment URL">
-                        <i class="fas fa-link me-2"></i>Copy Enrol Link
-                    </button>
-                    <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-light">
-                        <i class="fas fa-edit me-2"></i>Edit Course
-                    </a>
-                    <a href="{% url 'academics:course_list' %}" class="btn btn-outline-light">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Courses
-                    </a>
-                </div>
-            </div>
             
-            <!-- Course Title and Description -->
+            <!-- Course Description and Additional Info -->
             <div class="mb-4">
-                <h1 class="display-4 fw-bold mb-3 text-white" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3); line-height: 1.2;">
-                    {{ course.name }}
-                </h1>
-                <p class="lead mb-0 text-white opacity-90" style="font-size: 1.1rem;">
+                <p class="lead mb-3 text-white opacity-90" style="font-size: 1.1rem;">
                     {{ course.short_description|default:"Learn with our expert instructors in a supportive environment." }}
                 </p>
-            </div>
-            
-            <!-- Course Badges -->
-            <div class="d-flex flex-wrap gap-2">
                 <span class="badge bg-white bg-opacity-25 text-white px-3 py-2 fs-6">
-                    <i class="fas fa-users me-1"></i>{{ course.get_course_type_display }}
+                    <i class="fas fa-chair me-1"></i>{{ course.vacancy }} places available
                 </span>
-                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2 fs-6">
-                    <i class="fas fa-dollar-sign me-1"></i>${{ course.price }}
-                </span>
-                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2 fs-6">
-                    <i class="fas fa-chair me-1"></i>{{ course.vacancy }} places
-                </span>
-                <span class="badge bg-success text-white px-3 py-2 fs-6">
-                    <i class="fas fa-check-circle me-1"></i>{{ course.get_status_display }}
-                </span>
-                {% if course.get_current_bookable_state != 'bookable' %}
-                <span class="badge bg-warning text-dark px-3 py-2 fs-6">
-                    <i class="fas fa-info-circle me-1"></i>{{ course.get_bookable_state_display }}
-                </span>
-                {% endif %}
             </div>
         </div>
         

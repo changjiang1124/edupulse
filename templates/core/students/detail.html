@@ -4,14 +4,35 @@
 {% block title %}{{ student.first_name }} {{ student.last_name }} - Student Details - EduPulse{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <h1 class="page-title">{{ student.first_name }} {{ student.last_name }}</h1>
-        <p class="page-subtitle">Student Information</p>
+<!-- Standard Detail Page Header -->
+<div class="mb-3">
+    <a href="{% url 'students:student_list' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-arrow-left me-2"></i>Back to Students
+    </a>
+</div>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h2 fw-bold mb-2">{{ student.first_name }} {{ student.last_name }}</h1>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="status-badge {% if student.is_active %}status-active{% else %}status-inactive{% endif %}">
+                <i class="fas fa-{% if student.is_active %}check-circle{% else %}times-circle{% endif %} me-1"></i>
+                {% if student.is_active %}Active Student{% else %}Inactive Student{% endif %}
+            </span>
+            {% if enrollments.count > 0 %}
+            <span class="badge bg-primary text-white px-3 py-2">
+                <i class="fas fa-graduation-cap me-1"></i>{{ enrollments.count }} Enrollment{{ enrollments.count|pluralize }}
+            </span>
+            {% endif %}
+        </div>
     </div>
-    <div class="col-md-4 text-end">
-        <a href="{% url 'students:student_edit' student.pk %}" class="btn btn-primary">Edit Student</a>
-        <a href="{% url 'students:student_list' %}" class="btn btn-outline-secondary">Back to Students</a>
+    <div class="d-flex flex-column flex-sm-row gap-2">
+        <a href="{% url 'students:student_edit' student.pk %}" class="btn btn-primary">
+            <i class="fas fa-edit me-2"></i>Edit Student
+        </a>
+        <button type="button" class="btn btn-success" onclick="openNotificationModal([{{ student.pk }}])">
+            <i class="fas fa-paper-plane me-2"></i>Send Notification
+        </button>
     </div>
 </div>
 
@@ -239,12 +260,8 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'students:student_edit' student.pk %}" class="btn btn-primary">Edit Student</a>
-                    <button type="button" class="btn btn-success" onclick="openNotificationModal([{{ student.pk }}])">
-                        <i class="fas fa-paper-plane me-2"></i>Send Notification
-                    </button>
-                    <a href="{% url 'enrollment:enrollment_list' %}?student={{ student.pk }}" class="btn btn-outline-info">View Enrollments</a>
-                    <a href="{% url 'enrollment:attendance_list' %}?student={{ student.pk }}" class="btn btn-outline-success">View Attendance</a>
+                    <a href="{% url 'enrollment:enrollment_list' %}?student={{ student.pk }}" class="btn btn-outline-info">View All Enrollments</a>
+                    <a href="{% url 'enrollment:attendance_list' %}?student={{ student.pk }}" class="btn btn-outline-success">View Attendance History</a>
                 </div>
             </div>
         </div>

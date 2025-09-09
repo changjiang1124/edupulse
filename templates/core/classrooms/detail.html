@@ -4,14 +4,38 @@
 {% block title %}{{ classroom.name }} - Classroom Details - EduPulse{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <h1 class="page-title">{{ classroom.facility.name }} - {{ classroom.name }}</h1>
-        <p class="page-subtitle">Classroom Information</p>
+<!-- Standard Detail Page Header -->
+<div class="mb-3">
+    <a href="{% url 'facilities:classroom_list' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-arrow-left me-2"></i>Back to Classrooms
+    </a>
+</div>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h2 fw-bold mb-2">{{ classroom.facility.name }} - {{ classroom.name }}</h1>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="status-badge {% if classroom.is_active %}status-active{% else %}status-inactive{% endif %}">
+                <i class="fas fa-{% if classroom.is_active %}check-circle{% else %}times-circle{% endif %} me-1"></i>
+                {% if classroom.is_active %}Active Classroom{% else %}Inactive Classroom{% endif %}
+            </span>
+            <span class="badge bg-info text-white px-3 py-2">
+                <i class="fas fa-users me-1"></i>{{ classroom.capacity }} students capacity
+            </span>
+            {% if classes.count > 0 %}
+            <span class="badge bg-success text-white px-3 py-2">
+                <i class="fas fa-calendar me-1"></i>{{ classes.count }} Scheduled Class{{ classes.count|pluralize:"es" }}
+            </span>
+            {% endif %}
+        </div>
     </div>
-    <div class="col-md-4 text-end">
-        <a href="{% url 'facilities:classroom_edit' classroom.pk %}" class="btn btn-primary">Edit Classroom</a>
-        <a href="{% url 'facilities:classroom_list' %}" class="btn btn-outline-secondary">Back to Classrooms</a>
+    <div class="d-flex flex-column flex-sm-row gap-2">
+        <a href="{% url 'facilities:classroom_edit' classroom.pk %}" class="btn btn-primary">
+            <i class="fas fa-edit me-2"></i>Edit Classroom
+        </a>
+        <a href="{% url 'academics:class_add' %}?classroom={{ classroom.pk }}" class="btn btn-success">
+            <i class="fas fa-plus me-2"></i>Schedule Class
+        </a>
     </div>
 </div>
 
@@ -145,9 +169,7 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'facilities:classroom_edit' classroom.pk %}" class="btn btn-primary">Edit Classroom</a>
-                    <a href="{% url 'facilities:facility_detail' classroom.facility.pk %}" class="btn btn-outline-info">View Facility</a>
-                    <a href="{% url 'academics:class_add' %}?classroom={{ classroom.pk }}" class="btn btn-outline-success">Schedule Class</a>
+                    <a href="{% url 'facilities:facility_detail' classroom.facility.pk %}" class="btn btn-outline-info">View Facility Details</a>
                 </div>
             </div>
         </div>

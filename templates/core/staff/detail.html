@@ -4,20 +4,46 @@
 {% block title %}{{ staff.first_name }} {{ staff.last_name }} - Staff Details - EduPulse{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <h1 class="page-title">{{ staff.first_name }} {{ staff.last_name }}</h1>
-        <p class="page-subtitle">
-            <span class="badge {% if staff.role == 'admin' %}bg-danger{% else %}bg-primary{% endif %} me-2">
-                {{ staff.get_role_display }}
+<!-- Standard Detail Page Header -->
+<div class="mb-3">
+    {% if user.role == 'admin' and not is_profile_view %}
+    <a href="{% url 'accounts:staff_list' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-arrow-left me-2"></i>Back to Staff
+    </a>
+    {% else %}
+    <a href="{% url 'core:dashboard' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+    </a>
+    {% endif %}
+</div>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h2 fw-bold mb-2">{{ staff.first_name }} {{ staff.last_name }}</h1>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="badge {% if staff.role == 'admin' %}bg-danger{% else %}bg-primary{% endif %} text-white px-3 py-2">
+                <i class="fas fa-user-tie me-1"></i>{{ staff.get_role_display }}
             </span>
-            {% if is_profile_view %}My Profile{% else %}Staff Member Details{% endif %}
-        </p>
+            <span class="status-badge {% if staff.is_active_staff %}status-active{% else %}status-inactive{% endif %}">
+                <i class="fas fa-{% if staff.is_active_staff %}check-circle{% else %}times-circle{% endif %} me-1"></i>
+                {% if staff.is_active_staff %}Active Staff{% else %}Inactive Staff{% endif %}
+            </span>
+            {% if taught_courses.count > 0 %}
+            <span class="badge bg-info text-white px-3 py-2">
+                <i class="fas fa-chalkboard-teacher me-1"></i>{{ taught_courses.count }} Course{{ taught_courses.count|pluralize }}
+            </span>
+            {% endif %}
+        </div>
     </div>
-    <div class="col-md-4 text-end">
+    <div class="d-flex flex-column gap-2">
         {% if user.role == 'admin' and not is_profile_view %}
-        <a href="{% url 'accounts:staff_edit' staff.pk %}" class="btn btn-primary">Edit Staff</a>
-        <a href="{% url 'accounts:staff_list' %}" class="btn btn-outline-secondary">Back to Staff</a>
+        <a href="{% url 'accounts:staff_edit' staff.pk %}" class="btn btn-primary">
+            <i class="fas fa-edit me-2"></i>Edit Staff
+        </a>
+        {% elif is_profile_view %}
+        <a href="{% url 'password_change' %}" class="btn btn-primary">
+            <i class="fas fa-key me-2"></i>Change Password
+        </a>
         {% endif %}
     </div>
 </div>
@@ -251,7 +277,6 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'accounts:staff_edit' staff.pk %}" class="btn btn-primary">Edit Staff Details</a>
                     <a href="{% url 'academics:course_list' %}?teacher={{ staff.pk }}" class="btn btn-outline-info">View Teaching Assignments</a>
                     <a href="{% url 'academics:class_list' %}?teacher={{ staff.pk }}" class="btn btn-outline-success">View Class Schedule</a>
                 </div>
@@ -264,7 +289,6 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'password_change' %}" class="btn btn-primary">Change Password</a>
                     {% if staff.role == 'teacher' %}
                     <a href="{% url 'core:teacher_clock' %}" class="btn btn-outline-info">Clock In/Out</a>
                     <a href="{% url 'core:teacher_attendance_history' %}" class="btn btn-outline-success">My Attendance History</a>
