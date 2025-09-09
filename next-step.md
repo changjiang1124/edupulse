@@ -163,7 +163,7 @@ Fixed: Added proper date/datetime serialization in PublicEnrollmentView POST met
 NOT NULL constraint failed: enrollment_enrollment.student_id
 Fixed: Reordered logic to create student first, then enrollment with proper student reference
 
-- [] in the course detail, should remove `Enrol Now` button, as there should be only two ways to enrol, 1. copy the public enrolment link to this course for customers to fill, and 2. add enrolment by the operators, thru the button above the enrolment section in the course detail. and please help me test the operator adding enrolment. review the current implementation /enroll/enrollments/staff/create/39/. expected: 1. choose student first, create one if not exists; 2. remove the current adding new student modal popped in the enrolment create form, instead, new window open /students/add/ to maintain the same form for the same purpose. 
+- [x] in the course detail, should remove `Enrol Now` button, as there should be only two ways to enrol, 1. copy the public enrolment link to this course for customers to fill, and 2. add enrolment by the operators, thru the button above the enrolment section in the course detail. and please help me test the operator adding enrolment. review the current implementation /enroll/enrollments/staff/create/39/. expected: 1. choose student first, create one if not exists; 2. remove the current adding new student modal popped in the enrolment create form, instead, new window open /students/add/ to maintain the same form for the same purpose. 
 
 - [] enrolement should have `referred by` to be optional, a textbox for referral name. and this should also be a field in the enroled student profile
 

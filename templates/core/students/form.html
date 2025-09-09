@@ -121,9 +121,83 @@
                         </div>
                     </div>
 
+                    <!-- Emergency Contact -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">Emergency Contact</h6>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.emergency_contact_name.id_for_label }}" class="form-label">Emergency Contact Name</label>
+                                    {{ form.emergency_contact_name }}
+                                    {% if form.emergency_contact_name.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.emergency_contact_name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.emergency_contact_phone.id_for_label }}" class="form-label">Emergency Contact Phone</label>
+                                    {{ form.emergency_contact_phone }}
+                                    {% if form.emergency_contact_phone.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.emergency_contact_phone.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Medical & Special Requirements -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">Medical & Special Requirements</h6>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.medical_conditions.id_for_label }}" class="form-label">Medical Conditions</label>
+                            {{ form.medical_conditions }}
+                            {% if form.medical_conditions.errors %}
+                                <div class="invalid-feedback d-block">{{ form.medical_conditions.errors.0 }}</div>
+                            {% endif %}
+                            {% if form.medical_conditions.help_text %}
+                                <div class="form-text">{{ form.medical_conditions.help_text }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.special_requirements.id_for_label }}" class="form-label">Special Requirements</label>
+                            {{ form.special_requirements }}
+                            {% if form.special_requirements.errors %}
+                                <div class="invalid-feedback d-block">{{ form.special_requirements.errors.0 }}</div>
+                            {% endif %}
+                            {% if form.special_requirements.help_text %}
+                                <div class="form-text">{{ form.special_requirements.help_text }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
                     <!-- Additional Information -->
                     <div class="mb-4">
                         <h6 class="text-muted mb-3">Additional Information</h6>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.registration_status.id_for_label }}" class="form-label">Registration Status *</label>
+                                    {{ form.registration_status }}
+                                    {% if form.registration_status.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.registration_status.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.enrollment_source.id_for_label }}" class="form-label">Enrollment Source</label>
+                                    {{ form.enrollment_source }}
+                                    {% if form.enrollment_source.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.enrollment_source.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                         
                         <div class="mb-3">
                             <label for="{{ form.reference.id_for_label }}" class="form-label">How did you hear about us?</label>
@@ -134,6 +208,25 @@
                         </div>
                         
                         {% if form.instance.pk %}
+                        <div class="mb-3">
+                            <label for="{{ form.tags.id_for_label }}" class="form-label">Tags</label>
+                            {{ form.tags }}
+                            {% if form.tags.errors %}
+                                <div class="invalid-feedback d-block">{{ form.tags.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.staff_notes.id_for_label }}" class="form-label">Staff Notes</label>
+                            {{ form.staff_notes }}
+                            {% if form.staff_notes.errors %}
+                                <div class="invalid-feedback d-block">{{ form.staff_notes.errors.0 }}</div>
+                            {% endif %}
+                            {% if form.staff_notes.help_text %}
+                                <div class="form-text">{{ form.staff_notes.help_text }}</div>
+                            {% endif %}
+                        </div>
+                        
                         <div class="form-check mb-3">
                             {{ form.is_active }}
                             <label class="form-check-label" for="{{ form.is_active.id_for_label }}">

@@ -454,12 +454,16 @@ class PublicEnrollmentView(TemplateView):
                 form.cleaned_data, None  # Pass None for enrollment initially
             )
             
+            # Determine registration status based on student_status from form
+            student_status = form.cleaned_data.get('student_status', 'new')
+            
             # Now create enrollment with the student
             enrollment = Enrollment.objects.create(
                 student=student,
                 course=course,
                 status='pending',
                 source_channel='website',
+                registration_status=student_status,  # Use the status from the form
                 original_form_data=serializable_form_data,
                 is_new_student=was_created,
                 matched_existing_student=not was_created

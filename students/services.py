@@ -168,7 +168,7 @@ class EnrollmentFeeCalculator:
     """Calculate enrollment fees based on course and student status"""
     
     @staticmethod
-    def calculate_total_fees(course, is_new_student=True):
+    def calculate_total_fees(course, registration_status='new'):
         """Calculate total fees including registration fee if applicable"""
         # Base course fee
         course_fee = course.price or 0
@@ -176,7 +176,7 @@ class EnrollmentFeeCalculator:
         # Registration fee if new student and course has registration fee
         registration_fee = 0
         try:
-            if is_new_student and hasattr(course, 'has_registration_fee') and course.has_registration_fee():
+            if registration_status == 'new' and hasattr(course, 'has_registration_fee') and course.has_registration_fee():
                 registration_fee = course.registration_fee or 0
         except Exception:
             registration_fee = 0
@@ -191,15 +191,22 @@ class EnrollmentFeeCalculator:
         }
     
     @staticmethod
-    def update_enrollment_fees(enrollment, course, is_new_student):
+    def update_enrollment_fees(enrollment, course, is_new_student=None):
         """Update the enrollment with calculated fees"""
-        fees = EnrollmentFeeCalculator.calculate_total_fees(course, is_new_student)
+        # Use enrollment.registration_status if available, otherwise fall back to is_new_student
+        registration_status = getattr(enrollment, 'registration_status', 'new')
+        if registration_status is None and is_new_student is not None:
+            registration_status = 'new' if is_new_student else 'returning'
+        
+        fees = EnrollmentFeeCalculator.calculate_total_fees(course, registration_status)
         
         # Store calculated fees in enrollment (use existing fields)
         try:
             enrollment.course_fee = fees.get('course_fee', 0)
             enrollment.registration_fee = fees.get('registration_fee', 0)
-            enrollment.is_new_student = is_new_student
+            # Keep is_new_student for backward compatibility if provided
+            if is_new_student is not None:
+                enrollment.is_new_student = is_new_student
             enrollment.save()
         except Exception:
             # Fail silently to avoid blocking enrollment creation

@@ -148,11 +148,18 @@
                                         <i class="fas fa-cog me-1"></i>Enrollment Options
                                     </h6>
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             {{ enrollment_form.status.label_tag }}
                                             {{ enrollment_form.status }}
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
+                                            {{ enrollment_form.registration_status.label_tag }}
+                                            {{ enrollment_form.registration_status }}
+                                            {% if enrollment_form.registration_status.help_text %}
+                                                <div class="form-text">{{ enrollment_form.registration_status.help_text }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-4">
                                             <div class="form-check mt-4">
                                                 {{ enrollment_form.charge_registration_fee }}
                                                 {{ enrollment_form.charge_registration_fee.label_tag }}

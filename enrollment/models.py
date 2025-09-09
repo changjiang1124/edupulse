@@ -45,6 +45,19 @@ class Enrollment(models.Model):
         verbose_name='Enrolment Source'
     )
     
+    # Registration status for this specific enrollment
+    registration_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('new', 'New Student'),
+            ('returning', 'Returning Student'),
+            ('transferred', 'Transferred Student')
+        ],
+        default='new',
+        verbose_name='Registration Status',
+        help_text='Student status for this specific enrollment'
+    )
+    
     # Enrolment form data (JSON format for original form data)
     form_data = models.JSONField(
         blank=True,

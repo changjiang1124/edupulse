@@ -53,6 +53,18 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         messages.success(self.request, f'Student {form.instance.first_name} {form.instance.last_name} added successfully!')
         return super().form_valid(form)
+    
+    def form_invalid(self, form):
+        # Add error messages for debugging
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(self.request, f'{field}: {error}')
+        
+        # Also check for non-field errors
+        for error in form.non_field_errors():
+            messages.error(self.request, f'Form error: {error}')
+            
+        return super().form_invalid(form)
 
 
 class StudentDetailView(LoginRequiredMixin, DetailView):
@@ -88,6 +100,18 @@ class StudentUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, f'Student {form.instance.first_name} {form.instance.last_name} updated successfully!')
         return super().form_valid(form)
+    
+    def form_invalid(self, form):
+        # Add error messages for debugging
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(self.request, f'{field}: {error}')
+        
+        # Also check for non-field errors
+        for error in form.non_field_errors():
+            messages.error(self.request, f'Form error: {error}')
+            
+        return super().form_invalid(form)
 
 
 @login_required

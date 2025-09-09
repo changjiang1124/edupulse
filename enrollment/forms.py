@@ -442,7 +442,7 @@ class StaffEnrollmentForm(forms.ModelForm):
     
     class Meta:
         model = Enrollment
-        fields = ['student', 'course', 'status', 'source_channel']
+        fields = ['student', 'course', 'status', 'registration_status', 'source_channel']
         widgets = {
             'student': forms.Select(attrs={
                 'class': 'form-select d-none',  # Hidden by default using Bootstrap class
@@ -452,6 +452,9 @@ class StaffEnrollmentForm(forms.ModelForm):
                 'class': 'form-select'
             }),
             'status': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'registration_status': forms.Select(attrs={
                 'class': 'form-select'
             }),
             'source_channel': forms.HiddenInput(),

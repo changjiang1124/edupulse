@@ -1,3 +1,132 @@
+## Registration Status 字段迁移 (2025-09-10) ✅ 已完成
+
+### 问题描述
+用户指出 `registration_status` 字段应该属于 `Enrollment` 而不是 `Student`，因为它直接影响 enrollment 的定价逻辑（如新学生的注册费）。
+
+### 业务逻辑分析
+- **问题**：同一学生可能在不同时间有不同的注册状态（第一次是 "new"，后续应该是 "returning"）
+- **影响**：registration_status 直接影响费用计算，应该在 enrollment 层面处理
+- **数据一致性**：发现 2 个学生标记为 'new' 但有多次注册的不一致情况
+
+### 实施方案
+
+#### 1. 数据分析 ✅
+**发现**：
+- 总学生数：9，全部标记为 'new'
+- 总注册数：9
+- 逻辑不一致：2 个学生有多次注册但仍标记为 'new'
+- 有注册费的记录：1 条
+
+#### 2. 模型和数据库迁移 ✅
+**文件**：`enrollment/models.py`, `enrollment/migrations/0003_auto_20250910_0038.py`
+**修改**：
+- 在 Enrollment 模型添加 `registration_status` 字段
+- 创建数据迁移，将学生的第一次注册保持原状态，后续注册设为 'returning'
+- 成功迁移 9 条 enrollment 记录
+
+#### 3. 业务逻辑更新 ✅
+**文件**：`students/services.py`
+**修改**：
+```python
+# 更新 EnrollmentFeeCalculator
+def calculate_total_fees(course, registration_status='new'):
+    # 从 enrollment.registration_status 读取，而不是 student.registration_status
+    if registration_status == 'new' and course.has_registration_fee():
+        registration_fee = course.registration_fee
+```
+
+#### 4. 表单和视图更新 ✅
+**文件**：`enrollment/forms.py`, `enrollment/views.py`, `templates/core/enrollments/staff_create.html`
+**修改**：
+- StaffEnrollmentForm 添加 registration_status 字段
+- PublicEnrollmentView 正确设置 registration_status
+- 模板显示新字段
+
+#### 5. 测试验证 ✅
+**验证项目**：
+- ✅ Enrollment.registration_status 字段正常工作
+- ✅ 费用计算逻辑正确（新学生收注册费，返回学生不收）
+- ✅ Enrollment 创建流程正常
+- ✅ StaffEnrollmentForm 包含所有必需字段
+- ✅ 向后兼容性保持
+
+### 技术细节
+- **数据迁移策略**：基于 enrollment 创建时间顺序，第一次注册保持学生原状态，后续自动设为 'returning'
+- **向后兼容**：保留 Student.registration_status 字段，EnrollmentFeeCalculator 支持旧 API
+- **费用计算**：现在基于每次 enrollment 的具体状态，而不是学生的全局状态
+
+### 业务价值
+1. **逻辑正确性**：registration_status 现在属于每次 enrollment，符合实际业务流程
+2. **定价准确性**：避免了因学生状态错误导致的定价问题
+3. **数据一致性**：解决了学生多次注册但状态不更新的问题
+4. **可扩展性**：为未来更复杂的定价策略提供了基础
+
+### 影响范围
+- Enrollment 模型新增字段
+- 费用计算逻辑更新
+- 表单和模板更新
+- 数据库迁移（9 条记录）
+
+---
+
+## 学生编辑功能修复 (2025-09-10) ✅ 已完成
+
+### 问题描述
+用户报告学生编辑功能失败但没有错误信息显示。表单提交后返回200状态码但没有重定向到详情页面，说明表单验证失败。
+
+### 根本原因
+学生编辑表单模板 (`templates/core/students/form.html`) 中缺少多个必需的表单字段，特别是 `registration_status` 字段（必需字段），导致表单验证失败但用户看不到错误信息。
+
+### 修复方案
+
+#### 1. 添加错误处理机制 ✅
+**文件**: `students/views.py`
+**修改**: 在 `StudentCreateView` 和 `StudentUpdateView` 中添加 `form_invalid` 方法
+```python
+def form_invalid(self, form):
+    # Add error messages for debugging
+    for field, errors in form.errors.items():
+        for error in errors:
+            messages.error(self.request, f'{field}: {error}')
+    
+    # Also check for non-field errors
+    for error in form.non_field_errors():
+        messages.error(self.request, f'Form error: {error}')
+        
+    return super().form_invalid(form)
+```
+
+#### 2. 完善表单模板字段 ✅
+**文件**: `templates/core/students/form.html`
+**添加的字段**:
+- `emergency_contact_name` 和 `emergency_contact_phone` - 紧急联系人信息
+- `medical_conditions` 和 `special_requirements` - 医疗和特殊需求信息
+- `registration_status` - 注册状态（必需字段）
+- `enrollment_source` - 注册来源
+- `staff_notes` - 员工备注
+- `tags` - 学生标签
+
+#### 3. 字段组织和布局 ✅
+**新增的表单部分**:
+- Emergency Contact 部分：紧急联系人姓名和电话
+- Medical & Special Requirements 部分：医疗条件和特殊需求
+- Additional Information 部分：注册状态、注册来源、推荐来源等
+- Staff Fields 部分：标签和员工备注（仅编辑时显示）
+
+### 测试验证 ✅
+创建了完整的测试脚本验证：
+1. 表单字段验证逻辑正常工作
+2. 必需字段 `registration_status` 正确验证
+3. 所有字段都能正确保存到数据库
+4. 表单编辑功能完全正常
+
+### 影响范围
+- 学生创建和编辑功能现在包含完整的字段信息
+- 用户现在能看到详细的表单验证错误信息
+- 表单数据完整性得到保证
+
+---
+
 ## 注册表单IntegrityError修复 (2025-09-09) ✅ 已完成
 
 ### 问题描述
