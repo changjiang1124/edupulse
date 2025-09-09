@@ -2,10 +2,7 @@
 students related to a certain class should be edited manually as well, due to some classes may involve some unplaned students. 
 
 ## for next step implementation 
-[x] in course detail page, should we change the layout of description as it is rich content with potential images and other html content? or is there any other better layout structure for the course detail page?
-  - [x] need test
-- staff edit/ create, when click update, the page has no response, and not take effect. check if similar issues in other modules. 
-  - [ ] need test 
+
 
 - [x] class / session should have their own detail page, and able to be edited for all its elements, even they still keep the hierarchy relationship with Course. some user stories here are 1. students related to a certain class should be edited manually as well, due to some classes may involve some unplaned students; 2. teacher might be changed due to shift/leave; 3. occasionally, classroom and time may be changed as well. There might be a tricky part for the same elements between course and class/session (e.g. start time, teacher,) how should we handle the situation? should we restrict some course elements not editable once created? or should we allow changes on all, but let operator select which classes will be affected (all selected by default)? 
   - [ ] test
@@ -125,15 +122,22 @@ create:
   - [] test course create and edit, with price include GST or not.
   - [] test enrolment creation by operator, with registration fee included in the total amount 
 
-- [] #bug when update course from draft to published, the woocommerce product is not created. and make the published status just above the save/create/update button, to make it more obvious.
-  - [] test course create with published status, and check woocommerce product created with right information.
-  - [] test course edit from draft to published, and check woocommerce product created with right
-  - [] test course edit from published to draft, and check woocommerce product marked as draft.
+- [x] #bug when update course from draft to published, the woocommerce product is not created. and make the published status just above the save/create/update button, to make it more obvious.
+  - [x] test course create with published status, and check woocommerce product created with right information.
+  - [x] test course edit from draft to published, and check woocommerce product created with right
+  - [x] test course edit from published to draft, and check woocommerce product marked as draft.
   - [] test course edit from published to expired, and check woocommerce product marked as draft.
   - [] test course edit from draft to expired, and check woocommerce product marked as draft.
   - [] test course edit from expired to published, and check woocommerce product created or updated (if this item exists) with right information.
   - [] test the mapping between the system and woocommerce product fields, are updated along with the editing of course. e.g. vacancy, enrolment deadline, fees, dates, facility (location). 
   - [] test before create a new product on woocommerce, the system always check if there is an existing product with the external_id saved in the course, if exists, update it, otherwise create a new one.
+
+
+### class 
+- [x] there should be a class entry in course list page, to show class list of all courses, with filter by course, facility, date range, teacher, classroom and active status. and the class item should have view detail action to go to class detail page. the classes could be in card style if the elements are too many to show in one line. Try leverage the current class implementation to avoid rework and potential bugs.
+
+### attendance 
+- [x] refine the design and layout of attendance page to aligned with other page. I will list some unsatisfied status quo: 1. as current title is in gradient, which should be in solid color; 2. quick actions could have a better layout, e.g. right alinged just above the table of students. 3. remove `Mark all absent` as this is absurd
 
 
 ### enrolment
@@ -166,6 +170,3 @@ create:
   - [ ] test enrolment creation by operator, with registration fee included in the total amount.
   - [ ] test enrolment creation by student, with registration fee included in the total amount.
 
-
-### Interaction design
-- [x] We have list->detail page interaction for course, class, student, staff, enrolment and other modules. I want to make the layout of detail pages of different modules aligned. e.g. the first row should be a left-aligned link back to its list page, and the next row should be the title on the left and action buttons on the right, and then the main content below. please help me refine all the detail pages to align them. review if all the implementation is like this.

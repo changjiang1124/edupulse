@@ -31,7 +31,7 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #2563eb;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -88,7 +88,7 @@
 }
 
 .class-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #2563eb;
     color: white;
     border-radius: 8px;
     padding: 20px;
@@ -168,7 +168,7 @@
                 
                 <!-- Default Time Setting -->
                 <div class="row mb-3">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label for="{{ form.default_time.id_for_label }}" class="form-label">
                             <i class="fas fa-clock me-2"></i>{{ form.default_time.label }}
                         </label>
@@ -176,20 +176,6 @@
                         {% if form.default_time.help_text %}
                             <div class="form-text">{{ form.default_time.help_text }}</div>
                         {% endif %}
-                    </div>
-                    <div class="col-md-8">
-                        <label class="form-label">Quick Actions</label>
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-outline-success btn-sm" onclick="markAllAs('present')">
-                                <i class="fas fa-check me-1"></i>Mark All Present
-                            </button>
-                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="markAllAs('absent')">
-                                <i class="fas fa-times me-1"></i>Mark All Absent
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAllStatus()">
-                                <i class="fas fa-eraser me-1"></i>Clear All
-                            </button>
-                        </div>
                     </div>
                 </div>
 
@@ -211,13 +197,24 @@
                     </div>
                 </div>
 
+                <!-- Quick Actions - moved above student table -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>Student Attendance
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="markAllAs('present')">
+                            <i class="fas fa-check me-1"></i>Mark All Present
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAllStatus()">
+                            <i class="fas fa-eraser me-1"></i>Clear All
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Students Attendance List -->
                 <div class="attendance-table">
                     <div class="p-3">
-                        <h5 class="mb-3">
-                            <i class="fas fa-users me-2"></i>Student Attendance
-                        </h5>
-                        
                         {% if student_fields %}
                             {% for student_data in student_fields %}
                             <div class="student-row" data-student-id="{{ student_data.student_id }}">

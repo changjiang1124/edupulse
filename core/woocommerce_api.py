@@ -139,16 +139,7 @@ class WooCommerceAPI:
         else:
             course_details.append(f"<strong>Course Fee:</strong> {price_display}")
         
-        # Add GST information note if available
-        if course_data.get('gst_info'):
-            gst_info = course_data['gst_info']
-            gst_note = "<em>Note: All prices are displayed "
-            if gst_info['includes_gst']:
-                gst_note += f"inclusive of {gst_info['label']} ({gst_info['rate']*100:.0f}%)."
-            else:
-                gst_note += f"exclusive of {gst_info['label']} ({gst_info['rate']*100:.0f}%), which will be added at checkout."
-            gst_note += "</em>"
-            course_details.append(gst_note)
+        # GST information note removed since it's already shown in price display
         
         # Vacancy information
         vacancy = course_data.get('vacancy')
@@ -200,12 +191,37 @@ class WooCommerceAPI:
         if start_time:
             try:
                 if isinstance(start_time, str):
-                    time_parts = start_time.split(':')
-                    hour = int(time_parts[0])
-                    minute = int(time_parts[1])
-                    formatted_time = f"{hour:02d}:{minute:02d}"
+                    if ':' in start_time:
+                        # Handle time string format like "HH:MM:SS" or "HH:MM"
+                        time_parts = start_time.split(':')
+                        hour = int(time_parts[0])
+                        minute = int(time_parts[1])
+                        
+                        # Convert to 12-hour format with AM/PM
+                        if hour == 0:
+                            formatted_time = f"12:{minute:02d} AM"
+                        elif hour < 12:
+                            formatted_time = f"{hour}:{minute:02d} AM"
+                        elif hour == 12:
+                            formatted_time = f"12:{minute:02d} PM"
+                        else:
+                            formatted_time = f"{hour-12}:{minute:02d} PM"
+                    else:
+                        formatted_time = start_time
                 else:
-                    formatted_time = start_time.strftime('%H:%M')
+                    # Handle time object
+                    hour = start_time.hour
+                    minute = start_time.minute
+                    
+                    # Convert to 12-hour format with AM/PM
+                    if hour == 0:
+                        formatted_time = f"12:{minute:02d} AM"
+                    elif hour < 12:
+                        formatted_time = f"{hour}:{minute:02d} AM"
+                    elif hour == 12:
+                        formatted_time = f"12:{minute:02d} PM"
+                    else:
+                        formatted_time = f"{hour-12}:{minute:02d} PM"
                 
                 timing_info = f"<strong>Class Time:</strong> {formatted_time}"
                 if duration_minutes:

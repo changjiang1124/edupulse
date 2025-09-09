@@ -5,7 +5,7 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.urls import reverse_lazy, reverse
 from django.db.models import Count, Q
 from django.utils import timezone
-from datetime import date
+from datetime import date, datetime
 
 from .models import Course, Class
 from .forms import CourseForm, CourseUpdateForm, ClassForm
@@ -178,18 +178,78 @@ class ClassListView(LoginRequiredMixin, ListView):
     paginate_by = 30
     
     def get_queryset(self):
-        queryset = Class.objects.select_related('course', 'teacher', 'facility', 'classroom').filter(is_active=True)
+        queryset = Class.objects.select_related(
+            'course', 'teacher', 'facility', 'classroom'
+        )
         
         # Filter by user role - teachers can only see their classes
         if hasattr(self.request.user, 'role') and self.request.user.role == 'teacher':
             queryset = queryset.filter(course__teacher=self.request.user)
         
-        # Filter by date range (show upcoming classes by default)
-        date_filter = self.request.GET.get('filter', 'upcoming')
-        if date_filter == 'upcoming':
+        # Filter by active status
+        status_filter = self.request.GET.get('status', 'active')
+        if status_filter == 'active':
+            queryset = queryset.filter(is_active=True)
+        elif status_filter == 'inactive':
+            queryset = queryset.filter(is_active=False)
+        elif status_filter == 'all':
+            pass  # Show all statuses
+        
+        # Date range filters (simplified - no presets)
+        start_date = self.request.GET.get('start_date')
+        end_date = self.request.GET.get('end_date')
+        if start_date:
+            try:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                queryset = queryset.filter(date__gte=start_date)
+            except ValueError:
+                pass
+        else:
+            # Default: show upcoming classes if no date filter is applied
             queryset = queryset.filter(date__gte=timezone.now().date())
-        elif date_filter == 'past':
-            queryset = queryset.filter(date__lt=timezone.now().date())
+        
+        if end_date:
+            try:
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                queryset = queryset.filter(date__lte=end_date)
+            except ValueError:
+                pass
+        
+        # Filter by course
+        course_id = self.request.GET.get('course')
+        if course_id:
+            try:
+                course_id = int(course_id)
+                queryset = queryset.filter(course_id=course_id)
+            except (ValueError, TypeError):
+                pass
+        
+        # Filter by teacher
+        teacher_id = self.request.GET.get('teacher')
+        if teacher_id:
+            try:
+                teacher_id = int(teacher_id)
+                queryset = queryset.filter(teacher_id=teacher_id)
+            except (ValueError, TypeError):
+                pass
+        
+        # Filter by facility
+        facility_id = self.request.GET.get('facility')
+        if facility_id:
+            try:
+                facility_id = int(facility_id)
+                queryset = queryset.filter(facility_id=facility_id)
+            except (ValueError, TypeError):
+                pass
+        
+        # Filter by classroom
+        classroom_id = self.request.GET.get('classroom')
+        if classroom_id:
+            try:
+                classroom_id = int(classroom_id)
+                queryset = queryset.filter(classroom_id=classroom_id)
+            except (ValueError, TypeError):
+                pass
             
         # Search functionality
         search = self.request.GET.get('search')
@@ -197,18 +257,37 @@ class ClassListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(
                 Q(course__name__icontains=search) |
                 Q(teacher__first_name__icontains=search) |
-                Q(teacher__last_name__icontains=search)
+                Q(teacher__last_name__icontains=search) |
+                Q(facility__name__icontains=search) |
+                Q(classroom__name__icontains=search)
             )
         
         return queryset.order_by('date', 'start_time')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['filter'] = self.request.GET.get('filter', 'upcoming')
+        context['status_filter'] = self.request.GET.get('status', 'active')
         context['search_query'] = self.request.GET.get('search', '')
+        context['selected_course'] = self.request.GET.get('course', '')
+        context['selected_teacher'] = self.request.GET.get('teacher', '')
+        context['selected_facility'] = self.request.GET.get('facility', '')
+        context['selected_classroom'] = self.request.GET.get('classroom', '')
+        context['start_date'] = self.request.GET.get('start_date', '')
+        context['end_date'] = self.request.GET.get('end_date', '')
         context['today'] = timezone.now().date()
+        
         # Add user role context for template logic
         context['is_teacher'] = hasattr(self.request.user, 'role') and self.request.user.role == 'teacher'
+        
+        # Get filter options for dropdowns (only if user is admin)
+        if not context['is_teacher']:
+            context['courses'] = Course.objects.filter(status='published').order_by('name')
+            from accounts.models import Staff
+            context['teachers'] = Staff.objects.filter(role='teacher', is_active=True).order_by('first_name', 'last_name')
+            from facilities.models import Facility, Classroom
+            context['facilities'] = Facility.objects.filter(is_active=True).order_by('name')
+            context['classrooms'] = Classroom.objects.filter(is_active=True).order_by('name')
+        
         return context
 
 

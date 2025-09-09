@@ -3,6 +3,33 @@
 
 {% block title %}Classes - EduPulse{% endblock %}
 
+{% block extra_head %}
+<style>
+.class-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid #dee2e6;
+}
+
+.class-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.filter-section {
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.date-badge {
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-md-8">
@@ -17,194 +44,350 @@
 </div>
 
 <!-- Filter Options -->
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="get" class="row g-3">
-            <div class="col-md-4">
+<div class="filter-section">
+    <form method="get" id="filterForm">
+        <div class="row g-3">
+            <!-- Search -->
+            <div class="col-md-3">
                 <label for="search" class="form-label">Search</label>
                 <input type="text" class="form-control" id="search" name="search" 
-                       value="{{ search_query }}" placeholder="Search course or teacher...">
+                       value="{{ search_query }}" placeholder="Course, teacher, location...">
             </div>
+            
+            <!-- Date Range -->
+            <div class="col-md-4">
+                <label class="form-label">Date Range</label>
+                <div class="row g-2">
+                    <div class="col">
+                        <input type="date" class="form-control" name="start_date" 
+                               value="{{ start_date }}" placeholder="Start Date">
+                    </div>
+                    <div class="col">
+                        <input type="date" class="form-control" name="end_date" 
+                               value="{{ end_date }}" placeholder="End Date">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Status Filter -->
             <div class="col-md-3">
-                <label for="filter" class="form-label">Time Filter</label>
-                <select class="form-select" id="filter" name="filter">
-                    <option value="upcoming" {% if filter == 'upcoming' %}selected{% endif %}>Upcoming Classes</option>
-                    <option value="past" {% if filter == 'past' %}selected{% endif %}>Past Classes</option>
-                    <option value="all" {% if filter == 'all' %}selected{% endif %}>All Classes</option>
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
                 </select>
             </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <button type="submit" class="btn btn-outline-primary me-2">
-                    <i class="fas fa-search me-1"></i>Filter
-                </button>
-                <a href="{% url 'academics:class_list' %}" class="btn btn-outline-secondary">Clear</a>
+            
+            <!-- Actions -->
+            <div class="col-md-2 d-flex align-items-end">
+                <div class="d-grid w-100">
+                    <a href="{% url 'academics:class_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Clear
+                    </a>
+                </div>
             </div>
-        </form>
-    </div>
+        </div>
+        
+        {% if not is_teacher %}
+        <div class="row g-3 mt-2">
+            <!-- Course Filter -->
+            <div class="col-md-3">
+                <label for="course" class="form-label">Course</label>
+                <select class="form-select" id="course" name="course">
+                    <option value="">All Courses</option>
+                    {% for course in courses %}
+                        <option value="{{ course.id }}" {% if selected_course == course.id|stringformat:'s' %}selected{% endif %}>
+                            {{ course.name|truncatechars:30 }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Teacher Filter -->
+            <div class="col-md-3">
+                <label for="teacher" class="form-label">Teacher</label>
+                <select class="form-select" id="teacher" name="teacher">
+                    <option value="">All Teachers</option>
+                    {% for teacher in teachers %}
+                        <option value="{{ teacher.id }}" {% if selected_teacher == teacher.id|stringformat:'s' %}selected{% endif %}>
+                            {{ teacher.first_name }} {{ teacher.last_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Facility Filter -->
+            <div class="col-md-3">
+                <label for="facility" class="form-label">Facility</label>
+                <select class="form-select" id="facility" name="facility">
+                    <option value="">All Facilities</option>
+                    {% for facility in facilities %}
+                        <option value="{{ facility.id }}" {% if selected_facility == facility.id|stringformat:'s' %}selected{% endif %}>
+                            {{ facility.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Classroom Filter -->
+            <div class="col-md-3">
+                <label for="classroom" class="form-label">Classroom</label>
+                <select class="form-select" id="classroom" name="classroom">
+                    <option value="">All Classrooms</option>
+                    {% for classroom in classrooms %}
+                        <option value="{{ classroom.id }}" {% if selected_classroom == classroom.id|stringformat:'s' %}selected{% endif %}>
+                            {{ classroom.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        {% endif %}
+    </form>
 </div>
 
-<!-- Classes List -->
-<div class="card">
-    <div class="card-body">
-        {% if classes %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Course</th>
-                            <th>Date & Time</th>
-                            <th>Duration</th>
-                            <th>Teacher</th>
-                            <th>Location</th>
-                            <th>Students</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for class in classes %}
-                        <tr class="{% if not class.is_active %}table-secondary{% endif %}">
-                            <td>
-                                <strong>{{ class.course.name }}</strong>
-                                <br><small class="text-muted">{{ class.course.get_course_type_display }}</small>
-                            </td>
-                            <td>
-                                <strong>{{ class.date|date:"d/m/Y" }}</strong>
-                                <br><small class="text-muted">{{ class.start_time|time:"g:i A" }}</small>
-                            </td>
-                            <td>{{ class.duration_minutes }}min</td>
-                            <td>
-                                {% if class.teacher %}
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-circle bg-primary me-2" style="width: 32px; height: 32px; font-size: 0.75rem;">
-                                            {{ class.teacher.first_name|first }}{{ class.teacher.last_name|first }}
-                                        </div>
-                                        <div>
-                                            <div class="fw-medium">{{ class.teacher.first_name }} {{ class.teacher.last_name }}</div>
-                                            {% if class.teacher != class.course.teacher %}
-                                            <small class="text-warning">
-                                                <i class="fas fa-exclamation-triangle me-1"></i>Changed
-                                            </small>
-                                            {% endif %}
-                                        </div>
-                                    </div>
+<!-- Classes Display -->
+{% if classes %}
+    <div class="row">
+        {% for class in classes %}
+        <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
+            <div class="card class-card h-100 {% if not class.is_active %}opacity-75{% endif %}">
+                <div class="card-header bg-white border-bottom">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1 text-dark fw-semibold">{{ class.course.name|truncatechars:35 }}</h6>
+                            <small class="text-muted">{{ class.course.get_course_type_display }}</small>
+                        </div>
+                        <div class="text-end">
+                            {% if class.date == today %}
+                            <span class="badge bg-success">Today</span>
+                            {% elif class.date < today %}
+                            <span class="badge bg-secondary">Past</span>
+                            {% else %}
+                            <span class="badge bg-primary">Upcoming</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Date and Time -->
+                    <div class="mb-3">
+                        <div class="text-primary">
+                            <i class="fas fa-calendar-alt me-2"></i>
+                            <strong>{{ class.date|date:"l, d M Y" }}</strong>
+                        </div>
+                        <div class="text-muted">
+                            <i class="fas fa-clock me-2"></i>
+                            {{ class.start_time|time:"g:i A" }} ({{ class.get_duration_display }})
+                        </div>
+                    </div>
+                    
+                    <!-- Teacher -->
+                    {% if class.teacher %}
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-circle bg-light text-muted me-3" style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.875rem; border: 1px solid #dee2e6;">
+                                {{ class.teacher.first_name|first }}{{ class.teacher.last_name|first }}
+                            </div>
+                            <div>
+                                <div class="fw-medium text-dark">{{ class.teacher.first_name }} {{ class.teacher.last_name }}</div>
+                                {% if class.teacher != class.course.teacher %}
+                                <small class="text-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Teacher Changed
+                                </small>
                                 {% else %}
-                                    <span class="text-muted">Not assigned</span>
+                                <small class="text-muted">Teacher</small>
                                 {% endif %}
-                            </td>
-                            <td>
-                                {% if class.classroom %}
-                                    <strong>{{ class.classroom.name }}</strong>
-                                    {% if class.facility %}<br><small class="text-muted">{{ class.facility.name }}</small>{% endif %}
-                                    {% if class.classroom != class.course.classroom %}
-                                    <br><small class="text-warning">
-                                        <i class="fas fa-exclamation-triangle me-1"></i>Changed
-                                    </small>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="text-muted">TBD</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <span class="badge bg-primary me-1">{{ class.course.enrollments.count }}</span>
-                                    <small class="text-muted">enrolled</small>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="status-badge status-{{ class.is_active|yesno:'active,inactive' }}">
-                                    {{ class.is_active|yesno:'Active,Inactive' }}
-                                </span>
-                                {% if class.date < today %}
-                                <br><span class="badge bg-secondary">Past</span>
-                                {% elif class.date == today %}
-                                <br><span class="badge bg-success">Today</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{% url 'academics:class_detail' class.pk %}" 
-                                       class="btn btn-outline-primary" title="View Details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    {% if user.role == 'admin' %}
-                                    <a href="{% url 'academics:class_edit' class.pk %}" 
-                                       class="btn btn-outline-secondary" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    {% endif %}
-                                    {% if class.date >= today %}
-                                    <a href="{% url 'enrollment:attendance_mark' class.pk %}" 
-                                       class="btn btn-outline-success" title="Mark Attendance">
-                                        <i class="fas fa-check"></i>
-                                    </a>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Pagination -->
-            {% if is_paginated %}
-            <nav aria-label="Classes pagination">
-                <ul class="pagination justify-content-center">
-                    {% if page_obj.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}">First</a>
-                    </li>
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}">Previous</a>
-                    </li>
-                    {% endif %}
-
-                    <li class="page-item active">
-                        <span class="page-link">
-                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                        </span>
-                    </li>
-
-                    {% if page_obj.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}">Next</a>
-                    </li>
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}">Last</a>
-                    </li>
-                    {% endif %}
-                </ul>
-            </nav>
-            {% endif %}
-
-        {% else %}
-            <div class="text-center py-5">
-                {% if search_query or filter != 'upcoming' %}
-                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No classes found</h5>
-                    <p class="text-muted mb-3">Try adjusting your search or filter criteria</p>
-                    <a href="{% url 'academics:class_list' %}" class="btn btn-outline-primary me-2">Clear Filters</a>
-                    {% if user.role == 'admin' %}
-                    <a href="{% url 'academics:class_add' %}" class="btn btn-primary">Add First Class</a>
-                    {% endif %}
-                {% else %}
-                    <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No classes scheduled</h5>
-                    <p class="text-muted mb-3">Start by creating a course and scheduling your first class</p>
-                    {% if user.role == 'admin' %}
-                    <div class="d-flex gap-2 justify-content-center">
-                        <a href="{% url 'academics:course_add' %}" class="btn btn-primary">
-                            <i class="fas fa-book me-2"></i>Create Course
-                        </a>
-                        <a href="{% url 'academics:class_add' %}" class="btn btn-outline-primary">
-                            <i class="fas fa-plus me-2"></i>Add Class
-                        </a>
+                            </div>
+                        </div>
                     </div>
                     {% endif %}
-                {% endif %}
+                    
+                    <!-- Location -->
+                    <div class="mb-3">
+                        <div class="text-info">
+                            <i class="fas fa-map-marker-alt me-2"></i>
+                            {% if class.classroom %}
+                                <strong>{{ class.classroom.name }}</strong>
+                                {% if class.facility %}
+                                    <br><span class="text-muted ms-4">{{ class.facility.name }}</span>
+                                {% endif %}
+                                {% if class.classroom != class.course.classroom %}
+                                <br><span class="text-warning ms-4">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Location Changed
+                                </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Location TBD</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Students and Status -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-info">{{ class.course.enrollments.count }}</span>
+                            <span class="text-muted ms-1">students</span>
+                        </div>
+                        <div>
+                            <span class="badge {% if class.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ class.is_active|yesno:'Active,Inactive' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-light border-top">
+                    <div class="d-flex justify-content-center gap-2">
+                        <a href="{% url 'academics:class_detail' class.pk %}" 
+                           class="btn btn-outline-primary btn-sm flex-fill">
+                            <i class="fas fa-eye me-1"></i>Details
+                        </a>
+                        {% if user.role == 'admin' %}
+                        <a href="{% url 'academics:class_edit' class.pk %}" 
+                           class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        {% endif %}
+                        {% if class.date >= today %}
+                        <a href="{% url 'enrollment:attendance_mark' class.pk %}" 
+                           class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-check"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-        {% endif %}
+        </div>
+        {% endfor %}
     </div>
-</div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="d-flex justify-content-center mt-4">
+        <nav aria-label="Classes pagination">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}">First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}">Previous</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}">Last</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+
+{% else %}
+    <!-- No Classes Found State -->
+    <div class="card">
+        <div class="card-body text-center py-5">
+            {% if search_query or filter != 'upcoming' or selected_course or selected_teacher or selected_facility or selected_classroom or status_filter != 'active' %}
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No classes found</h5>
+                <p class="text-muted mb-4">Try adjusting your search or filter criteria</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <a href="{% url 'academics:class_list' %}" class="btn btn-outline-primary">Clear All Filters</a>
+                    {% if user.role == 'admin' %}
+                    <a href="{% url 'academics:class_add' %}" class="btn btn-primary">Add New Class</a>
+                    {% endif %}
+                </div>
+            {% else %}
+                <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No classes scheduled</h5>
+                <p class="text-muted mb-4">Start by creating a course and scheduling your first class</p>
+                {% if user.role == 'admin' %}
+                <div class="d-flex gap-2 justify-content-center">
+                    <a href="{% url 'academics:course_add' %}" class="btn btn-primary">
+                        <i class="fas fa-book me-2"></i>Create Course
+                    </a>
+                    <a href="{% url 'academics:class_add' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus me-2"></i>Add Class
+                    </a>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('filterForm');
+    const filterElements = ['status', 'course', 'teacher', 'facility', 'classroom'];
+    const dateFields = ['start_date', 'end_date'];
+    
+    // Auto-submit form on filter change
+    filterElements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', function() {
+                filterForm.submit();
+            });
+        }
+    });
+    
+    // Auto-submit on date change
+    dateFields.forEach(name => {
+        const element = document.querySelector(`input[name="${name}"]`);
+        if (element) {
+            element.addEventListener('change', function() {
+                filterForm.submit();
+            });
+        }
+    });
+    
+    // Search field with debounce
+    const searchField = document.getElementById('search');
+    if (searchField) {
+        let searchTimeout;
+        searchField.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            // Auto-submit search after 800ms of no typing
+            searchTimeout = setTimeout(() => {
+                filterForm.submit();
+            }, 800);
+        });
+        
+        // Clear search timeout on form submission
+        filterForm.addEventListener('submit', function() {
+            clearTimeout(searchTimeout);
+        });
+    }
+    
+    // Form validation
+    if (filterForm) {
+        filterForm.addEventListener('submit', function(e) {
+            const startDate = document.querySelector('input[name="start_date"]').value;
+            const endDate = document.querySelector('input[name="end_date"]').value;
+            
+            if (startDate && endDate && startDate > endDate) {
+                e.preventDefault();
+                alert('Start date cannot be later than end date.');
+                return false;
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
