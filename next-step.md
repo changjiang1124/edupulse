@@ -141,20 +141,6 @@ create:
   - Course-specific enrollment URL: `/enroll/public?course=123`
   - Test: Access the course-specific URL and verify that the course selection dropdown pre-selects the specified course.
 
-- [x] #bug the current copied url from the course detail is http://localhost:8000/academics/courses/36//enroll/?course=36, seems like the url pattern is not right, concated by wrong root url. 
-- [x] #bug TypeError at /enroll/ - FIXED
-context must be a dict rather than HttpResponseRedirect.
-Request Method:	GET
-Request URL:	http://localhost:8000/enroll/?course=37
-Fixed: Removed redirect() calls from get_context_data() method and improved error handling in POST method
-
-- [x] #bug JSON serialization error when submitting enrollment form - FIXED
-TypeError: Object of type date is not JSON serializable
-Fixed: Added proper date/datetime serialization in PublicEnrollmentView POST method
-
-- [x] #bug IntegrityError when creating enrollment - FIXED
-NOT NULL constraint failed: enrollment_enrollment.student_id
-Fixed: Reordered logic to create student first, then enrollment with proper student reference
 
 - [x] in the course detail, should remove `Enrol Now` button, as there should be only two ways to enrol, 1. copy the public enrolment link to this course for customers to fill, and 2. add enrolment by the operators, thru the button above the enrolment section in the course detail. and please help me test the operator adding enrolment. review the current implementation /enroll/enrollments/staff/create/39/. expected: 1. choose student first, create one if not exists; 2. remove the current adding new student modal popped in the enrolment create form, instead, new window open /students/add/ to maintain the same form for the same purpose. 
 
@@ -162,15 +148,15 @@ Fixed: Reordered logic to create student first, then enrollment with proper stud
 
 - [x] in course detail, for the course is not in published status, the enrolment button should be hidden, as the course is not bookable. but keep the enrolment list to show existing enrolments.
 
-- [] add enrolment in a course, should automatically add the student to existing classes of this course, if there is any. and add a new class under the course, should automatically add all existing enrolments of this course to the new class. and add a student in a class, should only affect the current class, not the whole course.
+- [x] add enrolment in a course, should automatically add the student to existing classes of this course, if there is any. and add a new class under the course, should automatically add all existing enrolments of this course to the new class. and add a student in a class, should only affect the current class, not the whole course.
   - [] testing
 
-- [] the refernece ID in the enrolment submission success page, should show like the format "PAS-[courseID in 3 digits]-[enrolmentID in 3 digits]", e.g. PAS-001-023, to make it more professional and easier to identify the course and enrolment. and this should be shown in the submission confirmation email as well.
+- [x] the refernece ID in the enrolment submission success page, should show like the format "PAS-[courseID in 3 digits]-[enrolmentID in 3 digits]", e.g. PAS-001-023, to make it more professional and easier to identify the course and enrolment. and this should be shown in the submission confirmation email as well.
   - [] testing
 
-- [] enrolment cards in the course detail page should be clickable to go to the enrolment detail page, instead of just showing the information. and the enrolment detail page should have all the information of the enrolment, and able to be edited. and in the edit page, the course should be disabled to avoid mistake. and since the student could be created or extracted from the enrolment, the student profile should be a link to go to the student detail page. 
+- [x] enrolment cards in the course detail page should be clickable to go to the enrolment detail page, instead of just showing the information. and the enrolment detail page should have all the information of the enrolment, and able to be edited. and in the edit page, the course should be disabled to avoid mistake. and since the student could be created or extracted from the enrolment, the student profile should be a link to go to the student detail page. 
 
-- [] review the current email content sent upon enrolment submission, and make it more professional. and include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the vacancy should not be changed until the enrolment is confirmed by operator. and all the content of the email should be accurate (currently seems no duration of the course. please review all of others as well). and currently there are two emails sent out upon the submission, which the submission should be only one email sent to the contact email provided in the enrolment form, including the course information and bank transfer information. and when the enrolment is confirmed by operator, then another email should be sent to the contact email to indicate the enrolment is confirmed.
+- [x] review the current email content sent upon enrolment submission, and make it more professional. and include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the vacancy should not be changed until the enrolment is confirmed by operator. and all the content of the email should be accurate (currently seems no duration of the course. please review all of others as well). and currently there are two emails sent out upon the submission, which the submission should be only one email sent to the contact email provided in the enrolment form, including the course information and bank transfer information. and when the enrolment is confirmed by operator, then another email should be sent to the contact email to indicate the enrolment is confirmed.
   - [] testing
 
 - [] 

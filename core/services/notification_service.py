@@ -79,6 +79,76 @@ class NotificationService:
             return False
     
     @staticmethod
+    def send_enrollment_pending_email(enrollment, recipient_email=None, fee_breakdown=None):
+        """
+        Send enrollment pending notification email with payment information
+        This is sent immediately when enrollment is submitted
+        """
+        try:
+            student = enrollment.student
+            recipient_email = recipient_email or student.contact_email
+            recipient_name = student.guardian_name if student.guardian_name else student.get_full_name()
+            
+            if not recipient_email:
+                logger.warning(f"No email address found for pending email - enrollment {enrollment.id}")
+                return False
+            
+            # Prepare context for pending email template
+            site = Site.objects.get_current()
+            context = {
+                'enrollment': enrollment,
+                'student': student,
+                'course': enrollment.course,
+                'recipient_name': recipient_name,
+                'recipient_email': recipient_email,
+                'site_domain': site.domain,
+                'contact_email': 'info@perthartschool.com.au',
+                'contact_phone': '+61 8 9335 8811',
+                'fee_breakdown': fee_breakdown or {}
+            }
+            
+            # Calculate total fees
+            from decimal import Decimal
+            course_fee = enrollment.course.price or Decimal('0')
+            registration_fee = Decimal(str(fee_breakdown.get('registration_fee', 0))) if fee_breakdown else Decimal('0')
+            total_fee = Decimal(str(fee_breakdown.get('total_fee', 0))) if fee_breakdown else course_fee + registration_fee
+            
+            context.update({
+                'course_fee': course_fee,
+                'registration_fee': registration_fee,
+                'total_fee': total_fee,
+                'has_registration_fee': registration_fee > 0,
+                'charge_registration_fee': fee_breakdown.get('charge_registration_fee', True) if fee_breakdown else True
+            })
+            
+            # Render email templates
+            subject = f"Enrolment Received - {enrollment.course.name} - Payment Required"
+            html_content = render_to_string('core/emails/enrollment_pending.html', context)
+            text_content = render_to_string('core/emails/enrollment_pending.txt', context)
+            
+            # Create and send email
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[recipient_email]
+            )
+            email.attach_alternative(html_content, "text/html")
+            
+            sent = email.send()
+            
+            if sent:
+                logger.info(f"Enrollment pending email sent to {recipient_email} for enrollment {enrollment.id}")
+                return True
+            else:
+                logger.error(f"Failed to send enrollment pending email to {recipient_email}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending enrollment pending email: {str(e)}")
+            return False
+    
+    @staticmethod
     def send_welcome_email(enrollment):
         """
         Send welcome email after enrollment confirmation
@@ -312,24 +382,17 @@ class NotificationService:
     @staticmethod
     def process_enrollment_notifications(enrollment):
         """
-        Process all notifications for a new enrollment
+        Process notifications for a new enrollment (DEPRECATED)
+        This method is kept for backward compatibility but now only sends confirmation
+        For new enrollments, use send_enrollment_pending_email instead
         """
         try:
-            # Send enrollment confirmation immediately
+            # Only send confirmation email (no welcome email)
             confirmation_sent = NotificationService.send_enrollment_confirmation(enrollment)
-            
-            # Send welcome email after a short delay (could be handled by background task)
-            if confirmation_sent:
-                welcome_sent = NotificationService.send_welcome_email(enrollment)
-                
-                return {
-                    'confirmation_sent': confirmation_sent,
-                    'welcome_sent': welcome_sent
-                }
             
             return {
                 'confirmation_sent': confirmation_sent,
-                'welcome_sent': False
+                'welcome_sent': False  # No longer send welcome email here
             }
             
         except Exception as e:

@@ -13,7 +13,7 @@ COURSE INFORMATION
 Course: {{ course.name }}
 Description: {{ course.short_description }}
 Type: {{ course.get_course_type_display }}
-Duration: {{ course.duration_display }}
+Duration: {{ course.get_duration_display }}
 {% if course.facility %}Location: {{ course.facility.name }}
 Address: {{ facility_address }}{% endif %}
 

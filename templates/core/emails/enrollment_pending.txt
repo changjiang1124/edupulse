@@ -1,0 +1,61 @@
+PERTH ART SCHOOL - ENROLMENT APPLICATION RECEIVED
+
+Dear {{ recipient_name }},
+
+Thank you for your enrolment application with Perth Art School! We have successfully received your application for the following course:
+
+================================
+APPLICATION STATUS: PENDING PAYMENT
+Your enrolment will be confirmed once payment is received
+================================
+
+COURSE DETAILS:
+---------------
+Course: {{ course.name }}
+Reference ID: {{ enrollment.get_reference_id }}
+Course Type: {{ course.get_course_type_display }}
+Duration: {{ course.get_duration_display }}
+{% if course.start_date %}Start Date: {{ course.start_date|date:"l, d F Y" }}{% endif %}
+{% if course.facility %}Location: {{ course.facility.name }}{% endif %}
+
+PAYMENT REQUIRED:
+----------------
+Course Fee: {% load price_tags %}{% price_with_gst_label course.price %}
+{% if has_registration_fee %}Registration Fee: {{ registration_fee|currency }}{% endif %}
+
+TOTAL AMOUNT DUE: {{ total_fee|currency }}{% gst_config as gst_settings %}{% if gst_settings.includes_gst %} (inc {{ gst_settings.label }}){% else %} (ex {{ gst_settings.label }}){% endif %}
+
+PAYMENT INSTRUCTIONS:
+--------------------
+Please complete payment within 7 days to secure your place in the course.
+
+Bank Transfer Details:
+Account Name: Perth Art School Pty Ltd
+BSB: 036-032
+Account Number: 123456789
+Payment Reference: {{ enrollment.get_reference_id }}
+Amount: {{ total_fee|currency }}
+
+⚠️ IMPORTANT: Please include the payment reference "{{ enrollment.get_reference_id }}" exactly as shown above to ensure your payment is processed correctly.
+
+NEXT STEPS:
+----------
+1. Make Payment: Transfer the full amount using the bank details above within 7 days
+2. Payment Processing: Allow 1-2 business days for payment confirmation
+3. Enrolment Confirmation: Once payment is received, we'll send you a welcome email with course details
+4. Course Materials: Detailed class information and preparation instructions will follow
+
+IMPORTANT: Your place in the course is not guaranteed until payment is received. Course spaces are limited and filled on a first-come, first-served basis upon payment confirmation.
+
+If you have any questions about your enrolment or need assistance with payment, please don't hesitate to contact our friendly team:
+
+CONTACT US:
+----------
+Email: {{ contact_email }}
+Phone: {{ contact_phone }}
+Business Hours: Monday - Friday, 9:00 AM - 5:00 PM
+Website: https://{{ site_domain }}
+
+This email was sent to {{ recipient_email }} regarding your enrolment application at Perth Art School.
+
+© 2025 Perth Art School. All rights reserved.

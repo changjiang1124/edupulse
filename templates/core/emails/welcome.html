@@ -354,7 +354,7 @@
                     </div>
                     <div class="info-item">
                         <div class="info-label">Duration</div>
-                        <div class="info-value">{{ course.duration_display }}</div>
+                        <div class="info-value">{{ course.get_duration_display }}</div>
                     </div>
                     {% if course.facility %}
                     <div class="info-item">
@@ -389,69 +389,6 @@
                     <li>All art materials and supplies are provided unless otherwise specified</li>
                     <li>Don't forget to bring your creativity and enthusiasm!</li>
                 </ul>
-            </div>
-            
-            <!-- Payment Information Section -->
-            <div class="payment-info">
-                <h4>💳 Course Payment Information</h4>
-                <div class="payment-details">
-                    <p><strong>Payment is due within 7 days of enrollment confirmation.</strong></p>
-                    
-                    <div class="payment-methods">
-                        <div class="payment-method bank-transfer">
-                            <h5>💰 Bank Transfer (Preferred Method)</h5>
-                            <div class="bank-details">
-                                <div class="bank-detail-row">
-                                    <span class="detail-label">Account Name:</span>
-                                    <span class="detail-value">Perth Art School Pty Ltd</span>
-                                </div>
-                                <div class="bank-detail-row">
-                                    <span class="detail-label">BSB:</span>
-                                    <span class="detail-value">036-032</span>
-                                </div>
-                                <div class="bank-detail-row">
-                                    <span class="detail-label">Account Number:</span>
-                                    <span class="detail-value">123456789</span>
-                                </div>
-                                <div class="bank-detail-row">
-                                    <span class="detail-label">Reference:</span>
-                                    <span class="detail-value highlight">{{ student.first_name|upper }} {{ student.last_name|upper }} - {{ course.name|truncatechars:20 }}</span>
-                                </div>
-                            </div>
-                            <div class="payment-note">
-                                <p><strong>⚠️ Important:</strong> Please include the reference exactly as shown above to ensure your payment is processed correctly.</p>
-                            </div>
-                        </div>
-                        
-                        <div class="payment-method alternative">
-                            <h5>💵 Alternative Payment Methods</h5>
-                            <ul class="payment-options">
-                                <li><strong>Cash Payment:</strong> Visit our studio during business hours</li>
-                                <li><strong>Phone Payment:</strong> Call {{ contact_phone }} to pay by card</li>
-                                <li><strong>In-Person Card:</strong> Pay by card when you attend your first class</li>
-                            </ul>
-                        </div>
-                    </div>
-                    
-                    <div class="payment-confirmation">
-                        <div class="confirmation-box">
-                            <h5>📧 Payment Confirmation</h5>
-                            <p>Once payment is received, we'll send you:</p>
-                            <ul>
-                                <li>Payment confirmation receipt</li>
-                                <li>Detailed class schedule and location</li>
-                                <li>What to bring on your first day</li>
-                                <li>Parking and facility information</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <p>We believe that art has the power to transform lives, and we're committed to providing the best possible learning experience for {{ student.first_name }}.</p>
-            
-            <div class="cta-section">
-                <a href="{{ parent_portal_url }}" class="cta-button">Access Parent Portal</a>
             </div>
             
             <p>If you have any questions about the course, our facilities, or anything else, please don't hesitate to reach out. Our friendly team is here to help make this artistic journey as smooth and enjoyable as possible.</p>

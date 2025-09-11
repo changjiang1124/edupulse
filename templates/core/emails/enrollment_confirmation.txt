@@ -1,70 +1,57 @@
-PERTH ART SCHOOL - ENROLMENT CONFIRMATION
+PERTH ART SCHOOL - ENROLMENT CONFIRMED!
 
-Dear {{ recipient_name }},
+Congratulations {{ recipient_name }}!
 
-Thank you for enrolling with Perth Art School! We're excited to confirm your enrolment in our course.
+We're delighted to confirm that {{ student.first_name }}'s enrolment at Perth Art School has been successfully processed. Payment has been received and their place in the course is now secured.
 
-COURSE DETAILS
-==============
+================================
+✅ ENROLMENT STATUS: CONFIRMED ✅
+{{ student.first_name }} is officially enrolled and ready to begin their creative journey!
+================================
+
+COURSE DETAILS:
+--------------
 Course: {{ course.name }}
-Type: {{ course.get_course_type_display }}
-Duration: {{ course.duration_display }}
+Reference ID: {{ enrollment.get_reference_id }}
+Student Name: {{ student.get_full_name }}
+Course Type: {{ course.get_course_type_display }}
+Duration: {{ course.get_duration_display }}
+{% if course.start_date %}Start Date: {{ course.start_date|date:"l, d F Y" }}{% endif %}
+{% if course.end_date and course.course_type == 'multiple' %}End Date: {{ course.end_date|date:"l, d F Y" }}{% endif %}
 {% if course.facility %}Location: {{ course.facility.name }}{% endif %}
-Start Date: {{ course.start_date|date:"d F Y" }}
-{% if course.course_type == 'multiple' %}End Date: {{ course.end_date|date:"d F Y" }}{% endif %}
+{% if course.facility %}Address: {{ course.facility.address }}{% endif %}
+{% if course.teacher %}Instructor: {{ course.teacher.get_full_name }}{% endif %}
 
-{% load price_tags %}
-{% if not is_fully_paid %}
-FEE INFORMATION
-===============
-Course Fee: {% price_with_gst_label course.price %}
-{% if course.registration_fee %}Registration Fee: {% price_with_gst_label course.registration_fee %}{% endif %}
+WHAT HAPPENS NEXT:
+------------------
+📅 Class Schedule: Detailed class information and timetables will be sent 1 week before the start date
+📝 Materials List: A comprehensive list of required materials will be provided before your first class
+🎯 Orientation: Please arrive 15 minutes early for your first class for a brief orientation
+📚 Preparation: Course-specific preparation instructions will be emailed separately
 
-{% gst_config as gst_settings %}
-{% if gst_settings.show_breakdown %}
-TAX BREAKDOWN
-=============
-{% with course.get_price_breakdown as course_breakdown %}
-Course (ex {{ gst_settings.label }}): {{ course_breakdown.price_ex_gst|currency }}
-{{ gst_settings.label }} ({{ gst_settings.rate|percentage }}): {{ course_breakdown.gst_amount|currency }}
-{% endwith %}
-{% if course.registration_fee %}
-{% with course.get_registration_fee_breakdown as reg_breakdown %}
-Registration (ex {{ gst_settings.label }}): {{ reg_breakdown.price_ex_gst|currency }}
-{{ gst_settings.label }} on registration: {{ reg_breakdown.gst_amount|currency }}
-{% endwith %}
+IMPORTANT INFORMATION:
+---------------------
+• First Class: Please arrive 15 minutes early for orientation and setup
+• Dress Code: Wear comfortable clothes that you don't mind getting a bit messy
+• Materials: All basic art supplies are provided unless otherwise specified
+• Parking: Free parking is available at our facility
+• Contact: If you need to reschedule or have questions, contact us immediately
 
-{% with course.get_total_course_fee_breakdown as total_breakdown %}
-Total {{ gst_settings.label }}: {{ total_breakdown.total_gst|currency }}
-{% endwith %}
-{% endif %}
-{% endif %}
+We're incredibly excited to have {{ student.first_name }} join our creative community at Perth Art School. Our experienced instructors and supportive environment will help nurture their artistic talents and inspire new levels of creativity.
 
-Total Outstanding: {{ outstanding_fee|currency }} {% if gst_settings.includes_gst %}(inc {{ gst_settings.label }}){% else %}(ex {{ gst_settings.label }}){% endif %}
+If you have any questions or need to make any changes to the enrolment, please don't hesitate to contact our friendly team.
 
-NEXT STEPS
-==========
-1. Payment: Please arrange payment via bank transfer to secure your place in the course.
-2. Bank Details: Account details will be provided separately via email.
-3. Confirmation: Once payment is received, we'll send you a final confirmation with class details.
-4. Preparation: Course materials and preparation instructions will be sent closer to the start date.
-{% else %}
-YOU'RE ALL SET!
-===============
-Your enrolment is confirmed and payment is complete. We'll send you course details and preparation instructions closer to the start date.
-{% endif %}
-
-We look forward to having {{ student.first_name }} join our creative community at Perth Art School. If you have any questions or need to make changes to your enrolment, please don't hesitate to contact us.
-
-CONTACT INFORMATION
-==================
+CONTACT INFORMATION:
+-------------------
 Email: {{ contact_email }}
 Phone: {{ contact_phone }}
+Business Hours: Monday - Friday, 9:00 AM - 5:00 PM
 Website: https://{{ site_domain }}
 
---
-This email was sent to {{ recipient_email }} regarding your enrolment at Perth Art School.
-© 2025 Perth Art School. All rights reserved.
+Welcome to the Perth Art School family! Let's create something beautiful together. 🎨
 
-Visit our website: https://{{ site_domain }}
-Contact us: {{ contact_email }}
+---
+
+This confirmation email was sent to {{ recipient_email }} regarding {{ student.first_name }}'s confirmed enrolment.
+
+© 2025 Perth Art School. All rights reserved.

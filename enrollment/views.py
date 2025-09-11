@@ -523,24 +523,36 @@ class PublicEnrollmentView(TemplateView):
                 
                 # Process enrollment notifications
                 try:
-                    notification_results = NotificationService.process_enrollment_notifications(enrollment)
-                    if notification_results['confirmation_sent']:
-                        messages.success(request, 'Enrollment confirmation email sent.')
+                    # Send pending email with fee information
+                    notification_sent = NotificationService.send_enrollment_pending_email(
+                        enrollment=enrollment,
+                        recipient_email=student.get_contact_email(),
+                        fee_breakdown={
+                            'course_fee': fees.get('course_fee', 0),
+                            'registration_fee': fees.get('registration_fee', 0),
+                            'total_fee': fees.get('total_fee', 0),
+                            'has_registration_fee': fees.get('has_registration_fee', False),
+                            'charge_registration_fee': fees.get('has_registration_fee', False)
+                        }
+                    )
+                    
+                    if notification_sent:
+                        messages.success(request, 'Enrollment pending email sent.')
                         # Record email sent activity
                         StudentActivity.create_activity(
                             student=student,
                             activity_type='email_sent',
-                            title='Enrollment confirmation email sent',
-                            description=f'Confirmation email sent to {student.get_contact_email()}',
+                            title='Enrollment pending email sent',
+                            description=f'Pending payment email sent to {student.get_contact_email()}',
                             enrollment=enrollment,
                             course=course,
                             metadata={
-                                'email_type': 'enrollment_confirmation',
+                                'email_type': 'enrollment_pending',
                                 'recipient': student.get_contact_email()
                             }
                         )
                     else:
-                        messages.warning(request, 'Enrollment created but confirmation email could not be sent.')
+                        messages.warning(request, 'Enrollment created but pending email could not be sent.')
                 except Exception as e:
                     messages.warning(request, f'Enrollment created but notification error: {str(e)}')
                 
