@@ -127,8 +127,8 @@
                     <strong>Contact Us:</strong> If you have any questions, please don't hesitate to contact us:
                 </p>
                 <ul class="mb-0">
-                    <li>Email: info@perthartschool.com.au</li>
-                    <li>Phone: (08) xxxx xxxx</li>
+                    <li>Email: {{ contact_email|default:organisation_settings.contact_email }}</li>
+                    <li>Phone: {{ contact_phone|default:organisation_settings.contact_phone }}</li>
                 </ul>
             </div>
             {% endif %}

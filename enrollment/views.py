@@ -13,6 +13,7 @@ from .models import Enrollment, Attendance
 from .forms import EnrollmentForm, EnrollmentUpdateForm, PublicEnrollmentForm, StaffEnrollmentForm
 from students.models import Student
 from academics.models import Course
+from core.models import OrganisationSettings
 
 
 class AdminRequiredMixin(UserPassesTestMixin):
@@ -592,6 +593,19 @@ class EnrollmentSuccessView(TemplateView):
         enrollment_id = self.kwargs.get('enrollment_id')
         if enrollment_id:
             context['enrollment'] = get_object_or_404(Enrollment, pk=enrollment_id)
+        
+        # Add organisation contact details for template rendering
+        try:
+            org_settings = OrganisationSettings.get_instance()
+            context['organisation_settings'] = org_settings
+            context['contact_email'] = getattr(org_settings, 'contact_email', '')
+            context['contact_phone'] = getattr(org_settings, 'contact_phone', '')
+        except Exception:
+            # Fallbacks to ensure page doesn't break if settings not configured
+            from django.conf import settings as dj_settings
+            context['contact_email'] = getattr(dj_settings, 'DEFAULT_FROM_EMAIL', 'info@perthartschool.com.au')
+            context['contact_phone'] = ''
+        
         return context
 
 

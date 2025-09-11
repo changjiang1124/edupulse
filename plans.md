@@ -759,21 +759,21 @@ http://localhost:8000/enroll/?course=36
 - 一致的CSS类使用规范
 - 为未来功能扩展建立良好基础
 
-这次布局统一化为Perth Art School提供了更加专业、一致和易用的管理界面，确保教职员工在使用不同模块时都能获得统一的操作体验。
+### 布局统一化为Perth Art School提供了更加专业、一致和易用的管理界面，确保教职员工在使用不同模块时都能获得统一的操作体验。
 
 ---
 
-## Enrollment URL Enhancement (2025-09-08)
+## Enrollment URL Enhancement (2025-09-11)
 - **课程特定报名URL功能**: 实现了通过查询参数预选课程的功能
   - 修改 `PublicEnrollmentView` 支持 `?course=123` 查询参数
   - 更新课程详情页面的复制URL功能，使用查询参数格式
   - 报名表单现在可以自动预选指定的课程
   - URL格式: `/enroll/public?course=123` 而不是 `/enroll/public/course/123/`
 
-## Bug Fixes (2025-09-08)
+## Bug Fixes (2025-09-11)
 - 修复首页 Dashboard UnboundLocalError：移除 core/views.py 中 DashboardView.get_context_data 内部的局部导入，避免遮蔽顶层导入变量，已本地验证通过。
 
-# enrollment/forms.py 新增三個考勤表單類
+*Enrollment/forms.py* 新增三個考勤表單類
 - AttendanceForm: 單個學生考勤表單
 - BulkAttendanceForm: 批量考勤管理表單，動態生成學生字段  
 - StudentSearchForm: 學生搜索表單，支持 AJAX 實時搜索
@@ -1107,7 +1107,7 @@ NoReverseMatch: Reverse for 'public_enrollment' with no arguments not found.
 5. **移動端體驗優化** [預計2-3天]
    - 教師考勤界面移動端專門優化
    - 響應式設計調整
-   - 觸控交互改進
+   - touch control improve
 
 6. **基礎報表功能** [預計2-3天]
    - 學生註冊統計報表
@@ -1258,7 +1258,7 @@ NoReverseMatch: Reverse for 'public_enrollment' with no arguments not found.
 
 #### 一致性維護
 - 與課程模型的狀態邏輯保持一致
-- 與 `get_current_bookable_state()` 方法的檢查邏輯相符
+- 與 `get_current_bookable_state()` 方法檢查邏輯相符
 
 ### 實施成果
 
@@ -1276,7 +1276,7 @@ NoReverseMatch: Reverse for 'public_enrollment' with no arguments not found.
 - 前台和後台的課程可預訂性邏輯統一
 - 符合 Perth Art School 的業務流程要求
 
-這次修改確保了只有發佈狀態的課程才顯示報名相關的操作按鈕，同時保持了報名記錄的完整顯示，為 Perth Art School 提供了更加合理和用戶友好的課程管理體驗。
+這個修改確保了只有發佈狀態的課程才顯示報名相關的操作按鈕，同時保持了報名記錄的完整顯示，為 Perth Art School 提供了更加合理和用戶友好的課程管理體驗。
 
 ---
 

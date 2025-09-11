@@ -296,3 +296,28 @@ Ensure regular backups of:
 
 ## Support
 For technical support or questions about deployment, refer to the project documentation or contact the development team.
+
+
+## Pre-deployment Checklist: Organisation Contact & Email
+
+Before deploying to a new environment, verify the following to ensure email contact information is consistent and reply-to works as expected:
+
+1) Organisation Settings
+- In Admin > Organisation Settings, set:
+  - Contact Email (used in templates and as email Reply-To)
+  - Contact Phone (displayed on success page and email bodies)
+
+2) Django Email Settings
+- DEFAULT_FROM_EMAIL is set appropriately in settings or environment
+- SMTP credentials are valid and tested (see .env variables in this doc)
+
+3) Notification Service
+- Outbound emails include reply_to using OrganisationSettings.contact_email
+- Test a sample enrollment flow to confirm Reply-To header is present
+
+4) Frontend Validation
+- Visit an enrollment success page: /enrollment/success/<id>/
+- Confirm the "Contact Us" section shows the Organisation Settings contact email/phone
+
+Notes
+- Migration defaults and test fixtures may still contain placeholder emails like info@perthartschool.com.au; these are intentional and do not affect runtime configuration.

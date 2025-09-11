@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.contrib.sites.models import Site
 from django.urls import reverse
+from core.models import OrganisationSettings
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class NotificationService:
             
             # Prepare context for email template
             site = Site.objects.get_current()
+            org_settings = OrganisationSettings.get_instance()
             context = {
                 'enrollment': enrollment,
                 'student': student,
@@ -47,8 +49,8 @@ class NotificationService:
                 'is_fully_paid': enrollment.is_fully_paid(),
                 'site_domain': site.domain,
                 'enrollment_url': f"https://{site.domain}{reverse('enrollment:enrollment_detail', args=[enrollment.id])}",
-                'contact_email': 'info@perthartschool.com.au',
-                'contact_phone': '+61 8 9335 8811'
+                'contact_email': org_settings.contact_email,
+                'contact_phone': org_settings.contact_phone,
             }
             
             # Render email templates
@@ -61,7 +63,8 @@ class NotificationService:
                 subject=subject,
                 body=text_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[recipient_email]
+                to=[recipient_email],
+                reply_to=[org_settings.contact_email],
             )
             email.attach_alternative(html_content, "text/html")
             
@@ -95,6 +98,7 @@ class NotificationService:
             
             # Prepare context for pending email template
             site = Site.objects.get_current()
+            org_settings = OrganisationSettings.get_instance()
             context = {
                 'enrollment': enrollment,
                 'student': student,
@@ -102,8 +106,8 @@ class NotificationService:
                 'recipient_name': recipient_name,
                 'recipient_email': recipient_email,
                 'site_domain': site.domain,
-                'contact_email': 'info@perthartschool.com.au',
-                'contact_phone': '+61 8 9335 8811',
+                'contact_email': org_settings.contact_email,
+                'contact_phone': org_settings.contact_phone,
                 'fee_breakdown': fee_breakdown or {}
             }
             
@@ -131,7 +135,8 @@ class NotificationService:
                 subject=subject,
                 body=text_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[recipient_email]
+                to=[recipient_email],
+                reply_to=[org_settings.contact_email],
             )
             email.attach_alternative(html_content, "text/html")
             
@@ -164,6 +169,7 @@ class NotificationService:
             
             # Prepare context for welcome email template
             site = Site.objects.get_current()
+            org_settings = OrganisationSettings.get_instance()
             context = {
                 'enrollment': enrollment,
                 'student': student,
@@ -171,8 +177,8 @@ class NotificationService:
                 'recipient_name': recipient_name,
                 'site_domain': site.domain,
                 'parent_portal_url': f"https://{site.domain}/students/",
-                'contact_email': 'info@perthartschool.com.au',
-                'contact_phone': '+61 8 9335 8811',
+                'contact_email': org_settings.contact_email,
+                'contact_phone': org_settings.contact_phone,
                 'facility_address': enrollment.course.facility.address if enrollment.course.facility else 'TBA'
             }
             
@@ -186,7 +192,8 @@ class NotificationService:
                 subject=subject,
                 body=text_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[recipient_email]
+                to=[recipient_email],
+                reply_to=[org_settings.contact_email],
             )
             email.attach_alternative(html_content, "text/html")
             
@@ -218,6 +225,7 @@ class NotificationService:
             
             # Prepare context for reminder email template
             site = Site.objects.get_current()
+            org_settings = OrganisationSettings.get_instance()
             context = {
                 'student': student,
                 'class': class_instance,
@@ -230,8 +238,8 @@ class NotificationService:
                 'classroom': class_instance.classroom,
                 'teacher': class_instance.teacher,
                 'site_domain': site.domain,
-                'contact_email': 'info@perthartschool.com.au',
-                'contact_phone': '+61 8 9335 8811'
+                'contact_email': org_settings.contact_email,
+                'contact_phone': org_settings.contact_phone
             }
             
             # Render email templates
@@ -244,7 +252,8 @@ class NotificationService:
                 subject=subject,
                 body=text_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[recipient_email]
+                to=[recipient_email],
+                reply_to=[org_settings.contact_email],
             )
             email.attach_alternative(html_content, "text/html")
             
@@ -280,6 +289,7 @@ class NotificationService:
             
             # Prepare context for attendance notice template
             site = Site.objects.get_current()
+            org_settings = OrganisationSettings.get_instance()
             context = {
                 'student': student,
                 'attendance': attendance_record,
@@ -288,8 +298,8 @@ class NotificationService:
                 'recipient_name': recipient_name,
                 'status_display': attendance_record.get_status_display(),
                 'site_domain': site.domain,
-                'contact_email': 'info@perthartschool.com.au',
-                'contact_phone': '+61 8 9335 8811'
+                'contact_email': org_settings.contact_email,
+                'contact_phone': org_settings.contact_phone
             }
             
             # Render email templates
@@ -302,7 +312,8 @@ class NotificationService:
                 subject=subject,
                 body=text_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[recipient_email]
+                to=[recipient_email],
+                reply_to=[org_settings.contact_email],
             )
             email.attach_alternative(html_content, "text/html")
             
