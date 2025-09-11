@@ -112,7 +112,7 @@ class StudentMatchingService:
             special_requirements=form_data.get('special_requirements', ''),
             
             # System fields
-            registration_status='new',
+            # Note: registration_status is now managed at enrollment level
             enrollment_source='website',
             source_enrollment=enrollment if enrollment else None,
             internal_notes=internal_note,

@@ -221,3 +221,73 @@ class StudentMatchingService:
 - Student 模型中的 registration_status 字段暂时保留，用于向后兼容
 - 未来可以考虑移除 Student.registration_status 字段（需要额外的清理工作）
 - 所有新的 enrollment 都应该使用 Enrollment.registration_status 字段
+
+### 后续清理工作：✅ 已完成 (2025-09-10)
+
+#### 清理内容：
+1. **StudentMatchingService 清理** ✅
+   - 移除了 `_create_student_from_form` 中设置 `registration_status='new'` 的代码
+   - 添加了注释说明 registration_status 现在由 enrollment 层面管理
+
+2. **StudentForm 清理** ✅
+   - 从字段列表中移除了 `registration_status` 字段
+   - 从 widgets 定义中移除了相关配置
+   - 添加了注释说明字段迁移到 enrollment 层面
+
+3. **学生表单模板清理** ✅
+   - 从 `templates/core/students/form.html` 中移除了 registration_status 字段显示
+   - 调整了布局，将 enrollment_source 字段改为单独一行显示
+
+#### 验证结果：
+- ✅ StudentMatchingService 不再设置 student.registration_status
+- ✅ StudentForm 移除了 registration_status 字段（从17个字段减少到16个）
+- ✅ 学生表单模板正确移除了字段显示
+- ✅ Enrollment.registration_status 正确工作
+- ✅ 费用计算基于 enrollment.registration_status
+- ✅ 公共注册流程完全正常
+- ✅ 所有测试通过（5/5）
+
+#### 最终状态：
+- **Student 模型**：保留 registration_status 字段用于向后兼容，但新创建的学生不会主动设置此字段
+- **Enrollment 模型**：registration_status 字段正常工作，是费用计算的唯一依据
+- **表单和模板**：完全基于 enrollment.registration_status，不再显示或处理 student.registration_status
+- **业务逻辑**：完全迁移到 enrollment 层面，逻辑正确且一致
+
+### 完全清理工作：✅ 已完成 (2025-09-10)
+
+根据用户要求，为了让代码结构更加整洁（neat），完全移除了 Student 模型中的 registration_status 字段：
+
+#### 完全清理内容：
+1. **数据库 Migration** ✅
+   - 创建 `students/migrations/0009_auto_20250910_0057.py`
+   - 使用 `RemoveField` 操作删除 `Student.registration_status` 字段
+   - 成功应用到数据库
+
+2. **Student 模型清理** ✅
+   - 从 `students/models.py` 中完全移除 registration_status 字段定义
+   - 添加注释说明字段已迁移到 Enrollment 模型
+   - 模型字段从 24 个减少到 23 个
+
+3. **Admin 配置清理** ✅
+   - 从 `students/admin.py` 的 `list_filter` 中移除 registration_status
+   - 从 `fieldsets` 的 Administrative 部分移除 registration_status
+   - 避免了 admin 界面的字段引用错误
+
+#### 验证结果（5/5 测试通过）：
+- ✅ **Student 模型**：完全移除 registration_status 字段，无法访问该属性
+- ✅ **Enrollment 模型**：registration_status 字段正常工作
+- ✅ **表单清理**：StudentForm 不再包含该字段，PublicEnrollmentForm 保留 student_status
+- ✅ **StudentMatchingService**：创建的学生没有 registration_status 属性
+- ✅ **完整流程**：注册流程完全基于 enrollment.registration_status
+
+#### 架构优势：
+1. **代码整洁性**：移除了不再使用的字段，避免混淆
+2. **职责分离**：registration_status 完全属于 enrollment 层面
+3. **数据一致性**：单一数据源，避免冲突
+4. **维护性**：代码结构更清晰，易于理解和维护
+
+#### 最终架构状态：
+- **Student 模型**：不再包含 registration_status 字段
+- **Enrollment 模型**：registration_status 是费用计算和业务逻辑的唯一依据
+- **表单和模板**：完全基于 enrollment.registration_status
+- **业务逻辑**：清晰的单向依赖，enrollment 管理注册状态

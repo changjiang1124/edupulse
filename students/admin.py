@@ -33,7 +33,7 @@ class StudentAdmin(admin.ModelAdmin):
         'first_name', 'last_name', 'contact_email', 'contact_phone', 
         'get_age_display', 'is_active', 'created_at'
     ]
-    list_filter = ['is_active', 'registration_status', 'created_at', 'tags']
+    list_filter = ['is_active', 'created_at', 'tags']
     search_fields = [
         'first_name', 'last_name', 'contact_email', 'contact_phone', 'guardian_name'
     ]
@@ -60,7 +60,7 @@ class StudentAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Administrative', {
-            'fields': ('staff_notes', 'internal_notes', 'registration_status', 'enrollment_source', 'tags'),
+            'fields': ('staff_notes', 'internal_notes', 'enrollment_source', 'tags'),
             'classes': ('collapse',)
         }),
         ('Status & Timestamps', {

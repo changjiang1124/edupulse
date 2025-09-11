@@ -122,18 +122,8 @@ class Student(models.Model):
     )
     
     # Student Status and Management
-    registration_status = models.CharField(
-        max_length=20,
-        choices=[
-            ('new', 'New Student'),
-            ('returning', 'Returning Student'),
-            ('transferred', 'Transferred')
-        ],
-        default='new',
-        verbose_name='Registration Status'
-    )
-    
     # Staff Management Fields (not shown to public)
+    # Note: registration_status field has been moved to Enrollment model
     staff_notes = models.TextField(
         blank=True,
         verbose_name='Staff Notes',

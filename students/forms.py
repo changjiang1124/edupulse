@@ -19,9 +19,10 @@ class StudentForm(forms.ModelForm):
             # Medical & Special Requirements
             'medical_conditions', 'special_requirements',
             # Reference & Management
-            'reference', 'registration_status', 'enrollment_source',
+            'reference', 'enrollment_source',
             # Staff Fields
             'staff_notes', 'tags', 'is_active'
+            # Note: registration_status is now managed at enrollment level
         ]
         widgets = {
             # Basic Information
@@ -85,9 +86,6 @@ class StudentForm(forms.ModelForm):
             'reference': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'How did you hear about us?'
-            }),
-            'registration_status': forms.Select(attrs={
-                'class': 'form-select'
             }),
             'enrollment_source': forms.TextInput(attrs={
                 'class': 'form-control',
