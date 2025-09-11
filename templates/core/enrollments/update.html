@@ -39,6 +39,11 @@
                                         <div class="mb-3">
                                             <label for="{{ form.student.id_for_label }}" class="form-label">
                                                 Student <span class="text-danger">*</span>
+                                                <a href="{% url 'students:student_detail' enrollment.student.pk %}" 
+                                                   class="btn btn-sm btn-outline-primary ms-2" 
+                                                   title="View Student Profile">
+                                                    <i class="fas fa-external-link-alt"></i>
+                                                </a>
                                             </label>
                                             {{ form.student }}
                                             {% if form.student.errors %}

@@ -789,3 +789,19 @@ h1, h2, h3, h4, h5, h6 {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
+
+/* Enrollment Card Hover Effects */
+.enrollment-card {
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.enrollment-card:hover {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+    transform: translateY(-1px);
+}
+
+.enrollment-card:active {
+    transform: translateY(0);
+}

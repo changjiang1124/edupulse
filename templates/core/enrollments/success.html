@@ -26,7 +26,7 @@
                     <div class="row mb-3">
                         <div class="col-sm-4"><strong>Reference ID:</strong></div>
                         <div class="col-sm-8">
-                            <code class="bg-light p-1 rounded">{{ enrollment.pk }}</code>
+                            <code class="bg-light p-1 rounded">{{ enrollment.get_reference_id }}</code>
                         </div>
                     </div>
                     <div class="row mb-3">
@@ -134,7 +134,7 @@
             {% endif %}
 
             <div class="text-center mt-4">
-                <a href="/" class="btn btn-primary">
+                <a href="https://perthartschool.com.au" class="btn btn-primary">
                     <i class="fas fa-home me-2"></i>Return to Home Page
                 </a>
                 <a href="{% url 'enrollment:public_enrollment' %}" class="btn btn-outline-secondary ms-2">

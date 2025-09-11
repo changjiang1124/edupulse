@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.http import JsonResponse
 
 from .models import Enrollment, Attendance
-from .forms import EnrollmentForm, PublicEnrollmentForm, StaffEnrollmentForm
+from .forms import EnrollmentForm, EnrollmentUpdateForm, PublicEnrollmentForm, StaffEnrollmentForm
 from students.models import Student
 from academics.models import Course
 
@@ -81,20 +81,26 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
             self.object.status = 'confirmed'
             self.object.save()
             
+            # Check how many classes exist for automatic attendance creation
+            active_classes = self.object.course.classes.filter(is_active=True)
+            class_count = active_classes.count()
+            
             # Create student activity record for enrollment confirmation
             from students.models import StudentActivity
             StudentActivity.create_activity(
                 student=self.object.student,
                 activity_type='enrollment_confirmed',
                 title=f'Enrollment confirmed for {self.object.course.name}',
-                description=f'Enrollment status changed from pending to confirmed by staff member.',
+                description=f'Enrollment status changed from pending to confirmed by staff member. '
+                           f'Attendance records automatically created for {class_count} existing classes.',
                 enrollment=self.object,
                 course=self.object.course,
                 performed_by=request.user if hasattr(request.user, 'staff') else None,
                 metadata={
                     'previous_status': 'pending',
                     'new_status': 'confirmed',
-                    'confirmed_at': timezone.now().isoformat()
+                    'confirmed_at': timezone.now().isoformat(),
+                    'attendance_records_created': class_count
                 }
             )
             
@@ -119,17 +125,20 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
                     )
                     messages.success(
                         request, 
-                        f'Enrollment for {self.object.student.get_full_name()} has been confirmed and welcome email sent.'
+                        f'Enrollment for {self.object.student.get_full_name()} has been confirmed and welcome email sent. '
+                        f'Attendance records automatically created for {class_count} existing classes.'
                     )
                 else:
                     messages.success(
                         request, 
-                        f'Enrollment for {self.object.student.get_full_name()} has been confirmed, but welcome email could not be sent.'
+                        f'Enrollment for {self.object.student.get_full_name()} has been confirmed, but welcome email could not be sent. '
+                        f'Attendance records automatically created for {class_count} existing classes.'
                     )
             except Exception as e:
                 messages.success(
                     request, 
-                    f'Enrollment for {self.object.student.get_full_name()} has been confirmed, but notification error: {str(e)}'
+                    f'Enrollment for {self.object.student.get_full_name()} has been confirmed, but notification error: {str(e)}. '
+                    f'Attendance records automatically created for {class_count} existing classes.'
                 )
         
         return redirect('enrollment:enrollment_detail', pk=self.object.pk)
@@ -361,9 +370,13 @@ class StudentSearchAPIView(LoginRequiredMixin, View):
 class EnrollmentUpdateView(LoginRequiredMixin, UpdateView):
     """Update enrollment (staff use)"""
     model = Enrollment
-    form_class = EnrollmentForm
+    form_class = EnrollmentUpdateForm
     template_name = 'core/enrollments/update.html'
     success_url = reverse_lazy('enrollment:enrollment_list')
+    
+    def get_success_url(self):
+        # Redirect to enrollment detail page after successful update
+        return reverse_lazy('enrollment:enrollment_detail', kwargs={'pk': self.object.pk})
     
     def form_valid(self, form):
         messages.success(self.request, 'Enrollment updated successfully.')

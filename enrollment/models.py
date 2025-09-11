@@ -137,6 +137,16 @@ class Enrollment(models.Model):
         """Check if all fees are paid (currently only tracks registration fee)"""
         # Note: Course fee payment would need separate tracking
         return self.registration_fee_paid or self.registration_fee == 0
+    
+    def get_reference_id(self):
+        """
+        Generate professional reference ID in format PAS-[courseID:3digits]-[enrollmentID:3digits]
+        
+        Examples:
+        - PAS-001-023 (Course ID 1, Enrollment ID 23)
+        - PAS-042-156 (Course ID 42, Enrollment ID 156)
+        """
+        return f"PAS-{self.course.id:03d}-{self.id:03d}"
 
 
 class Attendance(models.Model):

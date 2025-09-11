@@ -235,6 +235,10 @@
             <div class="course-details">
                 <h3>{{ course.name }}</h3>
                 <div class="detail-row">
+                    <span class="detail-label">Reference ID:</span>
+                    <span class="detail-value" style="font-family: 'Courier New', monospace; font-weight: 700; color: #2563eb;">{{ enrollment.get_reference_id }}</span>
+                </div>
+                <div class="detail-row">
                     <span class="detail-label">Course Type:</span>
                     <span class="detail-value">{{ course.get_course_type_display }}</span>
                 </div>
@@ -357,7 +361,7 @@
                     </div>
                     <div class="bank-detail-row">
                         <span class="detail-label">Payment Reference:</span>
-                        <span class="detail-value payment-reference">{{ student.first_name|upper }} {{ student.last_name|upper }} - {{ course.name|truncatechars:20 }}</span>
+                        <span class="detail-value payment-reference">{{ enrollment.get_reference_id }}</span>
                     </div>
                 </div>
                 <div class="payment-warning">

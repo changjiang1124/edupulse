@@ -78,9 +78,11 @@
         </div>
     </div>
     <div class="d-flex flex-column flex-sm-row gap-2">
+        {% if course.status == 'published' %}
         <button type="button" class="btn btn-info" onclick="copyEnrollmentUrl()" title="Copy Public Enrollment URL">
             <i class="fas fa-link me-2"></i>Copy Enrol Link
         </button>
+        {% endif %}
         <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-primary">
             <i class="fas fa-edit me-2"></i>Edit Course
         </a>
@@ -337,9 +339,11 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-users me-2 text-primary"></i>Recent Enrolments</h5>
                 <div class="btn-group">
+                    {% if course.status == 'published' %}
                     <a href="{% url 'enrollment:staff_enrollment_create_with_course' course.pk %}" class="btn btn-sm btn-primary">
                         <i class="fas fa-user-plus me-1"></i>Add Enrolment
                     </a>
+                    {% endif %}
                     <a href="{% url 'enrollment:enrollment_list' %}?course={{ course.pk }}" class="btn btn-sm btn-outline-primary">
                         <i class="fas fa-list me-1"></i>View All Enrolments
                     </a>
@@ -350,18 +354,20 @@
                     <div class="row">
                         {% for enrollment in enrollments|slice:":6" %}
                         <div class="col-md-4 mb-3">
-                            <div class="d-flex align-items-center p-2 border rounded">
-                                <div class="avatar-circle bg-primary bg-opacity-10 text-primary me-3">
-                                    {{ enrollment.student.first_name|first }}{{ enrollment.student.last_name|first }}
+                            <a href="{% url 'enrollment:enrollment_detail' enrollment.pk %}" class="text-decoration-none">
+                                <div class="d-flex align-items-center p-2 border rounded enrollment-card">
+                                    <div class="avatar-circle bg-primary bg-opacity-10 text-primary me-3">
+                                        {{ enrollment.student.first_name|first }}{{ enrollment.student.last_name|first }}
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-medium text-dark">{{ enrollment.student.first_name }} {{ enrollment.student.last_name }}</div>
+                                        <small class="text-muted">{{ enrollment.created_at|timesince }} ago</small>
+                                    </div>
+                                    <span class="status-badge status-{{ enrollment.status }} ms-2">
+                                        {{ enrollment.get_status_display }}
+                                    </span>
                                 </div>
-                                <div class="flex-grow-1">
-                                    <div class="fw-medium">{{ enrollment.student.first_name }} {{ enrollment.student.last_name }}</div>
-                                    <small class="text-muted">{{ enrollment.created_at|timesince }} ago</small>
-                                </div>
-                                <span class="status-badge status-{{ enrollment.status }} ms-2">
-                                    {{ enrollment.get_status_display }}
-                                </span>
-                            </div>
+                            </a>
                         </div>
                         {% endfor %}
                     </div>

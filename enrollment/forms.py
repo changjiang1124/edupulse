@@ -28,6 +28,18 @@ class EnrollmentForm(forms.ModelForm):
         }
 
 
+class EnrollmentUpdateForm(EnrollmentForm):
+    """Enrollment update form with course field disabled to prevent mistakes"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # For editing existing enrollments, disable course selection to avoid mistakes
+        if self.instance and self.instance.pk:
+            self.fields['course'].disabled = True
+            self.fields['course'].help_text = "Course cannot be changed for existing enrollments"
+
+
 class PublicEnrollmentForm(forms.Form):
     """Public enrollment form for students/guardians with age-based dynamic fields"""
     
@@ -481,7 +493,8 @@ class StaffEnrollmentForm(forms.ModelForm):
             try:
                 course = Course.objects.get(id=self.course_id)
                 self.fields['course'].initial = course
-                self.fields['course'].widget.attrs['disabled'] = 'disabled'
+                # Use Django's disabled attribute instead of HTML widget attribute
+                self.fields['course'].disabled = True
                 self.fields['course'].help_text = f'Pre-selected course: {course.name}'
                 
                 # Set registration fee default based on course
@@ -505,14 +518,20 @@ class StaffEnrollmentForm(forms.ModelForm):
     def clean_course(self):
         """Ensure course is not changed if pre-selected"""
         course = self.cleaned_data.get('course')
+        
+        # If course_id is provided (pre-selected), use that course regardless of form data
         if self.course_id:
             try:
                 expected_course = Course.objects.get(id=self.course_id)
-                if course != expected_course:
-                    # Force the correct course
-                    course = expected_course
+                # Always return the expected course when pre-selected
+                return expected_course
             except Course.DoesNotExist:
                 raise forms.ValidationError('Invalid course selection')
+        
+        # If no course_id provided, validate that a course was selected
+        if not course:
+            raise forms.ValidationError('Please select a course')
+            
         return course
     
     def clean_student(self):

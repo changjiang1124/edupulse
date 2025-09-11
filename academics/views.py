@@ -8,7 +8,7 @@ from django.utils import timezone
 from datetime import date, datetime
 
 from .models import Course, Class
-from .forms import CourseForm, CourseUpdateForm, ClassForm
+from .forms import CourseForm, CourseUpdateForm, ClassForm, ClassUpdateForm
 
 
 class CourseListView(LoginRequiredMixin, ListView):
@@ -327,20 +327,35 @@ class ClassCreateView(LoginRequiredMixin, CreateView):
             if course_id:
                 form.instance.course = Course.objects.filter(pk=course_id).first()
         
-        # Add success message based on course type
+        # Save the form first
+        response = super().form_valid(form)
+        
+        # Check how many enrollments exist for automatic attendance creation
         course = form.instance.course
-        if course and course.repeat_pattern == 'once':
-            messages.success(
-                self.request,
-                f'Single session for "{course.name}" has been scheduled successfully.'
-            )
+        if course:
+            confirmed_enrollments = course.enrollments.filter(status='confirmed')
+            enrollment_count = confirmed_enrollments.count()
+            
+            # Add success message based on course type and include attendance info
+            if course.repeat_pattern == 'once':
+                messages.success(
+                    self.request,
+                    f'Single session for "{course.name}" has been scheduled successfully. '
+                    f'Attendance records automatically created for {enrollment_count} enrolled students.'
+                )
+            else:
+                messages.success(
+                    self.request,
+                    f'Class for "{course.name}" has been created successfully. '
+                    f'Attendance records automatically created for {enrollment_count} enrolled students.'
+                )
         else:
             messages.success(
                 self.request,
-                f'Class for "{course.name if course else "course"}" has been created successfully.'
+                f'Class has been created successfully.'
             )
         
-        return super().form_valid(form)
+        return response
     
     def get_success_url(self):
         # Redirect back to course detail if course was pre-selected
@@ -417,7 +432,7 @@ class ClassDetailView(LoginRequiredMixin, DetailView):
 
 class ClassUpdateView(LoginRequiredMixin, UpdateView):
     model = Class
-    form_class = ClassForm
+    form_class = ClassUpdateForm
     template_name = 'core/classes/form.html'
     
     def get_success_url(self):

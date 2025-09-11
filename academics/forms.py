@@ -354,3 +354,15 @@ class ClassForm(forms.ModelForm):
                 )
         
         return cleaned_data
+
+
+class ClassUpdateForm(ClassForm):
+    """Class update form with course field disabled"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # For editing existing classes, disable course selection
+        if self.instance and self.instance.pk:
+            self.fields['course'].disabled = True
+            self.fields['course'].help_text = "Course cannot be changed for existing classes"

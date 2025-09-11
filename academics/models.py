@@ -704,5 +704,18 @@ class Class(models.Model):
                 return f"{hours}h {minutes}m"
         return "TBD"
     
+    def get_class_datetime(self):
+        """
+        Return a datetime object combining class date and start time
+        """
+        from django.utils import timezone
+        import datetime
+        
+        # Combine date and time
+        naive_datetime = datetime.datetime.combine(self.date, self.start_time)
+        
+        # Make it timezone aware
+        return timezone.make_aware(naive_datetime)
+    
     def __str__(self):
         return f"{self.course.name} - {self.date} {self.start_time}"

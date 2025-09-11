@@ -1175,6 +1175,549 @@ NoReverseMatch: Reverse for 'public_enrollment' with no arguments not found.
 
 ---
 
-*版本: v6.0*
-*當前階段: 完整考勤管理系統實施完成，包含智能學生搜索、批量考勤標記、多狀態管理、時間控制和現代化交互界面*
-*最後更新時間: 2025-09-04*
+## 課程詳情頁面報名按鈕隱藏 (2025-09-11) ✅ 已完成
+
+### 實施目標
+根據用戶需求，當課程不是發佈狀態時，應隱藏報名相關按鈕，因為未發佈的課程不能被預訂。但需要保留報名列表以顯示現有的報名記錄。
+
+### 主要變更
+
+#### 1. Copy Enrol Link 按鈕隱藏 ✅
+**文件**: `templates/core/courses/detail.html`
+**位置**: 課程詳情頁面頂部操作區域（第80-89行）
+**修改**:
+```html
+<!-- 修改前 -->
+<button type="button" class="btn btn-info" onclick="copyEnrollmentUrl()">
+    <i class="fas fa-link me-2"></i>Copy Enrol Link
+</button>
+
+<!-- 修改後 -->
+{% if course.status == 'published' %}
+<button type="button" class="btn btn-info" onclick="copyEnrollmentUrl()">
+    <i class="fas fa-link me-2"></i>Copy Enrol Link
+</button>
+{% endif %}
+```
+
+#### 2. Add Enrolment 按鈕隱藏 ✅
+**文件**: `templates/core/courses/detail.html` 
+**位置**: Recent Enrolments 卡片標題區域（第340-350行）
+**修改**:
+```html
+<!-- 修改前 -->
+<a href="{% url 'enrollment:staff_enrollment_create_with_course' course.pk %}" class="btn btn-sm btn-primary">
+    <i class="fas fa-user-plus me-1"></i>Add Enrolment
+</a>
+
+<!-- 修改後 -->
+{% if course.status == 'published' %}
+<a href="{% url 'enrollment:staff_enrollment_create_with_course' course.pk %}" class="btn btn-sm btn-primary">
+    <i class="fas fa-user-plus me-1"></i>Add Enrolment
+</a>
+{% endif %}
+```
+
+### 業務邏輯
+
+#### 課程狀態檢查
+- **published**: 課程已發佈，可以預訂，顯示所有報名相關按鈕
+- **draft**: 課程草稿狀態，不可預訂，隱藏報名按鈕
+- **expired**: 課程已過期，不可預訂，隱藏報名按鈕
+
+#### 保留功能
+- **報名列表顯示**: 無論課程狀態如何，都顯示現有的報名記錄
+- **View All Enrolments**: 保留查看所有報名的按鈕，便於管理員查看歷史記錄
+- **報名統計**: 保留報名數量統計顯示
+
+### 用戶體驗改進
+
+#### 明確的狀態指示
+- 未發佈課程不顯示報名入口，避免用戶混淆
+- 保持課程狀態徽章顯示，讓用戶清楚了解課程狀態
+
+#### 管理員友好
+- 管理員仍可查看所有報名記錄
+- 編輯課程功能始終可用
+- 報名統計信息持續顯示
+
+#### 一致的行為邏輯
+- 與公開報名頁面的可預訂性檢查保持一致
+- 符合商業邏輯：只有發佈的課程才能接受新報名
+
+### 技術實現特點
+
+#### 條件渲染
+- 使用 Django 模板的 `{% if %}` 標籤進行條件渲染
+- 檢查 `course.status == 'published'` 來控制按鈕顯示
+
+#### 功能保持
+- 所有現有功能完全保持
+- 僅調整按鈕的可見性
+- 不影響數據查詢和顯示邏輯
+
+#### 一致性維護
+- 與課程模型的狀態邏輯保持一致
+- 與 `get_current_bookable_state()` 方法的檢查邏輯相符
+
+### 實施成果
+
+#### 解決的具體問題
+1. **防止錯誤報名**: 未發佈課程不會產生新的報名請求
+2. **用戶體驗改善**: 避免用戶在不可預訂的課程上浪費時間
+3. **業務邏輯一致**: 報名功能與課程發佈狀態邏輯一致
+
+#### 管理效率提升
+- 管理員仍可查看和管理現有報名
+- 課程編輯功能不受影響
+- 歷史數據完全保留
+
+#### 系統行為統一
+- 前台和後台的課程可預訂性邏輯統一
+- 符合 Perth Art School 的業務流程要求
+
+這次修改確保了只有發佈狀態的課程才顯示報名相關的操作按鈕，同時保持了報名記錄的完整顯示，為 Perth Art School 提供了更加合理和用戶友好的課程管理體驗。
+
+---
+
+## 课程-班级-学生自动化关联系统 (2025-09-11) ✅ 已完成
+
+### 实施目标
+根据用户需求实现三个关键自动化功能：
+1. 课程报名时自动添加到所有现有班级的考勤
+2. 新班级创建时自动添加所有已注册学生的考勤记录  
+3. 保持现有的单班级考勤管理功能
+
+### 主要变更
+
+#### 1. Django信号处理器 ✅
+**文件**: `enrollment/signals.py`
+**功能**: 自动监听模型变化并触发考勤记录创建
+- **post_save信号 for Enrollment**: 当报名状态变为'confirmed'时，自动为该课程所有active班级创建考勤记录
+- **post_save信号 for Class**: 当新班级创建时，自动为该课程所有confirmed学生创建考勤记录
+- **pre_save信号 for Enrollment**: 追踪状态变化以确保只在确认时触发
+- **智能避重**: 使用get_or_create避免重复记录创建
+
+#### 2. 服务层架构 ✅
+**文件**: `enrollment/services.py`
+**功能**: 封装自动化业务逻辑，提供可重用的服务方法
+
+**EnrollmentAttendanceService**:
+- `auto_create_attendance_for_enrollment()`: 为新确认的报名创建所有相关班级的考勤
+- `sync_enrollment_attendance()`: 同步报名的考勤记录
+
+**ClassAttendanceService**:
+- `auto_create_attendance_for_class()`: 为新班级创建所有相关学生的考勤
+- `sync_class_attendance()`: 同步班级的考勤记录
+
+**AttendanceSyncService**:
+- `sync_all_course_attendance()`: 同步课程所有考勤记录
+- `sync_all_attendance()`: 系统级考勤记录同步
+
+#### 3. 模型方法增强 ✅
+**文件**: `academics/models.py` (Class模型)
+**新增方法**: `get_class_datetime()` 
+- 返回结合日期和时间的datetime对象
+- 自动处理时区转换
+- 供考勤记录创建时使用
+
+#### 4. 应用配置更新 ✅
+**文件**: `enrollment/apps.py`
+**修改**: 在`ready()`方法中注册信号处理器
+```python
+def ready(self):
+    """Import signal handlers when Django starts"""
+    import enrollment.signals
+```
+
+#### 5. 用户界面反馈增强 ✅
+
+**报名确认流程** (`enrollment/views.py`):
+- 在确认报名时显示自动创建的考勤记录数量
+- 在学生活动记录中记录考勤自动化信息
+- 用户友好的成功消息包含考勤创建统计
+
+**班级创建流程** (`academics/views.py`):
+- 在班级创建成功后显示自动创建的考勤记录数量
+- 区分单次课程和重复课程的消息显示
+
+#### 6. 管理命令工具 ✅
+**文件**: `enrollment/management/commands/sync_attendance.py`
+**功能**: 手动同步现有数据的考勤记录
+
+**命令选项**:
+- `--course-id`: 仅同步特定课程
+- `--dry-run`: 预览模式，不实际修改数据
+- `--verbose`: 显示详细输出
+
+**使用示例**:
+```bash
+# 查看需要同步的记录
+python manage.py sync_attendance --dry-run --verbose
+
+# 同步所有课程
+python manage.py sync_attendance
+
+# 同步特定课程
+python manage.py sync_attendance --course-id 123
+```
+
+### 技术实现特点
+
+#### 自动化触发机制
+- **报名确认**: Enrollment.status从其他状态变为'confirmed'时触发
+- **班级创建**: 新Class对象创建且is_active=True时触发
+- **状态追踪**: 使用pre_save信号追踪原始状态，避免重复触发
+
+#### 数据完整性保证
+- **唯一性约束**: 利用Attendance模型的unique_together确保无重复
+- **事务安全**: 使用Django transaction.atomic确保数据一致性
+- **错误处理**: 完善的异常处理和日志记录
+
+#### 性能优化设计
+- **批量操作**: 服务层支持批量数据库操作
+- **最小化查询**: 使用select_related减少数据库查询
+- **条件检查**: 仅在必要时执行数据库操作
+
+#### 业务逻辑控制
+- **默认状态**: 新创建的考勤记录默认为'absent'状态
+- **教师控制**: 教师可在课堂上标记实际出席情况
+- **状态保持**: 已存在的考勤记录不会被自动化修改
+
+### 测试验证 ✅
+
+#### 自动化测试
+**文件**: `simple_automation_test.py`
+- 测试报名确认后自动创建考勤记录
+- 测试新班级创建后自动添加已报名学生
+- 验证重复记录防护机制
+- 确认数据完整性和业务逻辑
+
+**测试结果**: ✅ 所有自动化功能正常工作
+
+#### 管理命令测试
+- 验证了现有数据的同步功能
+- 确认dry-run模式正常工作
+- 测试了课程级别和系统级别的同步
+
+### 业务价值实现
+
+#### 1. 自动化效率提升
+- **消除手工操作**: 无需手动为每个学生创建考勤记录
+- **减少遗漏**: 自动确保所有应有的考勤记录都被创建
+- **即时同步**: 报名确认和班级创建立即触发考勤创建
+
+#### 2. 数据一致性保证
+- **完整覆盖**: 确保所有确认报名都有对应的班级考勤记录
+- **状态同步**: 报名状态和考勤记录状态保持一致
+- **历史完整**: 支持现有数据的批量同步
+
+#### 3. 用户体验改善
+- **透明操作**: 用户看到明确的自动化操作反馈
+- **即时反馈**: 操作成功后立即显示创建的考勤记录数量
+- **错误处理**: 如遇问题有清晰的错误信息
+
+#### 4. 系统可维护性
+- **模块化设计**: 服务层封装便于测试和维护
+- **可扩展性**: 信号系统支持未来功能扩展
+- **监控友好**: 完整的日志记录便于问题诊断
+
+### 实施成果
+
+#### 解决的具体问题
+1. **手动考勤创建**: 完全消除了手动为新报名学生创建考勤记录的需要
+2. **数据不一致**: 避免了因遗漏导致的考勤记录缺失问题
+3. **工作效率**: 大幅减少了教师和管理员的重复性工作
+
+#### 系统行为改进
+- **报名确认**: 现在自动为该学生创建所有现有班级的考勤记录
+- **班级创建**: 现在自动为所有已报名学生创建该班级的考勤记录
+- **数据维护**: 提供了强大的同步工具处理历史数据
+
+#### 技术债务减少
+- **一致性保证**: 信号系统确保数据始终保持一致
+- **代码重用**: 服务层设计支持多种场景的代码重用
+- **测试覆盖**: 完整的测试验证确保功能稳定性
+
+这个自动化关联系统的实施显著提升了EduPulse的用户体验和数据管理效率，为Perth Art School提供了更加智能和高效的课程管理解决方案。
+
+---
+
+## 专业引用ID格式实施 (2025-09-11) ✅ 已完成
+
+### 实施目标
+根据用户需求，将报名成功页面和确认邮件中的引用ID从简单的数字改为专业格式：
+**"PAS-[courseID:3位数]-[enrollmentID:3位数]"**
+
+例如：PAS-001-023, PAS-042-156
+
+### 主要变更
+
+#### 1. Enrollment模型方法扩展 ✅
+**文件**: `enrollment/models.py`
+**新增方法**: `get_reference_id()`
+```python
+def get_reference_id(self):
+    """
+    Generate professional reference ID in format PAS-[courseID:3digits]-[enrollmentID:3digits]
+    """
+    return f"PAS-{self.course.id:03d}-{self.id:03d}"
+```
+
+**功能特点**:
+- **PAS前缀**: 代表"Perth Art School"，提升品牌识别度
+- **3位数格式**: 使用`:03d`确保固定长度，便于口头传达
+- **双重标识**: 同时包含课程ID和报名ID，便于快速定位
+
+#### 2. 报名成功页面更新 ✅
+**文件**: `templates/core/enrollments/success.html`
+**修改**: 第29行引用ID显示
+- **修改前**: `{{ enrollment.pk }}`
+- **修改后**: `{{ enrollment.get_reference_id }}`
+
+**效果**: 用户在提交报名后看到的引用ID从简单数字变为专业格式
+
+#### 3. 确认邮件模板增强 ✅
+**文件**: `templates/core/emails/enrollment_confirmation.html`
+
+**新增引用ID显示区域**:
+- 在课程详情部分添加引用ID行（第237-240行）
+- 使用等宽字体和特殊样式突出显示
+- 颜色设置为主题蓝色 `#2563eb`
+
+**支付引用简化**:
+- **修改前**: 冗长的"学生姓名-课程名"组合
+- **修改后**: 简洁的专业引用ID `{{ enrollment.get_reference_id }}`
+- 大幅简化支付引用，提升银行转账体验
+
+#### 4. 模板样式优化 ✅
+**引用ID显示样式**:
+```html
+<span class="detail-value" style="font-family: 'Courier New', monospace; font-weight: 700; color: #2563eb;">
+    {{ enrollment.get_reference_id }}
+</span>
+```
+
+**支付引用样式**: 保持现有的 `.payment-reference` 类样式，确保视觉一致性
+
+### 技术实现特点
+
+#### 格式化逻辑
+- **固定长度**: 课程ID和报名ID都使用3位数字，不足位数用0填充
+- **分隔符**: 使用连字符"-"分隔各部分，便于阅读
+- **前缀标识**: "PAS"前缀建立品牌识别
+
+#### 向后兼容性
+- **无数据库变更**: 这是显示层改进，不影响现有数据结构
+- **方法调用**: 模板使用方法调用而非字段访问，保持灵活性
+- **现有功能**: 所有现有功能完全保持不变
+
+#### 测试验证
+**测试脚本**: `test_reference_id.py`
+- 格式正确性验证
+- 模板兼容性测试
+- 边界案例测试
+- 具体示例验证
+
+**测试结果**: ✅ 所有测试通过
+
+### 用户体验改进
+
+#### 1. 专业形象提升
+- **品牌识别**: "PAS"前缀强化Perth Art School品牌
+- **一致性**: 所有渠道使用统一的引用格式
+- **专业感**: 规范化的编号系统提升专业形象
+
+#### 2. 实用性增强
+- **易于沟通**: 固定长度便于电话或书面传达
+- **快速识别**: 包含课程信息便于客服快速定位
+- **简化支付**: 银行转账引用从冗长变为简洁
+
+#### 3. 用户友好性
+- **记忆便利**: 短小精悍的格式便于用户记忆
+- **错误减少**: 标准化格式减少输入和传达错误
+- **查询效率**: 客服可通过引用ID快速查找相关信息
+
+### 实施示例
+
+#### 引用ID格式示例
+- **PAS-001-023**: 课程1，报名23
+- **PAS-042-156**: 课程42，报名156  
+- **PAS-999-001**: 课程999，报名1
+
+#### 使用场景
+1. **报名成功页面**: 用户完成报名后立即看到专业引用ID
+2. **确认邮件**: 邮件中显著位置展示引用ID
+3. **支付引用**: 银行转账时使用简洁的引用ID
+4. **客服查询**: 客服可通过引用ID快速定位报名信息
+
+### 业务价值
+
+#### 运营效率提升
+- **客服效率**: 引用ID包含课程信息，减少查询时间
+- **错误减少**: 标准化格式减少人为错误
+- **流程简化**: 支付引用简化提升用户体验
+
+#### 品牌形象增强
+- **专业度**: 规范的编号系统体现专业管理
+- **一致性**: 统一的引用格式建立品牌识别
+- **可信度**: 系统化的流程增强用户信任
+
+#### 扩展性保证
+- **格式标准**: 建立了引用ID的标准格式
+- **容量充足**: 3位数格式支持999个课程和999个报名
+- **系统化**: 为未来功能扩展建立基础
+
+### 实施成果
+
+这次专业引用ID格式的实施成功地：
+
+1. **提升了用户体验**: 从简单数字到专业格式的转变
+2. **加强了品牌识别**: "PAS"前缀建立品牌关联
+3. **简化了业务流程**: 支付引用和客服查询更加高效
+4. **建立了标准化**: 为其他业务流程建立了引用标准
+
+这个改进为Perth Art School提供了更加专业、一致和用户友好的报名体验，体现了教育机构的专业形象和规范管理。
+
+---
+
+## 禁用字段表单验证Bug修复 (2025-09-11) ✅ 已完成
+
+### 问题描述
+当用户从课程详情页面创建报名时（URL: `/enroll/enrollments/staff/create/36/`），课程字段按预期被选中并禁用，但提交时出现"缺少课程ID"错误。课程选择显示为禁用状态但没有值（显示"--"）。
+
+### 根本原因分析
+1. **HTML禁用属性问题**: 使用`widget.attrs['disabled'] = 'disabled'`设置的禁用字段在HTML表单提交时不会发送值
+2. **表单验证逻辑缺陷**: `clean_course()`方法逻辑有问题，当disabled字段返回`None`时处理不当
+3. **Django表单最佳实践**: 应该使用Django的`field.disabled = True`而不是HTML widget属性
+
+### 技术修复方案
+
+#### 1. 修复字段禁用方法 ✅
+**文件**: `enrollment/forms.py` (第484行)
+**修改前**:
+```python
+self.fields['course'].widget.attrs['disabled'] = 'disabled'
+```
+**修改后**:
+```python
+self.fields['course'].disabled = True
+```
+
+#### 2. 重构clean_course()验证方法 ✅
+**文件**: `enrollment/forms.py` (第505-522行)
+**修改前**:
+```python
+def clean_course(self):
+    course = self.cleaned_data.get('course')
+    if self.course_id:
+        expected_course = Course.objects.get(id=self.course_id)
+        if course != expected_course:
+            course = expected_course
+    return course
+```
+
+**修改后**:
+```python
+def clean_course(self):
+    course = self.cleaned_data.get('course')
+    
+    # If course_id is provided (pre-selected), use that course regardless of form data
+    if self.course_id:
+        try:
+            expected_course = Course.objects.get(id=self.course_id)
+            # Always return the expected course when pre-selected
+            return expected_course
+        except Course.DoesNotExist:
+            raise forms.ValidationError('Invalid course selection')
+    
+    # If no course_id provided, validate that a course was selected
+    if not course:
+        raise forms.ValidationError('Please select a course')
+        
+    return course
+```
+
+### 技术改进要点
+
+#### Django表单字段禁用最佳实践
+- **正确方法**: `field.disabled = True`
+  - Django会正确处理禁用字段的验证
+  - 字段值在cleaned_data中保持可用
+  - 兼容Django表单验证流程
+
+- **避免方法**: `widget.attrs['disabled'] = 'disabled'`
+  - 仅在HTML级别禁用，表单提交时值丢失
+  - 需要额外的验证逻辑处理
+  - 容易导致验证错误
+
+#### 验证逻辑改进
+- **预选课程优先**: 当`course_id`存在时，始终使用预选课程
+- **明确错误处理**: 提供清晰的验证错误信息
+- **向后兼容**: 保持未预选课程的正常验证逻辑
+
+### 测试验证 ✅
+
+#### 测试脚本
+**文件**: `test_disabled_field_fix.py`
+- 表单初始化测试：验证课程字段正确禁用和设置初值
+- 表单验证测试：验证禁用字段的表单提交和验证
+- 表单保存测试：验证最终保存的数据正确性
+- 兼容性测试：验证未预选课程的正常表单流程
+
+#### 测试结果
+- ✅ 课程字段正确禁用并设置初值
+- ✅ 表单验证通过，`clean_course()`返回正确课程
+- ✅ 表单保存的报名记录包含正确的课程和学生
+- ✅ 未预选课程的表单仍正常工作
+
+### 影响范围检查
+
+#### 类似模式审查
+- **ClassUpdateForm**: 已使用正确的`field.disabled = True`模式 ✅
+- **其他表单**: 检查发现无类似问题 ✅
+- **最佳实践**: 为项目建立了禁用字段的标准模式
+
+#### 向后兼容性
+- **现有功能**: 所有现有功能完全保持
+- **API兼容**: 表单API无变化
+- **数据完整性**: 不影响现有数据
+
+### 用户体验改善
+
+#### 修复前的问题体验
+1. 用户从课程详情页点击"Add Enrolment"
+2. 表单正确显示预选课程但字段禁用
+3. 填写其他信息后提交表单
+4. 收到"缺少课程ID"错误，用户困惑
+
+#### 修复后的流畅体验
+1. 用户从课程详情页点击"Add Enrolment"
+2. 表单正确显示预选课程且字段禁用
+3. 填写其他信息后提交表单
+4. 成功创建报名，自动返回课程详情页
+
+### 实施成果
+
+#### 解决的技术问题
+- **表单验证错误**: 修复了禁用字段导致的验证失败
+- **用户体验问题**: 消除了令人困惑的错误信息
+- **代码质量**: 采用了Django推荐的最佳实践
+
+#### 建立的开发标准
+- **禁用字段模式**: 确立了使用`field.disabled = True`的标准
+- **验证逻辑模式**: 建立了处理预选值的验证模式
+- **测试标准**: 为类似问题建立了测试验证方法
+
+#### 预防类似问题
+- **代码审查指导**: 为团队提供了禁用字段的正确实现方式
+- **测试模式**: 建立了验证禁用字段功能的测试模式
+- **最佳实践**: 为Django表单开发确立了技术标准
+
+这个bug修复不仅解决了具体的用户体验问题，还为项目建立了更好的技术标准和开发实践，确保类似问题不会再次出现。
+
+---
+
+*版本: v6.4*
+*當前階段: 禁用字段表单验证Bug修复完成，提升用户体验和代码质量*
+*最後更新時間: 2025-09-11*
