@@ -75,13 +75,6 @@ is contact email in enrolment sharing one for either student or guardian, depend
 
 - [x] attendance for student, in class. searchable with suggestions when add student in class. attendance should be able to be marked for single or multiple students in the list, with time specified, and able to be marked as absent or other regular attendance features. note the reasonableness of the interaction of the page and list. 
 
-- [x] help me refine the course detail page for interaction, UI and attendance. 
-- 1. make the title panel in white background instead of green, and back to classes button at the top left of the title panel. in the original place, remove delete action, and only keep edit action button. if the class is "deleted", they should be marked as inactive by uncheck the active checkbox in class edit page. 
-- 2. move `mark attendance` from student panel to attendance history panel to strengthen to correlations. 
-- 3. remove quick actions panel, and put view course action on the title panel next to class edit action. 
-- 4. check the information accuracy in Class Statistics 
-- 5. the poped action panel from 3 dots of student item, could be covered by the panels in its right. this could be a style error.
-- 6 the modal of `add student` doesn't have suggestions while typing student name or email. and in case this is a new student, below the search box, provide a `cannot find any? add new student` ( you can revise the message) with a link to add a new student. 
 
 - [x] you can see from the screenshot, the 3 dots pop up could be covered, i guess it's the hover effects, triggering other divs above the popup. and class statistics with empty string of students number. and mark attendance response error
 
@@ -130,7 +123,7 @@ create:
   - [] test course edit from draft to expired, and check woocommerce product marked as draft.
   - [] test course edit from expired to published, and check woocommerce product created or updated (if this item exists) with right information.
   - [] test the mapping between the system and woocommerce product fields, are updated along with the editing of course. e.g. vacancy, enrolment deadline, fees, dates, facility (location). 
-  - [] test before create a new product on woocommerce, the system always check if there is an existing product with the external_id saved in the course, if exists, update it, otherwise create a new one.
+  - [] test before create a new product on woocommerce, the system always check if there is an existing product with the external_id saved in the course, if exists, update it, otherwise create a new one. there could be situation that the product is deleted on woocommerce side, but the course still exists in the system. so in this situation, when you try to publish the course, you should create a new product on woocommerce and update the external_id in the course.
 
 
 ### class 
@@ -166,6 +159,21 @@ Fixed: Reordered logic to create student first, then enrollment with proper stud
 - [x] in the course detail, should remove `Enrol Now` button, as there should be only two ways to enrol, 1. copy the public enrolment link to this course for customers to fill, and 2. add enrolment by the operators, thru the button above the enrolment section in the course detail. and please help me test the operator adding enrolment. review the current implementation /enroll/enrollments/staff/create/39/. expected: 1. choose student first, create one if not exists; 2. remove the current adding new student modal popped in the enrolment create form, instead, new window open /students/add/ to maintain the same form for the same purpose. 
 
 - [] enrolement should have `referred by` to be optional, a textbox for referral name. and this should also be a field in the enroled student profile
+
+- [x] in course detail, for the course is not in published status, the enrolment button should be hidden, as the course is not bookable. but keep the enrolment list to show existing enrolments.
+
+- [] add enrolment in a course, should automatically add the student to existing classes of this course, if there is any. and add a new class under the course, should automatically add all existing enrolments of this course to the new class. and add a student in a class, should only affect the current class, not the whole course.
+  - [] testing
+
+- [] the refernece ID in the enrolment submission success page, should show like the format "PAS-[courseID in 3 digits]-[enrolmentID in 3 digits]", e.g. PAS-001-023, to make it more professional and easier to identify the course and enrolment. and this should be shown in the submission confirmation email as well.
+  - [] testing
+
+- [] enrolment cards in the course detail page should be clickable to go to the enrolment detail page, instead of just showing the information. and the enrolment detail page should have all the information of the enrolment, and able to be edited. and in the edit page, the course should be disabled to avoid mistake. and since the student could be created or extracted from the enrolment, the student profile should be a link to go to the student detail page. 
+
+- [] review the current email content sent upon enrolment submission, and make it more professional. and include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the vacancy should not be changed until the enrolment is confirmed by operator. and all the content of the email should be accurate (currently seems no duration of the course. please review all of others as well). and currently there are two emails sent out upon the submission, which the submission should be only one email sent to the contact email provided in the enrolment form, including the course information and bank transfer information. and when the enrolment is confirmed by operator, then another email should be sent to the contact email to indicate the enrolment is confirmed.
+  - [] testing
+
+- [] 
 
 ### settings 
 - [ ] SMS configuration should be only visible to admin user of the organisation, so as the email configuration.
