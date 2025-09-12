@@ -11,12 +11,15 @@ class EnrollmentForm(forms.ModelForm):
     
     class Meta:
         model = Enrollment
-        fields = ['student', 'course', 'status', 'source_channel']
+        fields = ['student', 'course', 'class_instance', 'status', 'source_channel']
         widgets = {
             'student': forms.Select(attrs={
                 'class': 'form-select'
             }),
             'course': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'class_instance': forms.Select(attrs={
                 'class': 'form-select'
             }),
             'status': forms.Select(attrs={
@@ -26,6 +29,54 @@ class EnrollmentForm(forms.ModelForm):
                 'class': 'form-select'
             }),
         }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        student = cleaned_data.get('student')
+        course = cleaned_data.get('course')
+        class_instance = cleaned_data.get('class_instance')
+        
+        # Check for duplicate active enrollments (excluding cancelled)
+        if student:
+            existing_enrollment = None
+            
+            if class_instance:
+                # Check for class-level duplicates
+                existing_enrollment = Enrollment.objects.filter(
+                    student=student,
+                    class_instance=class_instance
+                ).exclude(status='cancelled')
+                
+                error_msg = (
+                    f'{student.get_full_name()} already has an active enrollment in {class_instance}. '
+                    f'Current status: {{status}}. '
+                    f'Please cancel the existing enrollment before creating a new one.'
+                )
+            elif course:
+                # Check for course-level duplicates (only when no specific class is selected)
+                existing_enrollment = Enrollment.objects.filter(
+                    student=student,
+                    course=course,
+                    class_instance__isnull=True  # Only check course-level enrollments
+                ).exclude(status='cancelled')
+                
+                error_msg = (
+                    f'{student.get_full_name()} already has an active enrollment in {course.name}. '
+                    f'Current status: {{status}}. '
+                    f'Please cancel the existing enrollment before creating a new one.'
+                )
+            
+            # For updates, exclude current instance
+            if existing_enrollment and self.instance and self.instance.pk:
+                existing_enrollment = existing_enrollment.exclude(pk=self.instance.pk)
+                
+            if existing_enrollment and existing_enrollment.exists():
+                existing = existing_enrollment.first()
+                raise forms.ValidationError(
+                    error_msg.format(status=existing.get_status_display())
+                )
+        
+        return cleaned_data
 
 
 class EnrollmentUpdateForm(EnrollmentForm):
@@ -454,13 +505,16 @@ class StaffEnrollmentForm(forms.ModelForm):
     
     class Meta:
         model = Enrollment
-        fields = ['student', 'course', 'status', 'registration_status', 'source_channel']
+        fields = ['student', 'course', 'class_instance', 'status', 'registration_status', 'source_channel']
         widgets = {
             'student': forms.Select(attrs={
                 'class': 'form-select d-none',  # Hidden by default using Bootstrap class
                 'required': False  # Remove browser-level required validation since we handle it manually
             }),
             'course': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'class_instance': forms.Select(attrs={
                 'class': 'form-select'
             }),
             'status': forms.Select(attrs={
@@ -545,21 +599,43 @@ class StaffEnrollmentForm(forms.ModelForm):
         cleaned_data = super().clean()
         student = cleaned_data.get('student')
         course = cleaned_data.get('course')
+        class_instance = cleaned_data.get('class_instance')
         
-        # Check for duplicate enrollments
-        if student and course:
-            existing_enrollment = Enrollment.objects.filter(
-                student=student,
-                course=course
-            ).exclude(status='cancelled')
+        # Check for duplicate active enrollments (excluding cancelled)
+        if student:
+            existing_enrollment = None
             
-            if self.instance and self.instance.pk:
+            if class_instance:
+                # Check for class-level duplicates
+                existing_enrollment = Enrollment.objects.filter(
+                    student=student,
+                    class_instance=class_instance
+                ).exclude(status='cancelled')
+                
+                error_msg = (
+                    f'{student.get_full_name()} is already enrolled in {class_instance}. '
+                    f'Status: {{status}}'
+                )
+            elif course:
+                # Check for course-level duplicates (only when no specific class is selected)
+                existing_enrollment = Enrollment.objects.filter(
+                    student=student,
+                    course=course,
+                    class_instance__isnull=True  # Only check course-level enrollments
+                ).exclude(status='cancelled')
+                
+                error_msg = (
+                    f'{student.get_full_name()} is already enrolled in {course.name}. '
+                    f'Status: {{status}}'
+                )
+            
+            # For updates, exclude current instance
+            if existing_enrollment and self.instance and self.instance.pk:
                 existing_enrollment = existing_enrollment.exclude(pk=self.instance.pk)
                 
-            if existing_enrollment.exists():
+            if existing_enrollment and existing_enrollment.exists():
                 raise forms.ValidationError(
-                    f'{student.get_full_name()} is already enrolled in {course.name}. '
-                    f'Status: {existing_enrollment.first().get_status_display()}'
+                    error_msg.format(status=existing_enrollment.first().get_status_display())
                 )
         
         return cleaned_data

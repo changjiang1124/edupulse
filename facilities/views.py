@@ -217,3 +217,39 @@ class AddressGeocodeView(AdminRequiredMixin, View):
             return JsonResponse({'error': f'Network error: {str(e)}'}, status=500)
         except Exception as e:
             return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
+
+
+class ClassroomAPIView(LoginRequiredMixin, View):
+    """
+    AJAX API view to get classrooms for a specific facility
+    """
+    def get(self, request, *args, **kwargs):
+        facility_id = request.GET.get('facility_id')
+        
+        if not facility_id:
+            return JsonResponse({'error': 'Facility ID is required'}, status=400)
+        
+        try:
+            # Get active classrooms for the specified facility
+            classrooms = Classroom.objects.filter(
+                facility_id=facility_id,
+                is_active=True
+            ).order_by('name')
+            
+            classroom_list = [
+                {
+                    'id': classroom.id,
+                    'name': classroom.name,
+                    'capacity': classroom.capacity,
+                    'display_name': f"{classroom.name} (Capacity: {classroom.capacity})"
+                }
+                for classroom in classrooms
+            ]
+            
+            return JsonResponse({
+                'success': True,
+                'classrooms': classroom_list
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)

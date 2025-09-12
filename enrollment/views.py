@@ -468,6 +468,27 @@ class PublicEnrollmentView(TemplateView):
                 form.cleaned_data, None  # Pass None for enrollment initially
             )
             
+            # Check for duplicate active enrollments (excluding cancelled)
+            existing_enrollment = Enrollment.objects.filter(
+                student=student,
+                course=course
+            ).exclude(status='cancelled')
+            
+            if existing_enrollment.exists():
+                existing = existing_enrollment.first()
+                messages.error(
+                    request, 
+                    f'You already have an active enrollment in {course.name}. '
+                    f'Current status: {existing.get_status_display()}. '
+                    f'Please contact us if you need to modify your existing enrollment.'
+                )
+                # Return to form with error
+                context = self.get_context_data(**kwargs)
+                context['form'] = form
+                context['selected_course'] = selected_course
+                context['courses'] = courses
+                return self.render_to_response(context)
+            
             # Determine registration status based on student_status from form
             student_status = form.cleaned_data.get('student_status', 'new')
             

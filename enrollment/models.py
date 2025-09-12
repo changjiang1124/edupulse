@@ -32,6 +32,15 @@ class Enrollment(models.Model):
         related_name='enrollments',
         verbose_name='Course'
     )
+    class_instance = models.ForeignKey(
+        Class,
+        on_delete=models.CASCADE,
+        related_name='enrollments',
+        verbose_name='Class',
+        blank=True,
+        null=True,
+        help_text='Optional: specific class instance for this enrollment'
+    )
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
@@ -117,10 +126,25 @@ class Enrollment(models.Model):
     class Meta:
         verbose_name = 'Enrolment'
         verbose_name_plural = 'Enrolments'
-        unique_together = ['student', 'course']
+        # Support both course-level and class-level unique constraints
+        constraints = [
+            models.UniqueConstraint(
+                fields=['student', 'course'],
+                condition=models.Q(class_instance__isnull=True),
+                name='unique_student_course_enrollment'
+            ),
+            models.UniqueConstraint(
+                fields=['student', 'class_instance'],
+                condition=models.Q(class_instance__isnull=False),
+                name='unique_student_class_enrollment'
+            ),
+        ]
     
     def __str__(self):
-        return f"{self.student} - {self.course} ({self.get_status_display()})"
+        base_str = f"{self.student} - {self.course}"
+        if self.class_instance:
+            base_str += f" ({self.class_instance})"
+        return f"{base_str} ({self.get_status_display()})"
     
     def get_total_fee(self):
         """Calculate total fee for this enrollment"""

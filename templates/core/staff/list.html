@@ -57,7 +57,7 @@
                             </thead>
                             <tbody>
                                 {% for staff in staff_list %}
-                                <tr class="clickable-row" onclick="location.href='{% url 'accounts:staff_detail' staff.pk %}'">
+                                <tr class="clickable-row" onclick="location.href='{% url 'accounts:staff_detail' staff.pk %}'" style="cursor: pointer;">
                                     <td>
                                         <strong>{{ staff.first_name }} {{ staff.last_name }}</strong>
                                         <br><small class="text-muted">{{ staff.username }}</small>

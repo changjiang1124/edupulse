@@ -953,6 +953,66 @@ document.addEventListener('DOMContentLoaded', function() {
             classCheckboxes.forEach(checkbox => checkbox.checked = false);
         });
     }
+    
+    // Facility-Classroom cascading logic
+    const facilityField = document.getElementById('{{ form.facility.id_for_label }}');
+    const classroomField = document.getElementById('{{ form.classroom.id_for_label }}');
+    
+    if (facilityField && classroomField) {
+        facilityField.addEventListener('change', function() {
+            const facilityId = this.value;
+            
+            if (!facilityId) {
+                // No facility selected - clear classroom options
+                classroomField.innerHTML = '<option value="">Select facility first...</option>';
+                classroomField.disabled = true;
+                return;
+            }
+            
+            // Show loading state
+            classroomField.innerHTML = '<option value="">Loading classrooms...</option>';
+            classroomField.disabled = true;
+            
+            // Fetch classrooms for selected facility
+            fetch(`{% url 'facilities:classroom_api' %}?facility_id=${facilityId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Clear existing options
+                        classroomField.innerHTML = '<option value="">Select classroom...</option>';
+                        
+                        // Add classrooms
+                        data.classrooms.forEach(classroom => {
+                            const option = document.createElement('option');
+                            option.value = classroom.id;
+                            option.textContent = classroom.display_name;
+                            classroomField.appendChild(option);
+                        });
+                        
+                        // Enable field
+                        classroomField.disabled = false;
+                        
+                        // If we had a pre-selected classroom, try to restore it
+                        const initialClassroom = '{{ form.classroom.value|default:"" }}';
+                        if (initialClassroom) {
+                            classroomField.value = initialClassroom;
+                        }
+                    } else {
+                        classroomField.innerHTML = '<option value="">Error loading classrooms</option>';
+                        console.error('Error fetching classrooms:', data.error);
+                    }
+                })
+                .catch(error => {
+                    classroomField.innerHTML = '<option value="">Error loading classrooms</option>';
+                    console.error('Network error fetching classrooms:', error);
+                });
+        });
+        
+        // Initialize on page load if facility is pre-selected
+        if (facilityField.value) {
+            facilityField.dispatchEvent(new Event('change'));
+        }
+    }
 });
 </script>
 {% endblock %}

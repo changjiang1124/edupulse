@@ -304,6 +304,16 @@ class ClassCreateView(LoginRequiredMixin, CreateView):
             try:
                 course = Course.objects.get(pk=course_id)
                 initial['course'] = course.pk
+                # Pre-fill facility and classroom from course defaults
+                if course.facility:
+                    initial['facility'] = course.facility.pk
+                if course.classroom:
+                    initial['classroom'] = course.classroom.pk
+                # Pre-fill other fields from course defaults
+                if course.teacher:
+                    initial['teacher'] = course.teacher.pk
+                initial['start_time'] = course.start_time
+                initial['duration_minutes'] = course.duration_minutes
             except Course.DoesNotExist:
                 pass
         return initial

@@ -13,6 +13,9 @@ urlpatterns = [
     # Address geocoding API
     path('api/geocode/', views.AddressGeocodeView.as_view(), name='address_geocode'),
     
+    # Classroom API
+    path('api/classrooms/', views.ClassroomAPIView.as_view(), name='classroom_api'),
+    
     # Classroom URLs
     path('classrooms/', views.ClassroomListView.as_view(), name='classroom_list'),
     path('classrooms/add/', views.ClassroomCreateView.as_view(), name='classroom_add'),

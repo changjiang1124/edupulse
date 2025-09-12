@@ -132,4 +132,104 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const courseField = document.getElementById('{{ form.course.id_for_label }}');
+    const facilityField = document.getElementById('{{ form.facility.id_for_label }}');
+    const classroomField = document.getElementById('{{ form.classroom.id_for_label }}');
+    const teacherField = document.getElementById('{{ form.teacher.id_for_label }}');
+    const startTimeField = document.getElementById('{{ form.start_time.id_for_label }}');
+    const durationField = document.getElementById('{{ form.duration_minutes.id_for_label }}');
+    
+    // Course change handler - pre-fill fields from course defaults
+    if (courseField && !courseField.disabled) {
+        courseField.addEventListener('change', function() {
+            const courseId = this.value;
+            
+            if (!courseId) {
+                return;
+            }
+            
+            // Fetch course details to pre-fill form
+            fetch(`/academics/courses/${courseId}/`)
+                .then(response => {
+                    if (response.ok) {
+                        return response.text();
+                    }
+                    throw new Error('Failed to fetch course details');
+                })
+                .then(html => {
+                    // Parse the HTML response to extract course data
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    // This is a simplified approach - in a real implementation,
+                    // you might want to create a JSON API endpoint for course details
+                    console.log('Course selected, consider implementing course details API');
+                })
+                .catch(error => {
+                    console.error('Error fetching course details:', error);
+                });
+        });
+    }
+    
+    // Facility-Classroom cascading logic (same as Course form)
+    if (facilityField && classroomField) {
+        facilityField.addEventListener('change', function() {
+            const facilityId = this.value;
+            
+            if (!facilityId) {
+                // No facility selected - clear classroom options
+                classroomField.innerHTML = '<option value="">Select facility first...</option>';
+                classroomField.disabled = true;
+                return;
+            }
+            
+            // Show loading state
+            classroomField.innerHTML = '<option value="">Loading classrooms...</option>';
+            classroomField.disabled = true;
+            
+            // Fetch classrooms for selected facility
+            fetch(`{% url 'facilities:classroom_api' %}?facility_id=${facilityId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Clear existing options
+                        classroomField.innerHTML = '<option value="">Select classroom...</option>';
+                        
+                        // Add classrooms
+                        data.classrooms.forEach(classroom => {
+                            const option = document.createElement('option');
+                            option.value = classroom.id;
+                            option.textContent = classroom.display_name;
+                            classroomField.appendChild(option);
+                        });
+                        
+                        // Enable field
+                        classroomField.disabled = false;
+                        
+                        // If we had a pre-selected classroom, try to restore it
+                        const initialClassroom = '{{ form.classroom.value|default:"" }}';
+                        if (initialClassroom) {
+                            classroomField.value = initialClassroom;
+                        }
+                    } else {
+                        classroomField.innerHTML = '<option value="">Error loading classrooms</option>';
+                        console.error('Error fetching classrooms:', data.error);
+                    }
+                })
+                .catch(error => {
+                    classroomField.innerHTML = '<option value="">Error loading classrooms</option>';
+                    console.error('Network error fetching classrooms:', error);
+                });
+        });
+        
+        // Initialize on page load if facility is pre-selected
+        if (facilityField.value) {
+            facilityField.dispatchEvent(new Event('change'));
+        }
+    }
+});
+</script>
 {% endblock %}
