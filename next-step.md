@@ -93,7 +93,7 @@ create:
 - registration fee included in the enrolment submission confirmation letter if new student is detected. 
 - vacancy update as confirmed enrolment (manually changed by operator after confirming the information and bank transfer received, not submission)
 - enrolment deadline should be included as part of the description of the course when sync to woocommerce. 
-- [x] #bug course list only have published, no draft. and make sure when marked as published, ask for confirmation with modal popup and indicate this will be sync to woocommerce website as well. 
+
 - [x] if the course status has been changed especially from published to unpublished or any non-published the status, the correlate post on WooCommerce should be marked as draft as well and in the description of  Wordpress all the fields that are essential to the users should be included as well. for example vacancy, enrolment deadline, fees, dates, facility (location). dont indicate the teachers and classroom as they might be changed. and when Edit course, all the existing values of fields should be prefilled, i noticed that enrolment deadline is empty for example. please check that as well. 
 
 - [x] when course changed from published -> draft, the woocommerce item is deleted. this is wrong, you should never delete item from woocommernce, instead, you should make it draft as well, so as published -> expired. and you dont have to change bookable status, as they should only be used when published. if draft or expired, the course should be unexisting in the option of enrolment, making it impossible to access, so the bookable is not effective (check the current code implementaion, if not like this, should be fixed.) and not all fields are prefilled when edit, e.g. deadline, and start date and end date (although they are disabled from editing, they still should show the current value)
@@ -128,6 +128,8 @@ create:
 
 ### class 
 - [x] there should be a class entry in course list page, to show class list of all courses, with filter by course, facility, date range, teacher, classroom and active status. and the class item should have view detail action to go to class detail page. the classes could be in card style if the elements are too many to show in one line. Try leverage the current class implementation to avoid rework and potential bugs.
+
+- [] classroom should be under facility, which means when the facility is selected, the classroom should be filtered to show only classrooms under the selected facility. and when create / edit class, the facility should be prefilled with the course default facility. and check if other places should be aligned with this logic
 
 ### attendance 
 - [x] refine the design and layout of attendance page to aligned with other page. I will list some unsatisfied status quo: 1. as current title is in gradient, which should be in solid color; 2. quick actions could have a better layout, e.g. right alinged just above the table of students. 3. remove `Mark all absent` as this is absurd
@@ -181,6 +183,8 @@ create:
   - [x] test course create and edit, with price include GST or not.
   - [ ] test enrolment creation by operator, with registration fee included in the total amount.
   - [ ] test enrolment creation by student, with registration fee included in the total amount.
+
+- [] make the default SMS quota as 200 per month.
 
 ## Student 
 - [x] based on our enrolment form, the contact should only have one email and one phone number, either it's student or guardian, depending on the age of the student. so in the student create and edit page, we should align with this logic. currently it has email address while guardian email address, which is not right. there should be only one contact email. no matter it's for guardian or student. and the same for phone number. in the future if want to use the contact, we detect if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's. 

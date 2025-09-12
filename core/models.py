@@ -928,7 +928,7 @@ class NotificationQuota(models.Model):
             notification_type=notification_type,
             year=now.year,
             month=now.month,
-            defaults={'monthly_limit': 1000}  # Default limit
+            defaults={'monthly_limit': 200}  # Default limit
         )
         return quota
     

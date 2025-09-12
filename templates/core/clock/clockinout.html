@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h3 mb-0">Staff Clock In/Out</h1>
+    <a href="{% url 'core:timesheet' %}" class="btn btn-outline-secondary">
+      <i class="fa-regular fa-clock me-1"></i> Timesheet
+    </a>
+  </div>
+
+  {% if messages %}
+    <div class="notification-area">{% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}</div>
+  {% else %}
+    <div class="notification-area"></div>
+  {% endif %}
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h5">Current status</h2>
+          {% if is_clocked_in %}
+            <p class="text-success mb-3"><i class="fa-solid fa-circle me-1"></i> You are currently clocked in.</p>
+          {% else %}
+            <p class="text-muted mb-3"><i class="fa-regular fa-circle me-1"></i> You are currently clocked out.</p>
+          {% endif %}
+
+          <div class="d-flex flex-wrap gap-2">
+            <!-- Clock In Form -->
+            <form method="post" class="geo-form" action="" id="clock-in-form">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="clock_in">
+              <input type="hidden" name="latitude" value="">
+              <input type="hidden" name="longitude" value="">
+              <button type="submit" class="btn btn-success" {% if is_clocked_in %}disabled{% endif %}>
+                <i class="fa-solid fa-play me-1"></i> Clock In
+              </button>
+            </form>
+
+            <!-- Clock Out Form -->
+            <form method="post" class="geo-form" action="" id="clock-out-form">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="clock_out">
+              <input type="hidden" name="latitude" value="">
+              <input type="hidden" name="longitude" value="">
+              <button type="submit" class="btn btn-danger" {% if not is_clocked_in %}disabled{% endif %}>
+                <i class="fa-solid fa-stop me-1"></i> Clock Out
+              </button>
+            </form>
+
+            <button type="button" class="btn btn-outline-primary" id="refresh-location">
+              <i class="fa-solid fa-location-crosshairs me-1"></i> Refresh location
+            </button>
+          </div>
+
+          <p class="form-text mt-2">We record your GPS location with each clock action to improve attendance accuracy.</p>
+
+          <div class="small text-muted mt-3" id="location-status" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h5">Today's records</h2>
+          {% if today_records %}
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th scope="col">Time</th>
+                    <th scope="col">Action</th>
+                    <th scope="col" class="text-nowrap">Latitude</th>
+                    <th scope="col" class="text-nowrap">Longitude</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for rec in today_records %}
+                    <tr>
+                      <td class="text-nowrap">{{ rec.timestamp|date:"Y-m-d H:i" }}</td>
+                      <td class="text-capitalize">{{ rec.status|default:rec.get_status_display }}</td>
+                      <td class="text-nowrap">{{ rec.latitude|default:"-" }}</td>
+                      <td class="text-nowrap">{{ rec.longitude|default:"-" }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="text-muted mb-0">No records for today yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Page-specific JS to capture geolocation for submissions
+(function() {
+  const statusEl = document.getElementById('location-status');
+  const forms = document.querySelectorAll('form.geo-form');
+  let lastPosition = null;
+
+  function setFormsPosition(pos) {
+    forms.forEach(f => {
+      const lat = f.querySelector('input[name="latitude"]');
+      const lon = f.querySelector('input[name="longitude"]');
+      if (lat && lon) {
+        lat.value = pos.latitude;
+        lon.value = pos.longitude;
+      }
+    });
+  }
+
+  function showStatus(message, type) {
+    if (!statusEl) return;
+    statusEl.className = type === 'error' ? 'text-danger' : (type === 'success' ? 'text-success' : 'text-muted');
+    statusEl.textContent = message;
+  }
+
+  function fetchLocation() {
+    showStatus('Locating…');
+    if (typeof getCurrentLocation === 'function') {
+      getCurrentLocation()
+        .then(function(pos) {
+          lastPosition = pos;
+          setFormsPosition(pos);
+          showStatus('Location captured.');
+        })
+        .catch(function(err) {
+          console.warn('Geolocation error:', err);
+          showStatus('Could not get location. You can still submit without GPS.', 'error');
+        });
+    } else {
+      showStatus('Geolocation utility unavailable.', 'error');
+    }
+  }
+
+  // Initial attempt
+  fetchLocation();
+
+  // Refresh button
+  const refreshBtn = document.getElementById('refresh-location');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', function() {
+      fetchLocation();
+    });
+  }
+
+  // Guard submit when no GPS
+  forms.forEach(f => {
+    f.addEventListener('submit', function(e) {
+      const lat = f.querySelector('input[name="latitude"]').value;
+      const lon = f.querySelector('input[name="longitude"]').value;
+      if (!lat || !lon) {
+        if (!confirm('GPS location not available. Submit without location?')) {
+          e.preventDefault();
+          return false;
+        }
+      }
+      return true;
+    });
+  });
+})();
+</script>
+{% endblock %}

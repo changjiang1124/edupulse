@@ -68,7 +68,7 @@ class NotificationQuotaModelTest(TestCase):
         
         quota = NotificationQuota.get_current_quota('email')
         self.assertEqual(quota.notification_type, 'email')
-        self.assertEqual(quota.monthly_limit, 1000)  # Default limit
+        self.assertEqual(quota.monthly_limit, 200)  # Default limit
         self.assertEqual(quota.used_count, 0)
         self.assertEqual(quota.year, self.current_year)
         self.assertEqual(quota.month, self.current_month)

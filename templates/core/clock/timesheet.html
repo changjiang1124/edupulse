@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h3 mb-0">Timesheet</h1>
+    <a href="{% url 'core:clockinout' %}" class="btn btn-outline-secondary">
+      <i class="fa-solid fa-arrow-left me-1"></i> Back to Clock
+    </a>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-sm-6 col-md-4">
+          <label for="start_date" class="form-label">Start Date</label>
+          <input type="date" id="start_date" name="start_date" value="{{ start_date }}" class="form-control">
+        </div>
+        <div class="col-sm-6 col-md-4">
+          <label for="end_date" class="form-label">End Date</label>
+          <input type="date" id="end_date" name="end_date" value="{{ end_date }}" class="form-control">
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fa-solid fa-magnifying-glass me-1"></i> Filter
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      {% if records %}
+        <div class="table-responsive">
+          <table class="table table-striped align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Time</th>
+                <th scope="col">Action</th>
+                <th scope="col">Latitude</th>
+                <th scope="col">Longitude</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rec in records %}
+                <tr>
+                  <td class="text-nowrap">{{ rec.timestamp|date:"Y-m-d" }}</td>
+                  <td class="text-nowrap">{{ rec.timestamp|date:"H:i" }}</td>
+                  <td class="text-capitalize">{{ rec.status|default:rec.get_status_display }}</td>
+                  <td class="text-nowrap">{{ rec.latitude|default:"-" }}</td>
+                  <td class="text-nowrap">{{ rec.longitude|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">No records found for the selected period.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Enhance date inputs to ensure start <= end
+(function() {
+  const start = document.getElementById('start_date');
+  const end = document.getElementById('end_date');
+  if (!start || !end) return;
+
+  function clampDates() {
+    if (start.value && end.value && start.value > end.value) {
+      end.value = start.value;
+    }
+  }
+
+  start.addEventListener('change', clampDates);
+  end.addEventListener('change', clampDates);
+})();
+</script>
+{% endblock %}

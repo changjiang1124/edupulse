@@ -279,16 +279,16 @@
                             {% if enrollment.student.guardian_name %}
                                 <h6>Guardian/Parent</h6>
                                 <p class="mb-1"><strong>{{ enrollment.student.guardian_name }}</strong></p>
-                                {% if enrollment.student.guardian_phone %}
+                                {% if enrollment.student.contact_phone %}
                                     <p class="mb-1">
                                         <i class="fas fa-phone me-2"></i>
-                                        <a href="tel:{{ enrollment.student.guardian_phone }}">{{ enrollment.student.guardian_phone }}</a>
+                                        <a href="tel:{{ enrollment.student.contact_phone }}">{{ enrollment.student.contact_phone }}</a>
                                     </p>
                                 {% endif %}
-                                {% if enrollment.student.guardian_email %}
+                                {% if enrollment.student.contact_email %}
                                     <p class="mb-3">
                                         <i class="fas fa-envelope me-2"></i>
-                                        <a href="mailto:{{ enrollment.student.guardian_email }}">{{ enrollment.student.guardian_email }}</a>
+                                        <a href="mailto:{{ enrollment.student.contact_email }}">{{ enrollment.student.contact_email }}</a>
                                     </p>
                                 {% endif %}
                             {% endif %}

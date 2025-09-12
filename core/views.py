@@ -659,7 +659,7 @@ def _get_student_contact_info(student):
         'name': f'{student.first_name} {student.last_name}',
         'email': student.get_contact_email() or '',
         'phone': student.get_contact_phone() or '',
-        'type': 'guardian' if student.guardian_email or student.guardian_phone else 'student'
+        'type': 'guardian' if (hasattr(student, 'is_minor') and student.is_minor() and bool(student.guardian_name)) else 'student'
     }
 
 
