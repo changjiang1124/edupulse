@@ -269,6 +269,151 @@
             </div>
         </div>
         
+        <!-- Timesheet Panel -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>Timesheet
+                </h5>
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="{% url 'accounts:staff_timesheet_export' staff.pk %}?start_date={{ timesheet_start_date|date:'Y-m-d' }}&end_date={{ timesheet_end_date|date:'Y-m-d' }}&format=excel" 
+                       class="btn btn-outline-success">
+                        <i class="fas fa-file-excel me-1"></i>Excel
+                    </a>
+                    <a href="{% url 'accounts:staff_timesheet_export' staff.pk %}?start_date={{ timesheet_start_date|date:'Y-m-d' }}&end_date={{ timesheet_end_date|date:'Y-m-d' }}&format=csv" 
+                       class="btn btn-outline-info">
+                        <i class="fas fa-file-csv me-1"></i>CSV
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Date Range Filter -->
+                <form method="get" class="row g-2 mb-3" id="timesheetFilterForm">
+                    <div class="col-md-4">
+                        <label for="timesheet_start" class="form-label small">From Date</label>
+                        <input type="date" id="timesheet_start" name="timesheet_start" 
+                               value="{{ timesheet_start_date|date:'Y-m-d' }}" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="timesheet_end" class="form-label small">To Date</label>
+                        <input type="date" id="timesheet_end" name="timesheet_end" 
+                               value="{{ timesheet_end_date|date:'Y-m-d' }}" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-filter me-1"></i>Filter
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Summary Statistics -->
+                {% if timesheet_data.summary %}
+                <div class="row text-center mb-3">
+                    <div class="col-3">
+                        <div class="text-primary fw-bold fs-4">{{ timesheet_data.summary.total_hours }}h</div>
+                        <small class="text-muted">Total Hours</small>
+                    </div>
+                    <div class="col-3">
+                        <div class="text-success fw-bold fs-4">{{ timesheet_data.summary.total_days }}</div>
+                        <small class="text-muted">Days</small>
+                    </div>
+                    <div class="col-3">
+                        <div class="text-info fw-bold fs-4">{{ timesheet_data.summary.completed_sessions }}</div>
+                        <small class="text-muted">Sessions</small>
+                    </div>
+                    <div class="col-3">
+                        <div class="text-warning fw-bold fs-4">{{ timesheet_data.summary.avg_hours_per_day }}h</div>
+                        <small class="text-muted">Avg/Day</small>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Timesheet Records -->
+                {% if timesheet_data.paired_records %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Clock In</th>
+                                <th>Clock Out</th>
+                                <th>Classes</th>
+                                <th>Facility</th>
+                                <th class="text-end">Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in timesheet_data.paired_records %}
+                            <tr>
+                                <td class="text-nowrap">{{ record.date|date:"d/m/Y" }}</td>
+                                <td class="text-nowrap">
+                                    {% if record.clock_in_time %}
+                                        {{ record.clock_in_time|time:"H:i" }}
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-nowrap">
+                                    {% if record.clock_out_time %}
+                                        {{ record.clock_out_time|time:"H:i" }}
+                                    {% else %}
+                                        {% if record.clock_in_time %}
+                                            <span class="badge bg-warning text-dark">In Progress</span>
+                                        {% else %}
+                                            <span class="text-muted">--</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if record.classes %}
+                                        {% for class in record.classes %}
+                                            <span class="badge bg-info text-white me-1">{{ class.course.name }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted">General Work</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if record.facility %}
+                                        <small class="text-muted">{{ record.facility.name }}</small>
+                                    {% else %}
+                                        <small class="text-muted">--</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if record.duration_hours %}
+                                        {% load custom_filters %}
+                                        <span class="fw-medium">{{ record.duration_hours|format_duration }}</span>
+                                    {% else %}
+                                        {% if record.clock_in_time and not record.clock_out_time %}
+                                            <span class="text-warning">--</span>
+                                        {% else %}
+                                            <span class="text-muted">--</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if timesheet_data.paired_records|length > 10 %}
+                <div class="text-center mt-3">
+                    <small class="text-muted">Showing latest 50 records. Use date filter for specific ranges.</small>
+                </div>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-clock fa-2x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">No timesheet records found for the selected period</p>
+                    <small class="text-muted">Adjust the date range to see timesheet data</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
         <!-- Quick Actions -->
         {% if user.role == 'admin' and not is_profile_view %}
         <div class="card">
@@ -300,4 +445,8 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/timesheet.js' %}"></script>
 {% endblock %}

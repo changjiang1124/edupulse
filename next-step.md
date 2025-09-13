@@ -98,7 +98,7 @@ create:
 
 - [x] when course changed from published -> draft, the woocommerce item is deleted. this is wrong, you should never delete item from woocommernce, instead, you should make it draft as well, so as published -> expired. and you dont have to change bookable status, as they should only be used when published. if draft or expired, the course should be unexisting in the option of enrolment, making it impossible to access, so the bookable is not effective (check the current code implementaion, if not like this, should be fixed.) and not all fields are prefilled when edit, e.g. deadline, and start date and end date (although they are disabled from editing, they still should show the current value)
 
-- [ ] when add class from course detail page, the class creation form should have course prefilled to avoid user mistake. and make the course select fields disabled. -- trae WIP. 
+- [x] when add class from course detail page, the class creation form should have course prefilled to avoid user mistake. and make the course select fields disabled. -- trae WIP. 
 
 - [x] in the course detail page, there should be a enrolment public url copy button, to copy the url to clipboard and share. this enrolment url should be publicly accessible, while there is a arg to specify the course selection. this should be the same when used as `enrol now` button link when synchronise with WooCommerce.  --WIP 
   - [ ] test copy 
@@ -129,7 +129,7 @@ create:
 ### class 
 - [x] there should be a class entry in course list page, to show class list of all courses, with filter by course, facility, date range, teacher, classroom and active status. and the class item should have view detail action to go to class detail page. the classes could be in card style if the elements are too many to show in one line. Try leverage the current class implementation to avoid rework and potential bugs.
 
-- [] classroom should be under facility, which means when the facility is selected, the classroom should be filtered to show only classrooms under the selected facility. and when create / edit class, the facility should be prefilled with the course default facility. and check if other places should be aligned with this logic
+- [x] classroom should be under facility, which means when the facility is selected, the classroom should be filtered to show only classrooms under the selected facility. and when create / edit class, the facility should be prefilled with the course default facility. and check if other places should be aligned with this logic
 
 ### attendance 
 - [x] refine the design and layout of attendance page to aligned with other page. I will list some unsatisfied status quo: 1. as current title is in gradient, which should be in solid color; 2. quick actions could have a better layout, e.g. right alinged just above the table of students. 3. remove `Mark all absent` as this is absurd
@@ -161,7 +161,9 @@ create:
 - [x] review the current email content sent upon enrolment submission, and make it more professional. and include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the vacancy should not be changed until the enrolment is confirmed by operator. and all the content of the email should be accurate (currently seems no duration of the course. please review all of others as well). and currently there are two emails sent out upon the submission, which the submission should be only one email sent to the contact email provided in the enrolment form, including the course information and bank transfer information. and when the enrolment is confirmed by operator, then another email should be sent to the contact email to indicate the enrolment is confirmed.
   - [] testing
 
-- [] 
+- [x] why the enrolment detail page has `Original Form Data` section? is it necessary? can we remove it to avoid confusing?
+
+- [x] the same class / course should not enrol the same student more than once. so when create enrolment, if the student already has an existing enrolment in the same course (regardless of status), then should not allow creating another enrolment for the same course. and if the student already has an existing enrolment in the same class (regardless of status), then should not allow creating another enrolment for the same class. please implement this logic and test it.
 
 ### settings 
 - [ ] SMS configuration should be only visible to admin user of the organisation, so as the email configuration.
@@ -186,7 +188,24 @@ create:
 
 - [] make the default SMS quota as 200 per month.
 
-## Student 
+### Student 
 - [x] based on our enrolment form, the contact should only have one email and one phone number, either it's student or guardian, depending on the age of the student. so in the student create and edit page, we should align with this logic. currently it has email address while guardian email address, which is not right. there should be only one contact email. no matter it's for guardian or student. and the same for phone number. in the future if want to use the contact, we detect if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's. 
   - [x] test student create and edit page, align with enrolment form logic, only one contact email and one phone number.
   - [x] test student create and edit page, if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's.
+
+- [] in student detail page, review the code to see if all the infomration shown are accurate. e.g. attendance history.
+
+
+### Staff 
+- [] why in staff detail page, there could be showing staff role is not staff in system access panel? it's confusing, especially for those who are not aware of there is django admin backend. what do you recommend? should we change the label or remove this panel? and check the information of this page is accurate or not.
+
+- [x] staff row in staff list page, when clicked, there is a error showing Page not found (404)
+Request Method:	GET
+Request URL:	http://127.0.0.1:9000/accounts/staff/undefined.
+
+Please fix it and test it.
+
+- [x] in staff detail page, there should be a timesheet panel, to show their clock in and out history, with date range filter. and the timesheet should be exportable as csv or excel. and the timesheet should show total hours worked in the date range as well. the timesheet should have clock in and out as paired in one entry of one specific class.
+
+#### timesheet 
+- [x] in staff list page, there should be a timesheet button/link to go to timesheet page, to show all staff timesheet with date range filter. and the timesheet should be exportable as csv or excel. and the timesheet should show total hours worked in the date range as well. the timesheet should have clock in and out as paired in one entry of one specific class.

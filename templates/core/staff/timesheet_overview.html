@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Staff Timesheet Overview - EduPulse{% endblock %}
+
+{% block content %}
+<!-- Standard Detail Page Header -->
+<div class="mb-3">
+    <a href="{% url 'accounts:staff_list' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-arrow-left me-2"></i>Back to Staff Management
+    </a>
+</div>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h2 fw-bold mb-2">Staff Timesheet Overview</h1>
+        <p class="text-muted">Monitor and analyse all staff working hours and attendance</p>
+    </div>
+    <div class="btn-group btn-group-sm" role="group">
+        <a href="{% url 'accounts:staff_timesheet_overview_export' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&format=excel" 
+           class="btn btn-outline-success">
+            <i class="fas fa-file-excel me-1"></i>Excel
+        </a>
+        <a href="{% url 'accounts:staff_timesheet_overview_export' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&format=csv" 
+           class="btn btn-outline-info">
+            <i class="fas fa-file-csv me-1"></i>CSV
+        </a>
+    </div>
+</div>
+
+<!-- Date Range Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3" id="timesheetOverviewFilterForm">
+            <div class="col-12 mb-2">
+                <small class="text-muted">Quick ranges:</small>
+                <div class="btn-group btn-group-sm ms-2" role="group">
+                    <button type="button" class="btn btn-outline-secondary" onclick="setOverviewDateRange('today')">Today</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="setOverviewDateRange('week')">This Week</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="setOverviewDateRange('month')">This Month</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="setOverviewDateRange('last30')">Last 30 Days</button>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <label for="overview_start_date" class="form-label">From Date</label>
+                <input type="date" id="overview_start_date" name="start_date" 
+                       value="{{ start_date|date:'Y-m-d' }}" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label for="overview_end_date" class="form-label">To Date</label>
+                <input type="date" id="overview_end_date" name="end_date" 
+                       value="{{ end_date|date:'Y-m-d' }}" class="form-control">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i>Apply Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Overall Summary Statistics -->
+{% if timesheet_overview.overall_summary %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="text-primary fw-bold display-6">{{ timesheet_overview.overall_summary.total_hours }}h</div>
+                <small class="text-muted">Total Hours</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="text-success fw-bold display-6">{{ timesheet_overview.overall_summary.active_staff_count }}</div>
+                <small class="text-muted">Active Staff</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="text-info fw-bold display-6">{{ timesheet_overview.overall_summary.total_sessions }}</div>
+                <small class="text-muted">Total Sessions</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="text-warning fw-bold display-6">{{ timesheet_overview.overall_summary.average_hours_per_staff }}h</div>
+                <small class="text-muted">Avg/Staff</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Staff Timesheet Summary -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-users me-2"></i>Staff Summary
+        </h5>
+        <small class="text-muted">
+            {{ start_date|date:"d/m/Y" }} - {{ end_date|date:"d/m/Y" }}
+        </small>
+    </div>
+    <div class="card-body">
+        {% if timesheet_overview.staff_summaries %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Staff Member</th>
+                            <th class="text-center">Total Hours</th>
+                            <th class="text-center">Working Days</th>
+                            <th class="text-center">Sessions</th>
+                            <th class="text-center">Avg Hours/Day</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for staff_data in timesheet_overview.staff_summaries %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div>
+                                        <strong>{{ staff_data.staff.first_name }} {{ staff_data.staff.last_name }}</strong>
+                                        <br><small class="text-muted">{{ staff_data.staff.email|default:"No email" }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-primary fs-6">{{ staff_data.total_hours }}h</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="fw-medium">{{ staff_data.working_days }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="fw-medium">{{ staff_data.sessions }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="fw-medium">{{ staff_data.average_hours_per_day }}h</span>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'accounts:staff_detail' staff_data.staff.pk %}?timesheet_start={{ start_date|date:'Y-m-d' }}&timesheet_end={{ end_date|date:'Y-m-d' }}" 
+                                       class="btn btn-outline-primary btn-sm" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'accounts:staff_timesheet_export' staff_data.staff.pk %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&format=excel" 
+                                       class="btn btn-outline-success btn-sm" title="Export Excel">
+                                        <i class="fas fa-file-excel"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Staff timesheet pagination" class="mt-3">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if request.GET.start_date %}start_date={{ request.GET.start_date }}&{% endif %}{% if request.GET.end_date %}end_date={{ request.GET.end_date }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                        </li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if request.GET.start_date %}start_date={{ request.GET.start_date }}&{% endif %}{% if request.GET.end_date %}end_date={{ request.GET.end_date }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No timesheet data found</h5>
+                <p class="text-muted">
+                    No staff members have recorded any working hours for the selected period.<br>
+                    Try adjusting the date range or check that staff are using the clock in/out system.
+                </p>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-outline-primary" onclick="setOverviewDateRange('month')">
+                        <i class="fas fa-calendar me-1"></i>View This Month
+                    </button>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/timesheet.js' %}"></script>
+<script>
+// Overview-specific date range functions
+function setOverviewDateRange(period) {
+    const startInput = document.getElementById('overview_start_date');
+    const endInput = document.getElementById('overview_end_date');
+    const form = document.getElementById('timesheetOverviewFilterForm');
+    
+    if (!startInput || !endInput) return;
+    
+    const today = new Date();
+    let startDate, endDate;
+    
+    switch (period) {
+        case 'today':
+            startDate = endDate = today;
+            break;
+            
+        case 'week':
+            // Start of current week (Monday)
+            const dayOfWeek = today.getDay();
+            const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            startDate = new Date(today);
+            startDate.setDate(today.getDate() - daysToMonday);
+            endDate = today;
+            break;
+            
+        case 'month':
+            // Start of current month
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            endDate = today;
+            break;
+            
+        case 'last30':
+            // Last 30 days
+            startDate = new Date(today);
+            startDate.setDate(today.getDate() - 30);
+            endDate = today;
+            break;
+            
+        default:
+            return;
+    }
+    
+    // Format dates for input fields (YYYY-MM-DD)
+    startInput.value = formatDateForInput(startDate);
+    endInput.value = formatDateForInput(endDate);
+    
+    // Submit form
+    if (form) {
+        form.submit();
+    }
+}
+
+// Enhanced export functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const exportButtons = document.querySelectorAll('a[href*="export"]');
+    
+    exportButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            // Add loading state
+            const originalText = this.innerHTML;
+            const originalClass = this.className;
+            
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.className = originalClass.replace('btn-outline-', 'btn-');
+            this.style.pointerEvents = 'none';
+            
+            // Reset button state after a timeout
+            setTimeout(() => {
+                this.innerHTML = originalText;
+                this.className = originalClass;
+                this.style.pointerEvents = 'auto';
+            }, 3000);
+        });
+    });
+    
+    // Auto-submit form when dates change
+    const startDateInput = document.getElementById('overview_start_date');
+    const endDateInput = document.getElementById('overview_end_date');
+    const form = document.getElementById('timesheetOverviewFilterForm');
+    
+    if (startDateInput && endDateInput && form) {
+        startDateInput.addEventListener('change', function() {
+            if (this.value && endDateInput.value) {
+                form.submit();
+            }
+        });
+        
+        endDateInput.addEventListener('change', function() {
+            if (this.value && startDateInput.value) {
+                form.submit();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

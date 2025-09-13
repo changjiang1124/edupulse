@@ -10,7 +10,14 @@
         <p class="page-subtitle">Manage staff members and their roles</p>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'accounts:staff_add' %}" class="btn btn-primary">Add New Staff Member</a>
+        <div class="btn-group" role="group">
+            <a href="{% url 'accounts:staff_timesheet_overview' %}" class="btn btn-outline-info">
+                <i class="fas fa-clock me-1"></i>Timesheet Overview
+            </a>
+            <a href="{% url 'accounts:staff_add' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Add New Staff Member
+            </a>
+        </div>
     </div>
 </div>
 
@@ -57,7 +64,7 @@
                             </thead>
                             <tbody>
                                 {% for staff in staff_list %}
-                                <tr class="clickable-row" onclick="location.href='{% url 'accounts:staff_detail' staff.pk %}'" style="cursor: pointer;">
+                                <tr class="clickable-row" onclick="location.href='{% url 'accounts:staff_detail' staff.id %}'" style="cursor: pointer;">
                                     <td>
                                         <strong>{{ staff.first_name }} {{ staff.last_name }}</strong>
                                         <br><small class="text-muted">{{ staff.username }}</small>
@@ -86,9 +93,9 @@
                                     <td>{{ staff.created_at|date:"d/m/Y" }}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <a href="{% url 'accounts:staff_detail' staff.pk %}" 
+                                            <a href="{% url 'accounts:staff_detail' staff.id %}" 
                                                class="btn btn-outline-primary btn-sm">View</a>
-                                            <a href="{% url 'accounts:staff_edit' staff.pk %}" 
+                                            <a href="{% url 'accounts:staff_edit' staff.id %}" 
                                                class="btn btn-outline-secondary btn-sm">Edit</a>
                                         </div>
                                     </td>
