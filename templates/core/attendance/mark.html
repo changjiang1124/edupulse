@@ -359,7 +359,7 @@ function displaySearchResults(results) {
     searchResults.innerHTML = results.map(student => `
         <div class="search-result-item" onclick="selectStudent(${student.id}, '${student.name}')">
             <div><strong>${student.name}</strong></div>
-            <div><small>${student.email}</small></div>
+            <div><small>${student.contact_email}</small></div>
         </div>
     `).join('');
     

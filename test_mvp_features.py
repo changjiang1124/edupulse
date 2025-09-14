@@ -327,7 +327,7 @@ class MVPTester:
                     {
                         'student_name': 'Test Student',
                         'course_name': 'Test Course',
-                        'enrollment_date': timezone.now().date()
+                        'created_at': timezone.now().date()
                     }
                 )
                 template_success = len(email_content) > 0

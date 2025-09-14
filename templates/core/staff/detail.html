@@ -136,31 +136,53 @@
             </div>
             <div class="card-body">
                 <div class="row mb-3">
-                    <div class="col-sm-4"><strong>User Active:</strong></div>
+                    <div class="col-sm-4"><strong>Account Status:</strong></div>
                     <div class="col-sm-8">
                         <span class="status-badge {% if staff.is_active %}status-active{% else %}status-inactive{% endif %}">
-                            {% if staff.is_active %}Yes{% else %}No{% endif %}
+                            {% if staff.is_active %}Active{% else %}Inactive{% endif %}
                         </span>
+                        <br><small class="text-muted">User can log in and access the system</small>
                     </div>
                 </div>
                 
                 <div class="row mb-3">
-                    <div class="col-sm-4"><strong>Staff Status:</strong></div>
+                    <div class="col-sm-4"><strong>System Privileges:</strong></div>
                     <div class="col-sm-8">
-                        <span class="status-badge {% if staff.is_staff %}status-active{% else %}status-inactive{% endif %}">
-                            {% if staff.is_staff %}Staff Member{% else %}Not Staff{% endif %}
-                        </span>
+                        {% if staff.is_superuser %}
+                            <span class="status-badge status-active">
+                                <i class="fas fa-crown me-1"></i>Full Administrator
+                            </span>
+                            <br><small class="text-muted">Complete system access and user management</small>
+                        {% elif staff.role == 'admin' %}
+                            <span class="status-badge status-active">
+                                <i class="fas fa-user-shield me-1"></i>Administrator
+                            </span>
+                            <br><small class="text-muted">Staff management and system administration</small>
+                        {% elif staff.role == 'teacher' %}
+                            <span class="status-badge status-active">
+                                <i class="fas fa-chalkboard-teacher me-1"></i>Teacher
+                            </span>
+                            <br><small class="text-muted">Course management and attendance tracking</small>
+                        {% else %}
+                            <span class="status-badge status-inactive">
+                                <i class="fas fa-user me-1"></i>Standard User
+                            </span>
+                            <br><small class="text-muted">Basic system access</small>
+                        {% endif %}
                     </div>
                 </div>
                 
+                {% if user.role == 'admin' and staff.role == 'admin' and not staff.is_staff %}
                 <div class="row">
-                    <div class="col-sm-4"><strong>Admin Rights:</strong></div>
-                    <div class="col-sm-8">
-                        <span class="status-badge {% if staff.is_superuser %}status-active{% else %}status-inactive{% endif %}">
-                            {% if staff.is_superuser %}Superuser{% else %}Regular User{% endif %}
-                        </span>
+                    <div class="col-12">
+                        <div class="alert alert-warning alert-sm">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            <strong>Notice:</strong> This administrator cannot access Django admin panel. 
+                            <small class="d-block mt-1">Contact system administrator to enable backend access if needed.</small>
+                        </div>
                     </div>
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>

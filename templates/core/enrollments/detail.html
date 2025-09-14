@@ -109,26 +109,26 @@
                                     {{ enrollment.student.get_full_name }}
                                 </div>
                             </div>
-                            {% if enrollment.student.email %}
+                            {% if enrollment.student.contact_email %}
                             <div class="row mb-3">
                                 <div class="col-sm-3"><strong>Email:</strong></div>
                                 <div class="col-sm-9">
-                                    <a href="mailto:{{ enrollment.student.email }}">{{ enrollment.student.email }}</a>
+                                    <a href="mailto:{{ enrollment.student.contact_email }}">{{ enrollment.student.contact_email }}</a>
                                 </div>
                             </div>
                             {% endif %}
-                            {% if enrollment.student.phone %}
+                            {% if enrollment.student.contact_phone %}
                             <div class="row mb-3">
                                 <div class="col-sm-3"><strong>Phone:</strong></div>
                                 <div class="col-sm-9">
-                                    <a href="tel:{{ enrollment.student.phone }}">{{ enrollment.student.phone }}</a>
+                                    <a href="tel:{{ enrollment.student.contact_phone }}">{{ enrollment.student.contact_phone }}</a>
                                 </div>
                             </div>
                             {% endif %}
-                            {% if enrollment.student.date_of_birth %}
+                            {% if enrollment.student.birth_date %}
                             <div class="row mb-3">
                                 <div class="col-sm-3"><strong>Date of Birth:</strong></div>
-                                <div class="col-sm-9">{{ enrollment.student.date_of_birth|date:"d F Y" }}</div>
+                                <div class="col-sm-9">{{ enrollment.student.birth_date|date:"d F Y" }}</div>
                             </div>
                             {% endif %}
                             {% if enrollment.student.address %}

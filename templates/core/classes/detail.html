@@ -224,7 +224,7 @@
                                     </div>
                                     <div>
                                         <div class="fw-medium">{{ student_info.student.first_name }} {{ student_info.student.last_name }}</div>
-                                        <small class="text-muted">{{ student_info.student.email|default:"No email" }}</small>
+                                        <small class="text-muted">{{ student_info.student.contact_email|default:"No email" }}</small>
                                     </div>
                                 </div>
                             </div>
@@ -543,7 +543,7 @@ function displaySearchResults(students, query) {
                                 </div>
                                 <div>
                                     <div class="fw-medium">${student.first_name} ${student.last_name}</div>
-                                    <small class="text-muted">${student.email || 'No email'}</small>
+                                    <small class="text-muted">${student.contact_email || 'No email'}</small>
                                 </div>
                             </div>
                         </label>

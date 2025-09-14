@@ -29,7 +29,7 @@ class StudentListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(
                 Q(first_name__icontains=search) |
                 Q(last_name__icontains=search) |
-                Q(email__icontains=search) |
+                Q(contact_email__icontains=search) |
                 Q(guardian_name__icontains=search)
             )
         
@@ -343,7 +343,7 @@ class StudentSearchView(LoginRequiredMixin, View):
         students = Student.objects.filter(
             Q(first_name__icontains=query) |
             Q(last_name__icontains=query) |
-            Q(email__icontains=query),
+            Q(contact_email__icontains=query),
             is_active=True
         ).order_by('last_name', 'first_name')[:10]
         
@@ -354,7 +354,7 @@ class StudentSearchView(LoginRequiredMixin, View):
                 'id': student.id,
                 'first_name': student.first_name,
                 'last_name': student.last_name,
-                'email': student.email or '',
+                'email': student.contact_email or '',
                 'full_name': f"{student.first_name} {student.last_name}"
             })
         

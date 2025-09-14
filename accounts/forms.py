@@ -4,7 +4,7 @@ from .models import Staff
 
 
 class StaffForm(forms.ModelForm):
-    """Staff form with Bootstrap styling"""
+    """Staff form with Bootstrap styling and role-based field management"""
     
     class Meta:
         model = Staff
@@ -39,10 +39,26 @@ class StaffForm(forms.ModelForm):
                 'class': 'form-check-input'
             }),
         }
+    
+    def save(self, commit=True):
+        """Override save to ensure Django auth fields are consistent with role"""
+        staff = super().save(commit=False)
+        
+        # Set Django auth fields based on role
+        if staff.role == 'admin':
+            staff.is_staff = True
+            staff.is_superuser = True
+        elif staff.role == 'teacher':
+            staff.is_staff = False
+            staff.is_superuser = False
+        
+        if commit:
+            staff.save()
+        return staff
 
 
 class StaffCreationForm(UserCreationForm):
-    """Staff creation form with Bootstrap styling"""
+    """Staff creation form with Bootstrap styling and role-based field management"""
     
     class Meta(UserCreationForm.Meta):
         model = Staff
@@ -58,3 +74,22 @@ class StaffCreationForm(UserCreationForm):
                 field.widget.attrs.update({'class': 'form-select'})
             else:
                 field.widget.attrs.update({'class': 'form-control'})
+    
+    def save(self, commit=True):
+        """Override save to ensure Django auth fields are consistent with role"""
+        staff = super().save(commit=False)
+        
+        # Set Django auth fields based on role
+        if staff.role == 'admin':
+            staff.is_staff = True
+            staff.is_superuser = True
+        elif staff.role == 'teacher':
+            staff.is_staff = False
+            staff.is_superuser = False
+        
+        # Set default active status
+        staff.is_active_staff = True
+        
+        if commit:
+            staff.save()
+        return staff

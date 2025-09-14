@@ -197,7 +197,7 @@ create:
 
 
 ### Staff 
-- [] why in staff detail page, there could be showing staff role is not staff in system access panel? it's confusing, especially for those who are not aware of there is django admin backend. what do you recommend? should we change the label or remove this panel? and check the information of this page is accurate or not.
+- [x] why in staff detail page, there could be showing staff role is not staff in system access panel? it's confusing, especially for those who are not aware of there is django admin backend. what do you recommend? should we change the label or remove this panel? and check the information of this page is accurate or not.
 
 - [x] staff row in staff list page, when clicked, there is a error showing Page not found (404)
 Request Method:	GET

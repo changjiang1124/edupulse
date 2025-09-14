@@ -175,7 +175,7 @@
                                             {{ enrollment.get_status_display }}
                                         </span>
                                     </td>
-                                    <td>{{ enrollment.enrollment_date|date:"d/m/Y" }}</td>
+                                    <td>{{ enrollment.created_at|date:"d/m/Y" }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

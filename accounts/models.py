@@ -47,3 +47,20 @@ class Staff(AbstractUser):
     
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.get_role_display()})"
+    
+    def save(self, *args, **kwargs):
+        """
+        Override save to ensure Django auth fields are consistent with role
+        """
+        # Ensure Django auth fields match the role
+        if self.role == 'admin':
+            self.is_staff = True
+            self.is_superuser = True
+        elif self.role == 'teacher':
+            # Teachers don't need Django admin access by default
+            # Only set is_staff=False if not explicitly set otherwise
+            if not hasattr(self, '_preserve_is_staff'):
+                self.is_staff = False
+            self.is_superuser = False
+        
+        super().save(*args, **kwargs)

@@ -309,9 +309,9 @@ document.addEventListener('DOMContentLoaded', function() {
             searchResults.innerHTML = '<div class="student-search-item text-muted">No students found</div>';
         } else {
             searchResults.innerHTML = results.map(student => `
-                <div class="student-search-item" data-student-id="${student.id}" data-student-name="${student.name}" data-student-email="${student.email}" data-student-phone="${student.phone}">
+                <div class="student-search-item" data-student-id="${student.id}" data-student-name="${student.name}" data-student-email="${student.contact_email}" data-student-phone="${student.contact_phone}">
                     <div class="fw-bold">${student.name}</div>
-                    <div class="small text-muted">${student.email} | ${student.phone}</div>
+                    <div class="small text-muted">${student.contact_email} | ${student.contact_phone}</div>
                 </div>
             `).join('');
         }
