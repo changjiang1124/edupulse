@@ -218,7 +218,10 @@
                                     </td>
                                     <td>
                                         <span class="badge {% if course.status == 'published' %}bg-success{% elif course.status == 'draft' %}bg-warning{% else %}bg-secondary{% endif %}">
-                                            {{ course.get_status_display }}
+                                            {% if course.status == 'published' %}Published
+                                            {% elif course.status == 'draft' %}Draft  
+                                            {% elif course.status == 'expired' %}Expired
+                                            {% endif %}
                                         </span>
                                     </td>
                                 </tr>

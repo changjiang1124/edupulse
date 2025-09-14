@@ -295,9 +295,27 @@ class Course(models.Model):
         return self.registration_fee and self.registration_fee > 0
     
     def save(self, *args, **kwargs):
+        """Enhanced save method with automatic status management"""
+        from django.utils import timezone
+        
         # Auto-set end_date to start_date for single sessions
         if self.repeat_pattern == 'once' and not self.end_date:
             self.end_date = self.start_date
+        
+        # Automatic status update based on dates
+        if self.status == 'published' and hasattr(self, '_skip_auto_status_update'):
+            # Skip auto-update if explicitly requested (for admin overrides)
+            pass
+        elif self.status == 'published':
+            # Check if course should be expired
+            end_date = self.end_date or self.start_date
+            today = timezone.now().date()
+            
+            if end_date < today:
+                self.status = 'expired'
+                # Log status change for debugging
+                print(f"Auto-expired course: {self.name} (end date: {end_date})")
+        
         super().save(*args, **kwargs)
     
     def generate_classes(self):
@@ -437,74 +455,6 @@ class Course(models.Model):
             return "Single session"
         return self.get_repeat_pattern_display()
     
-    def get_current_status(self):
-        """Calculate current course status based on dates"""
-        from django.utils import timezone
-        today = timezone.now().date()
-        
-        if self.status == 'draft':
-            return 'draft'
-        elif self.status == 'published':
-            # Check if course has expired (past end date)
-            end_date = self.end_date or self.start_date
-            if end_date < today:
-                return 'expired'
-            return 'published'
-        return self.status
-    
-    def get_current_bookable_state(self):
-        """Calculate current bookable state based on enrollments and conditions"""
-        from django.utils import timezone
-        today = timezone.now().date()
-        
-        # Check if enrollment deadline has passed
-        if self.enrollment_deadline and self.enrollment_deadline < today:
-            return 'closed'
-        
-        # Check if course has expired
-        end_date = self.end_date or self.start_date
-        if end_date < today:
-            return 'closed'
-        
-        # Check if course is published and online bookable
-        if self.status != 'published' or not self.is_online_bookable:
-            return 'closed'
-        
-        # Check enrollment count vs vacancy
-        try:
-            from enrollment.models import Enrollment
-            confirmed_enrollments = Enrollment.objects.filter(
-                course=self,
-                status='confirmed'
-            ).count()
-            
-            if confirmed_enrollments >= self.vacancy:
-                return 'fully_booked'
-        except ImportError:
-            # If enrollment app not available, just check base conditions
-            pass
-        
-        return 'bookable'
-    
-    def update_computed_fields(self):
-        """Update computed status fields"""
-        current_status = self.get_current_status()
-        current_bookable_state = self.get_current_bookable_state()
-        
-        # Only update if changed to avoid unnecessary saves
-        updated = False
-        if self.status != current_status and current_status == 'expired':
-            self.status = current_status
-            updated = True
-        
-        if self.bookable_state != current_bookable_state:
-            self.bookable_state = current_bookable_state
-            updated = True
-        
-        if updated:
-            self.save(update_fields=['status', 'bookable_state'])
-        
-        return updated
     
     def get_price_breakdown(self):
         """Get price breakdown with GST calculations"""

@@ -321,3 +321,57 @@ Before deploying to a new environment, verify the following to ensure email cont
 
 Notes
 - Migration defaults and test fixtures may still contain placeholder emails like info@perthartschool.com.au; these are intentional and do not affect runtime configuration.
+
+## Scheduled Tasks Configuration
+
+EduPulse uses django-crontab for automatic course status management. After deployment, ensure scheduled tasks are configured:
+
+### Setup Scheduled Tasks
+
+1) **Install django-crontab** (included in requirements.txt):
+```bash
+pip install django-crontab
+```
+
+2) **Add crontab tasks to system**:
+```bash
+python manage.py crontab add
+```
+
+3) **Verify tasks are installed**:
+```bash
+python manage.py crontab show
+crontab -l  # Check system crontab
+```
+
+### Configured Tasks
+
+The system automatically configures these scheduled tasks:
+
+- **Daily Course Status Update** (2:00 AM): Updates expired courses based on end dates
+- **Weekly Status Consistency Check** (3:00 AM Sunday): Verifies status consistency across the system
+
+### Manual Management
+
+You can also run these tasks manually:
+
+```bash
+# Update expired courses
+python manage.py update_expired_courses
+
+# Check status consistency
+python manage.py update_expired_courses --check-consistency
+
+# Preview changes without updating
+python manage.py update_expired_courses --dry-run
+
+# Show courses expiring in next N days
+python manage.py update_expired_courses --upcoming 7
+```
+
+### Removing Tasks
+
+To remove scheduled tasks (if needed):
+```bash
+python manage.py crontab remove
+```

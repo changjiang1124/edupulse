@@ -83,9 +83,12 @@
                                     <td>
                                         <div class="d-flex flex-wrap gap-1">
                                             <span class="status-badge status-{{ course.status }}">
-                                                {{ course.get_status_display }}
+                                                {% if course.status == 'published' %}Published
+                                                {% elif course.status == 'draft' %}Draft
+                                                {% elif course.status == 'expired' %}Expired
+                                                {% endif %}
                                             </span>
-                                            {% if course.get_current_bookable_state != 'bookable' %}
+                                            {% if course.status == 'published' and course.bookable_state != 'bookable' %}
                                             <span class="badge bg-warning text-dark">
                                                 {{ course.get_bookable_state_display }}
                                             </span>

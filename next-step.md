@@ -126,6 +126,10 @@ create:
   - [] test before create a new product on woocommerce, the system always check if there is an existing product with the external_id saved in the course, if exists, update it, otherwise create a new one. there could be situation that the product is deleted on woocommerce side, but the course still exists in the system. so in this situation, when you try to publish the course, you should create a new product on woocommerce and update the external_id in the course.
 
 
+- [x] http://127.0.0.1:9001/academics/courses/40/ why this course in the course list showing as published status, while in the detail page showing as expired? is there any other places having such issue? please check and fix it. and review other information accuracy as well.
+
+- [x] in course list, only published course should show bookable or closed or fully booked status, other status don't need to show these statuses as they are no use here. thus to reduce unnecessary information load.
+
 ### class 
 - [x] there should be a class entry in course list page, to show class list of all courses, with filter by course, facility, date range, teacher, classroom and active status. and the class item should have view detail action to go to class detail page. the classes could be in card style if the elements are too many to show in one line. Try leverage the current class implementation to avoid rework and potential bugs.
 
@@ -186,14 +190,14 @@ create:
   - [ ] test enrolment creation by operator, with registration fee included in the total amount.
   - [ ] test enrolment creation by student, with registration fee included in the total amount.
 
-- [] make the default SMS quota as 200 per month.
+- [x] make the default SMS quota as 200 per month.
 
 ### Student 
 - [x] based on our enrolment form, the contact should only have one email and one phone number, either it's student or guardian, depending on the age of the student. so in the student create and edit page, we should align with this logic. currently it has email address while guardian email address, which is not right. there should be only one contact email. no matter it's for guardian or student. and the same for phone number. in the future if want to use the contact, we detect if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's. 
   - [x] test student create and edit page, align with enrolment form logic, only one contact email and one phone number.
   - [x] test student create and edit page, if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's.
 
-- [] in student detail page, review the code to see if all the infomration shown are accurate. e.g. attendance history.
+- [x] in student detail page, review the code to see if all the infomration shown are accurate. e.g. attendance history.
 
 
 ### Staff 
@@ -209,3 +213,7 @@ Please fix it and test it.
 
 #### timesheet 
 - [x] in staff list page, there should be a timesheet button/link to go to timesheet page, to show all staff timesheet with date range filter. and the timesheet should be exportable as csv or excel. and the timesheet should show total hours worked in the date range as well. the timesheet should have clock in and out as paired in one entry of one specific class.
+  - [ ] testing
+
+### Facility & classroom 
+- [ ] in class list there might be some class with `room 1` as classroom, while the facility has no such classroom. and when i tried to change its facility and classroom, it shows error as attached. please check if the classroom information is accurate or not. and check if other places have similar issue. please fix it and test it.

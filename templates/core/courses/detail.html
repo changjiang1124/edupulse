@@ -61,16 +61,21 @@
     <div>
         <h1 class="display-5 fw-bold mb-2">{{ course.name }}</h1>
         <div class="d-flex flex-wrap gap-2 align-items-center">
-            <span class="badge bg-success text-white px-3 py-2 fs-6">
-                <i class="fas fa-check-circle me-1"></i>{{ course.get_status_display }}
+            <span class="badge {% if course.status == 'published' %}bg-success{% elif course.status == 'draft' %}bg-secondary{% else %}bg-warning{% endif %} text-white px-3 py-2 fs-6">
+                <i class="fas fa-{% if course.status == 'published' %}check-circle{% elif course.status == 'draft' %}edit{% else %}clock{% endif %} me-1"></i>{{ course.get_status_display }}
             </span>
             <span class="badge bg-white bg-opacity-25 text-dark px-3 py-2 fs-6 border">
-                <i class="fas fa-users me-1"></i>{{ course.get_course_type_display }}
+                <i class="fas fa-{% if course.course_type == 'private' %}user{% else %}users{% endif %} me-1"></i>{{ course.get_course_type_display }}
             </span>
             <span class="badge bg-white bg-opacity-25 text-dark px-3 py-2 fs-6 border">
-                <i class="fas fa-dollar-sign me-1"></i>${{ course.price }}
+                <i class="fas fa-dollar-sign me-1"></i>{{ course.get_price_display }}
             </span>
-            {% if course.get_current_bookable_state != 'bookable' %}
+            {% if course.registration_fee %}
+            <span class="badge bg-info text-white px-3 py-2 fs-6">
+                <i class="fas fa-plus me-1"></i>Reg fee: ${{ course.registration_fee }}
+            </span>
+            {% endif %}
+            {% if course.status == 'published' and course.bookable_state != 'bookable' %}
             <span class="badge bg-warning text-dark px-3 py-2 fs-6">
                 <i class="fas fa-info-circle me-1"></i>{{ course.get_bookable_state_display }}
             </span>
@@ -143,9 +148,9 @@
             </div>
             <div class="card-body">
                 <div class="row g-4">
-                    {% if course.teacher %}
                     <div class="col-md-3">
                         <div class="d-flex align-items-center">
+                            {% if course.teacher %}
                             <div class="avatar-circle bg-primary me-3">
                                 {{ course.teacher.first_name|first }}{{ course.teacher.last_name|first }}
                             </div>
@@ -153,9 +158,17 @@
                                 <small class="text-muted d-block">Instructor</small>
                                 <strong>{{ course.teacher.first_name }} {{ course.teacher.last_name }}</strong>
                             </div>
+                            {% else %}
+                            <div class="avatar-circle bg-secondary me-3">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Instructor</small>
+                                <span class="text-muted">To be assigned</span>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
-                    {% endif %}
                     
                     <div class="col-md-3">
                         <div class="d-flex align-items-center">
@@ -254,7 +267,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <i class="fas fa-chalkboard-teacher me-2 text-primary"></i>
-                    Scheduled Classes <span class="badge bg-primary ms-2">{{ classes.count }}</span>
+                    {% if course.repeat_pattern == 'once' %}Workshop Session{% else %}Scheduled Classes{% endif %} <span class="badge bg-primary ms-2">{{ classes.count }}</span>
                 </h5>
                 <a href="{% url 'academics:class_add' %}?course={{ course.pk }}" class="btn btn-sm btn-primary">
                     <i class="fas fa-plus me-1"></i>

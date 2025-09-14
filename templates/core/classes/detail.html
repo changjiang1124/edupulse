@@ -380,7 +380,12 @@
                 </div>
                 <div class="mb-0">
                     <small class="text-muted d-block">Course Status</small>
-                    <span class="status-badge status-{{ class.course.status }}">{{ class.course.get_status_display }}</span>
+                    <span class="status-badge status-{{ class.course.status }}">
+                        {% if class.course.status == 'published' %}Published
+                        {% elif class.course.status == 'draft' %}Draft
+                        {% elif class.course.status == 'expired' %}Expired
+                        {% endif %}
+                    </span>
                 </div>
             </div>
         </div>

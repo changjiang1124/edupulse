@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     # Third-party applications
     'tinymce',
+    'django_crontab',
     # Local applications - modular architecture
     'core',
     'accounts',
@@ -203,3 +204,21 @@ TINYMCE_DEFAULT_CONFIG = {
     'paste_strip_class_attributes': 'all',
     'custom_undo_redo_levels': 10,
 }
+
+# ===========================================
+# Django-crontab Configuration
+# ===========================================
+
+CRONJOBS = [
+    # Update expired courses daily at 2 AM
+    ('0 2 * * *', 'django.core.management.call_command', ['update_expired_courses'], {
+        'verbosity': 1,
+    }),
+    # Weekly status consistency check on Sundays at 3 AM
+    ('0 3 * * 0', 'django.core.management.call_command', ['update_expired_courses', '--check-consistency'], {
+        'verbosity': 1,
+    }),
+]
+
+# Optional: Enable logging for cron jobs
+CRONTAB_COMMAND_PREFIX = 'DJANGO_SETTINGS_MODULE=edupulse.settings'

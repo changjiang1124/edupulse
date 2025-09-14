@@ -67,7 +67,7 @@
                             </thead>
                             <tbody>
                                 {% for classroom in classrooms %}
-                                <tr class="clickable-row" onclick="location.href='{% url 'facilities:classroom_detail' classroom.pk %}'">
+                                <tr class="clickable-row" data-href="{% url 'facilities:classroom_detail' classroom.pk %}">
                                     <td>{{ classroom.facility.name }}</td>
                                     <td>
                                         <strong>{{ classroom.name }}</strong>

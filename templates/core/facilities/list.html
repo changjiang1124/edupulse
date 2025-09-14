@@ -57,9 +57,9 @@
                             </thead>
                             <tbody>
                                 {% for facility in facilities %}
-                                <tr class="clickable-row" onclick="location.href='{% url 'facilities:facility_detail' facility.pk %}'">
+                                <tr class="clickable-row" data-href="{% url 'facilities:facility_detail' facility.pk %}">
                                     <td>
-                                        <strong>{{ facility.name }}</strong>
+                                        <strong><a href="{% url 'facilities:facility_detail' facility.pk %}">{{ facility.name }}</a></strong>
                                     </td>
                                     <td>
                                         <div class="text-truncate" style="max-width: 200px;" title="{{ facility.address }}">
