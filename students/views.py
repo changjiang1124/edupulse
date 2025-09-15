@@ -7,6 +7,9 @@ from django.urls import reverse_lazy
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_POST
+from django.utils.decorators import method_decorator
 from datetime import timedelta
 
 from .models import Student, StudentTag
@@ -23,8 +26,10 @@ class StudentListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = Student.objects.filter(is_active=True).prefetch_related('tags')
         search = self.request.GET.get('search')
-        tag_filter = self.request.GET.get('tag')
-        
+
+        # Support multiple tag filtering
+        tag_filters = self.request.GET.getlist('tags')  # Changed from 'tag' to 'tags' and getlist
+
         if search:
             queryset = queryset.filter(
                 Q(first_name__icontains=search) |
@@ -32,15 +37,24 @@ class StudentListView(LoginRequiredMixin, ListView):
                 Q(contact_email__icontains=search) |
                 Q(guardian_name__icontains=search)
             )
-        
-        if tag_filter:
-            queryset = queryset.filter(tags__id=tag_filter)
-        
+
+        # Multi-tag filtering with OR logic (students having ANY of the selected tags)
+        if tag_filters:
+            # Convert string IDs to integers and filter out empty values
+            tag_ids = [int(tag_id) for tag_id in tag_filters if tag_id.strip()]
+            if tag_ids:
+                queryset = queryset.filter(tags__id__in=tag_ids)
+
         return queryset.order_by('last_name', 'first_name').distinct()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['student_tags'] = StudentTag.objects.filter(is_active=True)
+
+        # Pass selected tags for maintaining filter state
+        selected_tag_ids = self.request.GET.getlist('tags')
+        context['selected_tag_ids'] = [int(tag_id) for tag_id in selected_tag_ids if tag_id.strip()]
+
         return context
 
 
@@ -359,3 +373,211 @@ class StudentSearchView(LoginRequiredMixin, View):
             })
         
         return JsonResponse({'students': results})
+
+
+@login_required
+@csrf_protect
+@require_POST
+def bulk_tag_operation(request):
+    """Handle bulk tag operations (add/remove tags from multiple students)"""
+    try:
+        # Get data from request
+        student_ids = request.POST.get('student_ids', '').strip()
+        operation = request.POST.get('operation', '')  # 'add' or 'remove'
+        tag_ids = request.POST.get('tag_ids', '').strip()
+
+        if not student_ids or not operation or not tag_ids:
+            return JsonResponse({
+                'success': False,
+                'error': 'Missing required parameters'
+            }, status=400)
+
+        # Parse student IDs
+        try:
+            student_id_list = [int(id.strip()) for id in student_ids.split(',') if id.strip()]
+        except ValueError:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid student IDs format'
+            }, status=400)
+
+        # Parse tag IDs
+        try:
+            tag_id_list = [int(id.strip()) for id in tag_ids.split(',') if id.strip()]
+        except ValueError:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid tag IDs format'
+            }, status=400)
+
+        # Validate operation
+        if operation not in ['add', 'remove']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid operation. Must be "add" or "remove"'
+            }, status=400)
+
+        # Get students and tags
+        students = Student.objects.filter(id__in=student_id_list, is_active=True)
+        tags = StudentTag.objects.filter(id__in=tag_id_list, is_active=True)
+
+        if not students.exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'No valid students found'
+            }, status=404)
+
+        if not tags.exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'No valid tags found'
+            }, status=404)
+
+        # Perform bulk operation
+        success_count = 0
+        for student in students:
+            if operation == 'add':
+                # Add tags to student
+                student.tags.add(*tags)
+            else:  # remove
+                # Remove tags from student
+                student.tags.remove(*tags)
+            success_count += 1
+
+            # Log activity for each student
+            tag_names = ', '.join([tag.name for tag in tags])
+            activity_title = f'Tags {"added" if operation == "add" else "removed"}: {tag_names}'
+            from .models import StudentActivity
+            StudentActivity.create_activity(
+                student=student,
+                activity_type='other',
+                title=activity_title,
+                description=f'Bulk tag operation performed by staff',
+                performed_by=request.user
+            )
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully {operation}ed tags for {success_count} students',
+            'students_updated': success_count,
+            'operation': operation,
+            'tag_count': len(tag_id_list)
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@csrf_protect
+@require_POST
+def student_tag_management(request, student_id):
+    """Handle individual student tag management (add/remove single tag)"""
+    try:
+        student = get_object_or_404(Student, id=student_id, is_active=True)
+        operation = request.POST.get('operation', '')  # 'add' or 'remove'
+        tag_id = request.POST.get('tag_id', '').strip()
+
+        if not operation or not tag_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Missing required parameters'
+            }, status=400)
+
+        # Parse tag ID
+        try:
+            tag_id = int(tag_id)
+        except ValueError:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid tag ID format'
+            }, status=400)
+
+        # Validate operation
+        if operation not in ['add', 'remove']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid operation. Must be "add" or "remove"'
+            }, status=400)
+
+        # Get tag
+        tag = get_object_or_404(StudentTag, id=tag_id, is_active=True)
+
+        # Perform operation
+        if operation == 'add':
+            if student.tags.filter(id=tag.id).exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Student already has tag "{tag.name}"'
+                })
+            student.tags.add(tag)
+            message = f'Tag "{tag.name}" added successfully'
+        else:  # remove
+            if not student.tags.filter(id=tag.id).exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Student does not have tag "{tag.name}"'
+                })
+            student.tags.remove(tag)
+            message = f'Tag "{tag.name}" removed successfully'
+
+        # Log activity
+        from .models import StudentActivity
+        StudentActivity.create_activity(
+            student=student,
+            activity_type='other',
+            title=f'Tag {operation}ed: {tag.name}',
+            description=f'Tag management performed by staff',
+            performed_by=request.user
+        )
+
+        # Return updated tag list
+        current_tags = list(student.tags.values('id', 'name', 'colour'))
+
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'operation': operation,
+            'tag': {
+                'id': tag.id,
+                'name': tag.name,
+                'colour': tag.colour
+            },
+            'current_tags': current_tags
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+def get_available_tags(request):
+    """Get all available tags for tag selection interface"""
+    try:
+        tags = StudentTag.objects.filter(is_active=True).order_by('name')
+        tag_data = [
+            {
+                'id': tag.id,
+                'name': tag.name,
+                'colour': tag.colour,
+                'student_count': tag.students.filter(is_active=True).count()
+            }
+            for tag in tags
+        ]
+
+        return JsonResponse({
+            'success': True,
+            'tags': tag_data
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)

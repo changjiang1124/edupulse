@@ -107,7 +107,32 @@
                 </div>
             </div>
         </div>
-        
+        <!-- Tags Management -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Student Tags</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openTagManagementModal()">
+                    <i class="fas fa-tag"></i> Manage Tags
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="studentTagsContainer">
+                    {% if student.tags.all %}
+                        {% for tag in student.tags.all %}
+                        <span class="badge tag-badge me-2 mb-2" style="background-color: {{ tag.colour }};" id="student-tag-{{ tag.id }}">
+                            {{ tag.name }}
+                            <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.65rem;"
+                                    onclick="removeTagFromStudent({{ tag.id }}, '{{ tag.name|escapejs }}')"
+                                    title="Remove tag"></button>
+                        </span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted" id="no-tags-message">No tags assigned to this student</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
         <!-- Guardian Information -->
         {% if student.guardian_name %}
         <div class="card mb-4">
@@ -352,9 +377,298 @@
     </div>
 </div>
 
+<!-- Tag Management Modal -->
+<div class="modal fade" id="tagManagementModal" tabindex="-1" aria-labelledby="tagManagementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tagManagementModalLabel">Manage Tags for {{ student.first_name }} {{ student.last_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Current Tags -->
+                <div class="mb-4">
+                    <h6>Current Tags:</h6>
+                    <div id="currentTagsDisplay" class="border rounded p-3 bg-light">
+                        <!-- Current tags will be updated here -->
+                    </div>
+                </div>
+
+                <!-- Add New Tags -->
+                <div class="mb-3">
+                    <h6>Add Tags:</h6>
+                    <div id="availableTagsContainer" style="max-height: 200px; overflow-y: auto;">
+                        <!-- Available tags will be loaded here -->
+                        <div class="text-center">
+                            <i class="fas fa-spinner fa-spin"></i> Loading available tags...
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // Notification Modal JavaScript
 let selectedStudentIds = [];
+let availableTagsData = [];
+let currentStudentTags = [];
+
+// Tag Management Functions
+async function openTagManagementModal() {
+    // Load current student tags and available tags
+    await loadCurrentStudentTags();
+    await loadAvailableTagsForStudent();
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('tagManagementModal'));
+    modal.show();
+}
+
+async function loadCurrentStudentTags() {
+    // Get current tags from the page
+    currentStudentTags = [];
+    {% for tag in student.tags.all %}
+    currentStudentTags.push({
+        id: {{ tag.id }},
+        name: '{{ tag.name|escapejs }}',
+        colour: '{{ tag.colour|escapejs }}'
+    });
+    {% endfor %}
+
+    updateCurrentTagsDisplay();
+}
+
+function updateCurrentTagsDisplay() {
+    const container = document.getElementById('currentTagsDisplay');
+
+    if (currentStudentTags.length === 0) {
+        container.innerHTML = '<span class="text-muted">No tags assigned</span>';
+        return;
+    }
+
+    let html = '';
+    currentStudentTags.forEach(tag => {
+        html += `
+            <span class="badge me-2 mb-2" style="background-color: ${tag.colour};">
+                ${tag.name}
+                <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.65rem;"
+                        onclick="removeTagFromStudentModal(${tag.id})" title="Remove tag"></button>
+            </span>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+async function loadAvailableTagsForStudent() {
+    try {
+        const response = await fetch('{% url "students:get_available_tags" %}');
+        const data = await response.json();
+
+        if (data.success) {
+            availableTagsData = data.tags;
+            renderAvailableTagsForStudent();
+        } else {
+            throw new Error(data.error || 'Failed to load tags');
+        }
+    } catch (error) {
+        console.error('Error loading available tags:', error);
+        document.getElementById('availableTagsContainer').innerHTML =
+            '<div class="text-danger">Error loading tags. Please try again.</div>';
+    }
+}
+
+function renderAvailableTagsForStudent() {
+    const container = document.getElementById('availableTagsContainer');
+
+    // Filter out tags that student already has
+    const currentTagIds = new Set(currentStudentTags.map(tag => tag.id));
+    const availableTags = availableTagsData.filter(tag => !currentTagIds.has(tag.id));
+
+    if (availableTags.length === 0) {
+        container.innerHTML = '<div class="text-muted">All available tags are already assigned to this student.</div>';
+        return;
+    }
+
+    let html = '';
+    availableTags.forEach(tag => {
+        html += `
+            <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2 tag-available-item"
+                 style="cursor: pointer;" onclick="addTagToStudentModal(${tag.id})">
+                <div>
+                    <span class="badge" style="background-color: ${tag.colour};">${tag.name}</span>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-success">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+async function addTagToStudentModal(tagId) {
+    try {
+        const formData = new FormData();
+        formData.append('operation', 'add');
+        formData.append('tag_id', tagId);
+
+        const response = await fetch('{% url "students:student_tag_management" student.id %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Update current tags list
+            currentStudentTags = data.current_tags;
+            updateCurrentTagsDisplay();
+            renderAvailableTagsForStudent();
+
+            // Update main page tag display
+            updateMainPageTags();
+
+            // Show success message
+            showTagMessage(`Tag "${data.tag.name}" added successfully`, 'success');
+        } else {
+            showTagMessage(`Error: ${data.error}`, 'danger');
+        }
+    } catch (error) {
+        console.error('Error adding tag:', error);
+        showTagMessage('An error occurred while adding the tag', 'danger');
+    }
+}
+
+async function removeTagFromStudentModal(tagId) {
+    try {
+        const formData = new FormData();
+        formData.append('operation', 'remove');
+        formData.append('tag_id', tagId);
+
+        const response = await fetch('{% url "students:student_tag_management" student.id %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Update current tags list
+            currentStudentTags = data.current_tags;
+            updateCurrentTagsDisplay();
+            renderAvailableTagsForStudent();
+
+            // Update main page tag display
+            updateMainPageTags();
+
+            // Show success message
+            showTagMessage(`Tag "${data.tag.name}" removed successfully`, 'success');
+        } else {
+            showTagMessage(`Error: ${data.error}`, 'danger');
+        }
+    } catch (error) {
+        console.error('Error removing tag:', error);
+        showTagMessage('An error occurred while removing the tag', 'danger');
+    }
+}
+
+// Function for removing tags directly from main page
+async function removeTagFromStudent(tagId, tagName) {
+    if (!confirm(`Are you sure you want to remove the tag "${tagName}" from this student?`)) {
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('operation', 'remove');
+        formData.append('tag_id', tagId);
+
+        const response = await fetch('{% url "students:student_tag_management" student.id %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Update current tags for modal
+            currentStudentTags = data.current_tags;
+
+            // Update main page tag display
+            updateMainPageTags();
+
+            // Show success message
+            alert(`Tag "${tagName}" removed successfully`);
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    } catch (error) {
+        console.error('Error removing tag:', error);
+        alert('An error occurred while removing the tag');
+    }
+}
+
+function updateMainPageTags() {
+    const container = document.getElementById('studentTagsContainer');
+
+    if (currentStudentTags.length === 0) {
+        container.innerHTML = '<span class="text-muted" id="no-tags-message">No tags assigned to this student</span>';
+        return;
+    }
+
+    let html = '';
+    currentStudentTags.forEach(tag => {
+        html += `
+            <span class="badge tag-badge me-2 mb-2" style="background-color: ${tag.colour};" id="student-tag-${tag.id}">
+                ${tag.name}
+                <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.65rem;"
+                        onclick="removeTagFromStudent(${tag.id}, '${tag.name}')"
+                        title="Remove tag"></button>
+            </span>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function showTagMessage(message, type) {
+    // Create a temporary alert div
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Insert at the top of modal body
+    const modalBody = document.querySelector('#tagManagementModal .modal-body');
+    modalBody.insertBefore(alertDiv, modalBody.firstChild);
+
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 3000);
+}
 
 async function openNotificationModal(studentIds) {
     selectedStudentIds = studentIds;

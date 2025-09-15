@@ -10,22 +10,78 @@
         margin-right: 2px;
         margin-bottom: 2px;
     }
-    .bulk-actions-toolbar {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 0.25rem;
-        padding: 0.75rem;
-        margin-bottom: 1rem;
-        display: none;
-    }
-    .bulk-actions-toolbar.show {
-        display: block;
-    }
     .student-checkbox {
         cursor: pointer;
     }
     .clickable-row.selected {
         background-color: #e3f2fd !important;
+    }
+
+    /* Tag filter styles */
+    .tag-filter-container {
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        background-color: #f8f9fa;
+    }
+
+    .tag-filters-wrapper {
+        max-height: 120px;
+        overflow-y: auto;
+        margin-bottom: 0.5rem;
+    }
+
+    .tag-filters-wrapper .form-check-inline {
+        margin-bottom: 0.25rem;
+    }
+
+    .tag-filter-controls {
+        border-top: 1px solid #dee2e6;
+        padding-top: 0.5rem;
+    }
+
+    /* Compact bulk actions styles */
+    .gap-3 {
+        gap: 1rem !important;
+    }
+
+    .gap-2 {
+        gap: 0.5rem !important;
+    }
+
+    #bulkActionsCompact {
+        border-left: 1px solid #dee2e6;
+        padding-left: 1rem;
+    }
+
+    /* Tag selection in modal */
+    .tag-selection-item {
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .tag-selection-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .tag-selection-item.selected {
+        background-color: #e3f2fd;
+        border-color: #1976d2;
+    }
+
+    .tag-selection-item .tag-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .tag-count {
+        font-size: 0.875rem;
+        color: #6c757d;
     }
 </style>
 {% endblock %}
@@ -53,15 +109,39 @@
                                placeholder="Search students by name, email, or guardian name..." value="{{ request.GET.search }}">
                     </div>
                     <div class="col-md-4">
-                        <label for="tag_filter" class="form-label">Filter by Tag</label>
-                        <select name="tag" id="tag_filter" class="form-select">
-                            <option value="">All Students</option>
-                            {% for tag in student_tags %}
-                                <option value="{{ tag.id }}" {% if request.GET.tag == tag.id|stringformat:"s" %}selected{% endif %}>
-                                    {{ tag.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
+                        <label class="form-label">Filter by Tags</label>
+                        <div class="tag-filter-container">
+                            <div class="tag-filters-wrapper" id="tagFiltersWrapper">
+                                {% for tag in student_tags %}
+                                <div class="form-check form-check-inline">
+                                    <input type="checkbox"
+                                           class="form-check-input tag-filter-checkbox"
+                                           name="tags"
+                                           value="{{ tag.id }}"
+                                           id="tag_{{ tag.id }}"
+                                           {% if tag.id in selected_tag_ids %}checked{% endif %}
+                                           onchange="updateTagFilter()">
+                                    <label class="form-check-label" for="tag_{{ tag.id }}">
+                                        <span class="badge" style="background-color: {{ tag.colour }};">
+                                            {{ tag.name }}
+                                        </span>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% if student_tags %}
+                            <div class="tag-filter-controls mt-2">
+                                <button type="button" class="btn btn-link btn-sm p-0" onclick="clearAllTagFilters()">
+                                    <i class="fas fa-times"></i> Clear All
+                                </button>
+                                <span class="mx-2">|</span>
+                                <small class="text-muted">
+                                    <span id="selectedTagCount">{{ selected_tag_ids|length }}</span>
+                                    tag{{ selected_tag_ids|length|pluralize }} selected
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
                         <button type="submit" class="btn btn-outline-primary w-100">Search</button>
@@ -72,35 +152,33 @@
     </div>
 </div>
 
-<!-- Bulk Actions Toolbar -->
-<div id="bulkActionsToolbar" class="bulk-actions-toolbar">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <strong><span id="selectedCount">0</span> students selected</strong>
-        </div>
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllVisible()">
-                Select All Visible
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">
-                Clear Selection
-            </button>
-            <button type="button" class="btn btn-success btn-sm" onclick="openBulkNotificationModal()">
-                <i class="fas fa-paper-plane"></i> Send Notification
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- Students List -->
 <div class="row">
     <div class="col-12">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Students ({{ students|length }})</h5>
-                <div>
-                    <input type="checkbox" class="form-check-input" id="selectAllCheckbox" onchange="toggleAllStudents(this)">
-                    <label class="form-check-label ms-2" for="selectAllCheckbox">Select All</label>
+                <div class="d-flex align-items-center gap-3">
+                    <!-- Compact Bulk Actions (initially hidden) -->
+                    <div id="bulkActionsCompact" class="d-flex align-items-center gap-2" style="display: none;">
+                        <span class="text-muted small">
+                            <span id="selectedCountCompact">0</span> selected
+                        </span>
+                        <select id="bulkActionSelect" class="form-select form-select-sm" style="min-width: 140px;">
+                            <option value="">Choose action...</option>
+                            <option value="add_tag">Add Tag</option>
+                            <option value="remove_tag">Remove Tag</option>
+                            <option value="send_notification">Send Notification</option>
+                        </select>
+                        <button type="button" id="bulkApplyBtn" class="btn btn-sm btn-primary" onclick="handleBulkAction()">
+                            Apply
+                        </button>
+                    </div>
+                    <!-- Select All Area -->
+                    <div>
+                        <input type="checkbox" class="form-check-input" id="selectAllCheckbox" onchange="toggleAllStudents(this)">
+                        <label class="form-check-label ms-2" for="selectAllCheckbox">Select All</label>
+                    </div>
                 </div>
             </div>
             <div class="card-body">
@@ -290,15 +368,223 @@
         </div>
     </div>
 </div>
+
+<!-- Bulk Tag Operation Modal -->
+<div class="modal fade" id="bulkTagModal" tabindex="-1" aria-labelledby="bulkTagModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkTagModalLabel">Bulk Tag Operation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Operation:</strong> <span id="tagOperationMode">Add</span> tags for <span id="tagRecipientCount">0</span> selected students
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Select Tags:</label>
+                    <div id="tagSelectionContainer" class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                        <!-- Tags will be loaded here via AJAX -->
+                        <div class="text-center">
+                            <i class="fas fa-spinner fa-spin"></i> Loading tags...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted">
+                        <span id="selectedTagsCount">0</span> tag(s) selected for operation
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="performTagOperation" onclick="performBulkTagOperation()">
+                    <i class="fas fa-tag"></i> <span id="tagOperationButtonText">Add Tags</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 let selectedStudents = new Set();
+let availableTags = [];
+let selectedTagsForOperation = new Set();
+let currentTagOperation = 'add';
+
+// Tag filtering functions
+function updateTagFilter() {
+    updateSelectedTagCount();
+    // Auto-submit form when tag selection changes
+    setTimeout(() => {
+        document.getElementById('searchForm').submit();
+    }, 100);
+}
+
+function updateSelectedTagCount() {
+    const checkedTags = document.querySelectorAll('.tag-filter-checkbox:checked');
+    document.getElementById('selectedTagCount').textContent = checkedTags.length;
+}
+
+function clearAllTagFilters() {
+    document.querySelectorAll('.tag-filter-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateSelectedTagCount();
+    document.getElementById('searchForm').submit();
+}
+
+// Bulk tag operation functions
+async function openBulkTagModal(operation) {
+    if (selectedStudents.size === 0) {
+        alert('Please select at least one student first.');
+        return;
+    }
+
+    currentTagOperation = operation;
+
+    // Update modal UI
+    document.getElementById('tagOperationMode').textContent = operation === 'add' ? 'Add' : 'Remove';
+    document.getElementById('tagRecipientCount').textContent = selectedStudents.size;
+    document.getElementById('tagOperationButtonText').textContent = operation === 'add' ? 'Add Tags' : 'Remove Tags';
+
+    const performButton = document.getElementById('performTagOperation');
+    performButton.className = operation === 'add' ? 'btn btn-success' : 'btn btn-warning';
+
+    // Load available tags
+    await loadAvailableTags();
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('bulkTagModal'));
+    modal.show();
+}
+
+async function loadAvailableTags() {
+    try {
+        const response = await fetch('{% url "students:get_available_tags" %}', {
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            availableTags = data.tags;
+            renderTagSelection();
+        } else {
+            throw new Error(data.error || 'Failed to load tags');
+        }
+    } catch (error) {
+        console.error('Error loading tags:', error);
+        document.getElementById('tagSelectionContainer').innerHTML =
+            '<div class="text-danger">Error loading tags. Please try again.</div>';
+    }
+}
+
+function renderTagSelection() {
+    const container = document.getElementById('tagSelectionContainer');
+    selectedTagsForOperation.clear();
+
+    if (availableTags.length === 0) {
+        container.innerHTML = '<div class="text-muted">No tags available.</div>';
+        return;
+    }
+
+    let html = '';
+    availableTags.forEach(tag => {
+        html += `
+            <div class="tag-selection-item" onclick="toggleTagForOperation(${tag.id})" id="tag-item-${tag.id}">
+                <div class="tag-info">
+                    <div>
+                        <span class="badge" style="background-color: ${tag.colour};">
+                            ${tag.name}
+                        </span>
+                    </div>
+                    <div class="tag-count">
+                        ${tag.student_count} students
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+    updateSelectedTagsCount();
+}
+
+function toggleTagForOperation(tagId) {
+    const tagItem = document.getElementById(`tag-item-${tagId}`);
+
+    if (selectedTagsForOperation.has(tagId)) {
+        selectedTagsForOperation.delete(tagId);
+        tagItem.classList.remove('selected');
+    } else {
+        selectedTagsForOperation.add(tagId);
+        tagItem.classList.add('selected');
+    }
+
+    updateSelectedTagsCount();
+}
+
+function updateSelectedTagsCount() {
+    document.getElementById('selectedTagsCount').textContent = selectedTagsForOperation.size;
+}
+
+async function performBulkTagOperation() {
+    if (selectedTagsForOperation.size === 0) {
+        alert('Please select at least one tag for the operation.');
+        return;
+    }
+
+    const performButton = document.getElementById('performTagOperation');
+    const originalText = performButton.innerHTML;
+    performButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    performButton.disabled = true;
+
+    try {
+        const formData = new FormData();
+        formData.append('student_ids', Array.from(selectedStudents).join(','));
+        formData.append('operation', currentTagOperation);
+        formData.append('tag_ids', Array.from(selectedTagsForOperation).join(','));
+
+        const response = await fetch('{% url "students:bulk_tag_operation" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`Success! ${data.message}`);
+
+            // Hide modal
+            bootstrap.Modal.getInstance(document.getElementById('bulkTagModal')).hide();
+
+            // Refresh the page to show updated tags
+            window.location.reload();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    } catch (error) {
+        console.error('Error performing bulk tag operation:', error);
+        alert('An error occurred while performing the operation. Please try again.');
+    } finally {
+        performButton.innerHTML = originalText;
+        performButton.disabled = false;
+    }
+}
 
 function toggleStudentSelection(studentId, checked) {
     const row = document.getElementById(`student-row-${studentId}`);
-    
+
     if (checked) {
         selectedStudents.add(studentId);
         row.classList.add('selected');
@@ -306,20 +592,20 @@ function toggleStudentSelection(studentId, checked) {
         selectedStudents.delete(studentId);
         row.classList.remove('selected');
     }
-    
-    updateBulkActionsToolbar();
+
+    updateCompactBulkActions();
     updateSelectAllCheckbox();
 }
 
 function toggleAllStudents(checkbox) {
     const studentCheckboxes = document.querySelectorAll('.student-checkbox');
-    
+
     studentCheckboxes.forEach(cb => {
         const studentId = parseInt(cb.value);
         const row = document.getElementById(`student-row-${studentId}`);
-        
+
         cb.checked = checkbox.checked;
-        
+
         if (checkbox.checked) {
             selectedStudents.add(studentId);
             row.classList.add('selected');
@@ -328,51 +614,22 @@ function toggleAllStudents(checkbox) {
             row.classList.remove('selected');
         }
     });
-    
-    updateBulkActionsToolbar();
+
+    updateCompactBulkActions();
 }
 
-function selectAllVisible() {
-    const studentCheckboxes = document.querySelectorAll('.student-checkbox');
-    
-    studentCheckboxes.forEach(cb => {
-        const studentId = parseInt(cb.value);
-        const row = document.getElementById(`student-row-${studentId}`);
-        
-        cb.checked = true;
-        selectedStudents.add(studentId);
-        row.classList.add('selected');
-    });
-    
-    updateBulkActionsToolbar();
-    updateSelectAllCheckbox();
-}
+function updateCompactBulkActions() {
+    const compactActions = document.getElementById('bulkActionsCompact');
+    const countSpan = document.getElementById('selectedCountCompact');
 
-function clearSelection() {
-    selectedStudents.clear();
-    
-    document.querySelectorAll('.student-checkbox').forEach(cb => {
-        cb.checked = false;
-    });
-    
-    document.querySelectorAll('.clickable-row').forEach(row => {
-        row.classList.remove('selected');
-    });
-    
-    updateBulkActionsToolbar();
-    updateSelectAllCheckbox();
-}
-
-function updateBulkActionsToolbar() {
-    const toolbar = document.getElementById('bulkActionsToolbar');
-    const countSpan = document.getElementById('selectedCount');
-    
     countSpan.textContent = selectedStudents.size;
-    
+
     if (selectedStudents.size > 0) {
-        toolbar.classList.add('show');
+        compactActions.style.display = 'flex';
     } else {
-        toolbar.classList.remove('show');
+        compactActions.style.display = 'none';
+        // Reset the action selection when no students selected
+        document.getElementById('bulkActionSelect').value = '';
     }
 }
 
@@ -380,7 +637,7 @@ function updateSelectAllCheckbox() {
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     const visibleCheckboxes = document.querySelectorAll('.student-checkbox');
     const checkedBoxes = document.querySelectorAll('.student-checkbox:checked');
-    
+
     if (checkedBoxes.length === 0) {
         selectAllCheckbox.indeterminate = false;
         selectAllCheckbox.checked = false;
@@ -390,6 +647,34 @@ function updateSelectAllCheckbox() {
     } else {
         selectAllCheckbox.indeterminate = true;
         selectAllCheckbox.checked = false;
+    }
+}
+
+function handleBulkAction() {
+    const selectedAction = document.getElementById('bulkActionSelect').value;
+
+    if (!selectedAction) {
+        alert('Please select an action first.');
+        return;
+    }
+
+    if (selectedStudents.size === 0) {
+        alert('Please select at least one student first.');
+        return;
+    }
+
+    switch (selectedAction) {
+        case 'add_tag':
+            openBulkTagModal('add');
+            break;
+        case 'remove_tag':
+            openBulkTagModal('remove');
+            break;
+        case 'send_notification':
+            openBulkNotificationModal();
+            break;
+        default:
+            alert('Unknown action selected.');
     }
 }
 
