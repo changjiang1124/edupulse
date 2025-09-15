@@ -179,6 +179,28 @@ class CourseForm(forms.ModelForm):
         """Clean repeat_day_of_month field to convert empty string to None"""
         value = self.cleaned_data.get('repeat_day_of_month')
         return None if value == '' else value
+    
+    def clean(self):
+        """Validate facility-classroom matching"""
+        cleaned_data = super().clean()
+        facility = cleaned_data.get('facility')
+        classroom = cleaned_data.get('classroom')
+        
+        # Validate facility-classroom matching
+        if facility and classroom:
+            if classroom.facility != facility:
+                raise forms.ValidationError(
+                    f'The selected classroom "{classroom.name}" belongs to "{classroom.facility.name}" '
+                    f'but you have selected facility "{facility.name}". '
+                    f'Please select a classroom that belongs to the chosen facility, '
+                    f'or change the facility to match the classroom.'
+                )
+        
+        # Auto-assign facility if only classroom is provided
+        elif classroom and not facility:
+            cleaned_data['facility'] = classroom.facility
+        
+        return cleaned_data
 
 
 class CourseUpdateForm(CourseForm):
@@ -381,9 +403,11 @@ class ClassForm(forms.ModelForm):
                 pass
     
     def clean(self):
-        """Validate form data, including single session course restrictions"""
+        """Validate form data, including single session course restrictions and facility-classroom matching"""
         cleaned_data = super().clean()
         course = cleaned_data.get('course')
+        facility = cleaned_data.get('facility')
+        classroom = cleaned_data.get('classroom')
         
         # Check if single session course already has a class
         if course and course.repeat_pattern == 'once':
@@ -399,6 +423,21 @@ class ClassForm(forms.ModelForm):
                     'Only one class can be created for single session courses. '
                     'Please edit the existing class instead.'
                 )
+        
+        # Validate facility-classroom matching
+        if facility and classroom:
+            if classroom.facility != facility:
+                raise forms.ValidationError(
+                    f'The selected classroom "{classroom.name}" belongs to "{classroom.facility.name}" '
+                    f'but you have selected facility "{facility.name}". '
+                    f'Please select a classroom that belongs to the chosen facility, '
+                    f'or change the facility to match the classroom.'
+                )
+        
+        # Warn if only classroom is selected but no facility
+        elif classroom and not facility:
+            # Auto-assign the facility based on classroom
+            cleaned_data['facility'] = classroom.facility
         
         return cleaned_data
 

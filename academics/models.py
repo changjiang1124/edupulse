@@ -294,6 +294,23 @@ class Course(models.Model):
         """Check if course has a registration fee"""
         return self.registration_fee and self.registration_fee > 0
     
+    def clean(self):
+        """Validate Course model data"""
+        from django.core.exceptions import ValidationError
+        
+        # Validate facility-classroom matching
+        if self.facility and self.classroom:
+            if self.classroom.facility != self.facility:
+                raise ValidationError({
+                    'classroom': f'Classroom "{self.classroom.name}" belongs to facility "{self.classroom.facility.name}" '
+                               f'but course is assigned to facility "{self.facility.name}". '
+                               f'Please ensure classroom and facility match.'
+                })
+        
+        # Auto-assign facility if only classroom is provided
+        elif self.classroom and not self.facility:
+            self.facility = self.classroom.facility
+    
     def save(self, *args, **kwargs):
         """Enhanced save method with automatic status management"""
         from django.utils import timezone
@@ -666,6 +683,23 @@ class Class(models.Model):
         
         # Make it timezone aware
         return timezone.make_aware(naive_datetime)
+    
+    def clean(self):
+        """Validate Class model data"""
+        from django.core.exceptions import ValidationError
+        
+        # Validate facility-classroom matching
+        if self.facility and self.classroom:
+            if self.classroom.facility != self.facility:
+                raise ValidationError({
+                    'classroom': f'Classroom "{self.classroom.name}" belongs to facility "{self.classroom.facility.name}" '
+                               f'but class is assigned to facility "{self.facility.name}". '
+                               f'Please ensure classroom and facility match.'
+                })
+        
+        # Auto-assign facility if only classroom is provided
+        elif self.classroom and not self.facility:
+            self.facility = self.classroom.facility
     
     def __str__(self):
         return f"{self.course.name} - {self.date} {self.start_time}"
