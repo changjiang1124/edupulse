@@ -354,6 +354,353 @@
     }
 }
 
+/* SUCCESS PAGE STYLES - Consistent with enrollment form design */
+/* ============================================================== */
+
+/* Apply Montserrat Font to Success Page */
+.public-enrollment-success {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 400;
+    line-height: 1.6;
+}
+
+.public-enrollment-success h1,
+.public-enrollment-success h2,
+.public-enrollment-success h3,
+.public-enrollment-success h4,
+.public-enrollment-success h5,
+.public-enrollment-success h6 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+}
+
+/* Container and Layout */
+.public-enrollment-success .container-fluid {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 3rem 1rem;
+}
+
+/* Success Hero Section */
+.public-enrollment-success .success-hero {
+    text-align: center;
+    margin-bottom: 4rem;
+    padding: 3rem 0;
+}
+
+.public-enrollment-success .success-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.public-enrollment-success .success-icon::after {
+    content: "✓";
+    color: white;
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+.public-enrollment-success .success-title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.public-enrollment-success .success-subtitle {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    font-weight: 300;
+    line-height: 1.5;
+}
+
+/* Success Cards - Flat Design */
+.public-enrollment-success .success-card {
+    background: #ffffff;
+    border: 1px solid var(--light-grey);
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: none;
+    margin-bottom: 2rem;
+}
+
+.public-enrollment-success .success-card-header {
+    background: #ffffff;
+    color: var(--text-color);
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--light-grey);
+}
+
+.public-enrollment-success .success-card-header h4,
+.public-enrollment-success .success-card-header h5 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.public-enrollment-success .success-card-body {
+    padding: 2rem;
+}
+
+/* Details Table Styling */
+.public-enrollment-success .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--light-grey);
+}
+
+.public-enrollment-success .detail-row:last-child {
+    border-bottom: none;
+}
+
+.public-enrollment-success .detail-label {
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    flex: 0 0 40%;
+}
+
+.public-enrollment-success .detail-value {
+    color: var(--text-color);
+    font-size: 0.95rem;
+    flex: 1;
+    text-align: right;
+}
+
+.public-enrollment-success .reference-code {
+    background-color: var(--light-grey);
+    color: var(--text-color);
+    padding: 0.5rem 0.75rem;
+    border-radius: 2px;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+}
+
+/* Status Badge */
+.public-enrollment-success .status-badge {
+    background-color: var(--text-muted);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 2px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Process Steps */
+.public-enrollment-success .process-step {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--light-grey);
+}
+
+.public-enrollment-success .process-step:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.public-enrollment-success .step-number {
+    flex: 0 0 40px;
+    height: 40px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-right: 1.5rem;
+}
+
+.public-enrollment-success .step-content h6 {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.public-enrollment-success .step-content p {
+    color: var(--text-muted);
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* Information Alert */
+.public-enrollment-success .info-alert {
+    background-color: #f8f9fa;
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    padding: 2rem;
+    margin: 2rem 0;
+}
+
+.public-enrollment-success .info-alert h6 {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.public-enrollment-success .info-alert p {
+    color: var(--text-color);
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.public-enrollment-success .info-alert ul {
+    color: var(--text-muted);
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.public-enrollment-success .info-alert ul li {
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Action Buttons */
+.public-enrollment-success .action-buttons {
+    text-align: center;
+    margin-top: 3rem;
+    padding-top: 3rem;
+    border-top: 1px solid var(--light-grey);
+}
+
+.public-enrollment-success .btn-primary-outline {
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+    background: transparent;
+    border-radius: 2px;
+    font-weight: 500;
+    padding: 0.75rem 2rem;
+    font-family: 'Montserrat', sans-serif;
+    transition: all 0.15s ease-in-out;
+    text-decoration: none;
+    display: inline-block;
+    margin: 0 0.5rem;
+    font-size: 0.95rem;
+}
+
+.public-enrollment-success .btn-primary-outline:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.public-enrollment-success .btn-secondary-outline {
+    color: var(--text-muted);
+    border: 2px solid var(--text-muted);
+    background: transparent;
+    border-radius: 2px;
+    font-weight: 500;
+    padding: 0.75rem 2rem;
+    font-family: 'Montserrat', sans-serif;
+    transition: all 0.15s ease-in-out;
+    text-decoration: none;
+    display: inline-block;
+    margin: 0 0.5rem;
+    font-size: 0.95rem;
+}
+
+.public-enrollment-success .btn-secondary-outline:hover {
+    background-color: var(--text-muted);
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Mobile Responsive Design for Success Page */
+@media (max-width: 768px) {
+    .public-enrollment-success .container-fluid {
+        padding: 2rem 1rem;
+    }
+    
+    .public-enrollment-success .success-hero {
+        margin-bottom: 3rem;
+        padding: 2rem 0;
+    }
+    
+    .public-enrollment-success .success-title {
+        font-size: 2.2rem;
+    }
+    
+    .public-enrollment-success .success-card-body {
+        padding: 1.5rem;
+    }
+    
+    .public-enrollment-success .detail-row {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1rem 0;
+    }
+    
+    .public-enrollment-success .detail-label {
+        flex: none;
+        margin-bottom: 0.5rem;
+    }
+    
+    .public-enrollment-success .detail-value {
+        text-align: left;
+    }
+    
+    .public-enrollment-success .process-step {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+    }
+    
+    .public-enrollment-success .step-number {
+        margin-right: 1rem;
+    }
+    
+    .public-enrollment-success .action-buttons {
+        margin-top: 2rem;
+        padding-top: 2rem;
+    }
+    
+    .public-enrollment-success .btn-primary-outline,
+    .public-enrollment-success .btn-secondary-outline {
+        display: block;
+        width: 100%;
+        margin: 0.5rem 0;
+    }
+}
+
+@media (max-width: 576px) {
+    .public-enrollment-success .success-hero {
+        padding: 1.5rem 0;
+    }
+    
+    .public-enrollment-success .success-title {
+        font-size: 1.75rem;
+    }
+    
+    .public-enrollment-success .success-card-header,
+    .public-enrollment-success .success-card-body {
+        padding: 1.25rem;
+    }
+    
+    .public-enrollment-success .info-alert {
+        padding: 1.5rem;
+    }
+}
+
 /* Print styles */
 @media print {
     .public-enrollment-form .hero-section,
@@ -367,6 +714,22 @@
     }
     
     .public-enrollment-form .enrollment-card-header {
+        background: none !important;
+        color: var(--text-color) !important;
+        border-bottom: 2px solid var(--text-color);
+    }
+    
+    .public-enrollment-success .action-buttons,
+    .public-enrollment-success .success-icon {
+        display: none;
+    }
+    
+    .public-enrollment-success .success-card {
+        border: none;
+        box-shadow: none;
+    }
+    
+    .public-enrollment-success .success-card-header {
         background: none !important;
         color: var(--text-color) !important;
         border-bottom: 2px solid var(--text-color);
