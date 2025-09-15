@@ -10,16 +10,22 @@ class StudentMatchingService:
     def find_existing_student(form_data):
         """
         Intelligently match existing student based on form data
+        Matching strategies (in priority order):
+        1. Full name + DOB (exact match)
+        2. Full name + Phone number
+        3. Full name + Email
         Returns: (student_instance, match_type)
         """
         first_name = form_data.get('first_name', '').strip()
         last_name = form_data.get('last_name', '').strip()
         date_of_birth = form_data.get('date_of_birth')
+        phone = form_data.get('phone', '').strip()
+        email = form_data.get('email', '').strip()
         
         if not first_name or not last_name:
             return None, 'none'
         
-        # First try exact name + DOB match
+        # Strategy 1: Full name + DOB (exact match - highest priority)
         if date_of_birth:
             exact_match = Student.objects.filter(
                 first_name__iexact=first_name,
@@ -29,20 +35,33 @@ class StudentMatchingService:
             ).first()
             
             if exact_match:
-                return exact_match, 'exact'
+                return exact_match, 'name_dob'
         
-        # Try name-only match if unique
-        name_matches = Student.objects.filter(
-            first_name__iexact=first_name,
-            last_name__iexact=last_name,
-            is_active=True
-        )
+        # Strategy 2: Full name + Phone number
+        if phone:
+            phone_match = Student.objects.filter(
+                first_name__iexact=first_name,
+                last_name__iexact=last_name,
+                contact_phone=phone,
+                is_active=True
+            ).first()
+            
+            if phone_match:
+                return phone_match, 'name_phone'
         
-        if name_matches.count() == 1:
-            return name_matches.first(), 'name_only'
-        elif name_matches.count() > 1:
-            return None, 'multiple_matches'
+        # Strategy 3: Full name + Email
+        if email:
+            email_match = Student.objects.filter(
+                first_name__iexact=first_name,
+                last_name__iexact=last_name,
+                contact_email__iexact=email,
+                is_active=True
+            ).first()
+            
+            if email_match:
+                return email_match, 'name_email'
         
+        # No matches found
         return None, 'none'
     
     @staticmethod
@@ -53,7 +72,7 @@ class StudentMatchingService:
         """
         existing_student, match_type = StudentMatchingService.find_existing_student(form_data)
         
-        if existing_student and match_type in ['exact', 'name_only']:
+        if existing_student and match_type in ['name_dob', 'name_phone', 'name_email']:
             # Update existing student with new information if needed
             StudentMatchingService._update_student_from_form(existing_student, form_data)
             if enrollment:

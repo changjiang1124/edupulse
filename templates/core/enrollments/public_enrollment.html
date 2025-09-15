@@ -3,27 +3,28 @@
 
 {% block title %}Course Enrollment - Perth Art School{% endblock %}
 
-{% block content %}
-<div class="container-fluid py-5">
-    <!-- Hero Section -->
-    <div class="row mb-5">
-        <div class="col-12">
-            <div class="text-center">
-                <h1 class="display-4 fw-bold text-primary mb-3">Course Enrollment</h1>
-                <p class="lead text-muted mb-0">Join Perth Art School and unlock your creative potential</p>
-            </div>
-        </div>
-    </div>
+{% block extra_css %}
+<link href="{% static 'css/public-enrollment.css' %}" rel="stylesheet">
+{% endblock %}
 
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow-lg">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="card-title mb-0">
-                        <i class="fas fa-user-plus me-2"></i>Student Enrollment Form
-                    </h3>
-                </div>
-                <div class="card-body p-4">
+{% block content %}
+<div class="public-enrollment-form">
+    <div class="container-fluid">
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <h1>Course Enrollment</h1>
+            <p class="lead">Join Perth Art School and unlock your creative potential</p>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="enrollment-card">
+                    <div class="enrollment-card-header">
+                        <h3>
+                            Student Enrollment Form
+                        </h3>
+                    </div>
+                    <div class="enrollment-card-body">
                     {% if messages %}
                         {% for message in messages %}
                             <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
@@ -38,15 +39,14 @@
                         
                         <!-- Course Selection -->
                         <div class="mb-4">
-                            <h5 class="text-primary mb-3">
-                                <i class="fas fa-palette me-2"></i>Course Selection
+                            <h5 class="section-header">
+                                Course Selection
                             </h5>
                             
                             {% if selected_course %}
                             <!-- Pre-selected course display -->
                             <div class="alert alert-info mb-3">
                                 <div class="d-flex align-items-center">
-                                    <i class="fas fa-info-circle me-2"></i>
                                     <div>
                                         <strong>Course Pre-selected:</strong> {{ selected_course.name }}<br>
                                         <small>Price: ${{ selected_course.price }} | Duration: {{ selected_course.get_duration_display }}</small>
@@ -64,10 +64,16 @@
                                     {% endif %}
                                 </label>
                                 {% if selected_course %}
-                                    <select class="form-select" disabled>
-                                        <option selected>{{ selected_course.name }}</option>
-                                    </select>
-                                    <input type="hidden" name="course_id" value="{{ selected_course.pk }}">
+                                    {{ form.course_id }}
+                                    <script>
+                                        // Set the pre-selected course value
+                                        document.addEventListener('DOMContentLoaded', function() {
+                                            const courseSelect = document.getElementById('{{ form.course_id.id_for_label }}');
+                                            if (courseSelect) {
+                                                courseSelect.value = '{{ selected_course.pk }}';
+                                            }
+                                        });
+                                    </script>
                                 {% else %}
                                     {{ form.course_id }}
                                 {% endif %}
@@ -87,12 +93,12 @@
                             </div>
                         </div>
 
-                        <hr class="my-4">
+                        <div class="section-separator"></div>
 
                         <!-- Student Information -->
                         <div class="mb-4">
-                            <h5 class="text-primary mb-3">
-                                <i class="fas fa-user me-2"></i>Student Information
+                            <h5 class="section-header">
+                                Student Information
                             </h5>
                             
                             <!-- Student Status -->
@@ -110,6 +116,16 @@
                                 {% endif %}
                                 <div class="form-text">
                                     {{ form.student_status.help_text }}
+                                </div>
+                                
+                                <!-- Student Matching Status Hint -->
+                                <div id="studentMatchingHint" class="alert alert-warning d-none mt-2" role="alert">
+                                    <div class="d-flex align-items-center">
+                                        <div class="small">
+                                            <strong>No matching student record found.</strong><br>
+                                            Please select "New Student" or verify the name and date of birth are correct.
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -185,19 +201,17 @@
                             </div>
                         </div>
 
-                        <hr class="my-4">
+                        <div class="section-separator"></div>
 
                         <!-- Contact Information Section - Age-based Dynamic Content -->
                         <div class="mb-4" id="contactSection">
-                            <h5 class="text-primary mb-3">
-                                <i class="fas fa-address-book me-2"></i>
+                            <h5 class="section-header">
                                 <span id="contactSectionTitle">Contact Information</span>
                             </h5>
                             
                             <!-- Age-based Information Alert -->
                             <div id="ageInfoAlert" class="alert d-none mb-3" role="alert">
                                 <div class="d-flex align-items-center">
-                                    <i class="fas fa-info-circle me-2 flex-shrink-0"></i>
                                     <div>
                                         <div class="fw-bold" id="ageAlertTitle"></div>
                                         <div class="small" id="ageAlertText"></div>
@@ -271,12 +285,12 @@
                             </div>
                         </div>
 
-                        <hr class="my-4">
+                        <div class="section-separator"></div>
 
                         <!-- Emergency Contact -->
                         <div class="mb-4" id="emergencySection">
-                            <h5 class="text-primary mb-3">
-                                <i class="fas fa-phone-alt me-2"></i>Emergency Contact
+                            <h5 class="section-header">
+                                Emergency Contact
                             </h5>
                             
                             <div class="opacity-50" id="emergencyFields">
@@ -315,12 +329,12 @@
                             </div>
                         </div>
 
-                        <hr class="my-4">
+                        <div class="section-separator"></div>
 
                         <!-- Medical & Special Requirements -->
                         <div class="mb-4" id="medicalSection">
-                            <h5 class="text-primary mb-3">
-                                <i class="fas fa-notes-medical me-2"></i>Medical & Special Requirements
+                            <h5 class="section-header">
+                                Medical & Special Requirements
                             </h5>
                             
                             <div class="opacity-50" id="medicalFields">
@@ -359,20 +373,18 @@
                             </div>
                         </div>
 
-                        <hr class="my-4">
+                        <div class="section-separator"></div>
 
                         <!-- Submit Section -->
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-paper-plane me-2"></i>Submit Enrollment
+                        <div class="submit-section">
+                            <button type="submit" class="btn btn-outline-primary btn-lg">
+                                Submit Enrollment
                             </button>
-                        </div>
-                        
-                        <div class="text-center mt-3">
-                            <small class="text-muted">
-                                By submitting this form, you agree to Perth Art School's terms and conditions.
-                                <br>We will contact you within 24 hours to confirm your enrollment.
-                            </small>
+                            
+                            <div class="submit-terms">
+                                By submitting this form, you agree to <a href="https://perthartschool.com.au/terms-conditions/">Perth Art School's terms and conditions</a>.<br>
+                                We will contact you within 24 hours to confirm your enrollment.
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -382,10 +394,15 @@
 </div>
 
 <script>
-// Age-based Dynamic Form Interaction
+// Age-based Dynamic Form Interaction and Student Matching
 document.addEventListener('DOMContentLoaded', function() {
     const dobField = document.getElementById('{{ form.date_of_birth.id_for_label }}');
     const guardianNameField = document.getElementById('{{ form.guardian_name.id_for_label }}');
+    const firstNameField = document.getElementById('{{ form.first_name.id_for_label }}');
+    const lastNameField = document.getElementById('{{ form.last_name.id_for_label }}');
+    const emailField = document.getElementById('{{ form.email.id_for_label }}');
+    const phoneField = document.getElementById('{{ form.phone.id_for_label }}');
+    const studentStatusField = document.getElementById('{{ form.student_status.id_for_label }}');
     
     // UI Elements
     const contactFields = document.getElementById('contactFields');
@@ -395,6 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const ageAlertTitle = document.getElementById('ageAlertTitle');
     const ageAlertText = document.getElementById('ageAlertText');
     const guardianNameRow = document.getElementById('guardianNameRow');
+    const studentMatchingHint = document.getElementById('studentMatchingHint');
     
     // Labels
     const emailLabel = document.getElementById('emailLabel');
@@ -405,9 +423,59 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initially disable all contact fields
     disableFormSections();
     
-    // Listen for date of birth changes
+    // Listen for field changes that could affect student matching
+    [firstNameField, lastNameField, dobField, emailField, phoneField].forEach(field => {
+        if (field) {
+            field.addEventListener('change', checkStudentMatching);
+            field.addEventListener('blur', checkStudentMatching);
+        }
+    });
+    
+    // Listen for date of birth changes for age detection
     dobField.addEventListener('change', function() {
         checkAge();
+    });
+    
+    function checkStudentMatching() {
+        const firstName = firstNameField.value.trim();
+        const lastName = lastNameField.value.trim();
+        const dob = dobField.value;
+        const email = emailField ? emailField.value.trim() : '';
+        const phone = phoneField ? phoneField.value.trim() : '';
+        const studentStatus = studentStatusField.value;
+        
+        // Only check if we have minimum required data and user selected "returning"
+        if (firstName && lastName && studentStatus === 'returning') {
+            // Simple client-side logic: if user has filled DOB, phone, or email, 
+            // assume they're providing matching information
+            if (dob || email || phone) {
+                hideStudentMatchingHint();
+            } else {
+                showStudentMatchingHint();
+            }
+        } else if (studentStatus === 'returning' && (firstName || lastName)) {
+            // Show hint if user selected returning but hasn't provided enough info
+            showStudentMatchingHint();
+        } else {
+            hideStudentMatchingHint();
+        }
+    }
+    
+    function showStudentMatchingHint() {
+        studentMatchingHint.classList.remove('d-none');
+    }
+    
+    function hideStudentMatchingHint() {
+        studentMatchingHint.classList.add('d-none');
+    }
+    
+    // Listen for student status changes
+    studentStatusField.addEventListener('change', function() {
+        checkStudentMatching();
+        // Hide hint when "new" is selected
+        if (studentStatusField.value === 'new') {
+            hideStudentMatchingHint();
+        }
     });
     
     function checkAge() {
@@ -436,6 +504,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Student is 18 or over - direct contact
             showOver18Interface(age);
         }
+        
+        // Check student matching after age is determined
+        checkStudentMatching();
     }
     
     function showUnder18Interface(age) {
@@ -523,6 +594,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (dobField.value) {
         checkAge();
     }
+    
+    // Initial student matching check
+    checkStudentMatching();
 });
 </script>
 {% endblock %}

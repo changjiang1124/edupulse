@@ -460,8 +460,13 @@ class PublicEnrollmentView(TemplateView):
             for key, value in form.cleaned_data.items():
                 if hasattr(value, 'isoformat'):  # Handle date/datetime objects
                     serializable_form_data[key] = value.isoformat()
+                elif hasattr(value, 'pk'):  # Handle Django model objects (like Course)
+                    serializable_form_data[key] = value.pk
+                elif value is None:
+                    serializable_form_data[key] = None
                 else:
-                    serializable_form_data[key] = value
+                    # Convert to string for safety, preserving original data
+                    serializable_form_data[key] = str(value) if not isinstance(value, (int, float, bool, str, list, dict)) else value
             
             # Use student matching service to create or find student first
             student, was_created = StudentMatchingService.create_or_update_student(

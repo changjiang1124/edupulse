@@ -169,6 +169,8 @@ create:
 
 - [x] the same class / course should not enrol the same student more than once. so when create enrolment, if the student already has an existing enrolment in the same course (regardless of status), then should not allow creating another enrolment for the same course. and if the student already has an existing enrolment in the same class (regardless of status), then should not allow creating another enrolment for the same class. please implement this logic and test it.
 
+- [x] for public accessed enrolment form, i want to do a style refinement. with font montserrat, thin line, outlined buttons, flat with no shadow. no border, just use light grey split lines to separate sections. and the form should be responsive to mobile as well. you can let this form have a different css file to avoid affecting other pages. and please help me test the form in mobile as well.
+
 ### settings 
 - [ ] SMS configuration should be only visible to admin user of the organisation, so as the email configuration.
 - [x] the staff user should only be able to see their profile and change password, see their upcoming classes with students, and mark attendance, and clock in and out. ref: 00-plans/staff-teacher-portal-minimal-changes.md. -- WIP 
@@ -216,4 +218,4 @@ Please fix it and test it.
   - [ ] testing
 
 ### Facility & classroom 
-- [ ] in class list there might be some class with `room 1` as classroom, while the facility has no such classroom. and when i tried to change its facility and classroom, it shows error as attached. please check if the classroom information is accurate or not. and check if other places have similar issue. please fix it and test it.
+- [x] in class list there might be some class with `room 1` as classroom, while the facility has no such classroom. and when i tried to change its facility and classroom, it shows error as attached. please check if the classroom information is accurate or not. and check if other places have similar issue. please fix it and test it.
