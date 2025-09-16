@@ -424,7 +424,6 @@
                                     </th>
                                     <th>Name</th>
                                     <th>Contact</th>
-                                    <th>Guardian</th>
                                     <th>Tags</th>
                                     <th>Status</th>
                                     <th>Actions</th>
@@ -455,15 +454,7 @@
                                             <span class="text-muted">No contact info</span>
                                         {% endif %}
                                         {% if student.guardian_name %}
-                                            <br><small class="text-muted"><i class="fas fa-user-friends"></i> Guardian contact</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if student.guardian_name %}
-                                            <strong>{{ student.guardian_name }}</strong>
-                                            <br><small class="text-muted">Student is {{ student.get_age|default:"unknown" }} years old</small>
-                                        {% else %}
-                                            <span class="text-muted">No guardian info</span>
+                                            <small class="text-muted"><i class="fas fa-user-friends"></i> Guardian contact</small>
                                         {% endif %}
                                     </td>
                                     <td>

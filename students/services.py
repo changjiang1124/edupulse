@@ -1,6 +1,6 @@
 from django.db.models import Q
 from datetime import date
-from .models import Student
+from .models import Student, StudentActivity
 
 
 class StudentMatchingService:
@@ -74,7 +74,7 @@ class StudentMatchingService:
         
         if existing_student and match_type in ['name_dob', 'name_phone', 'name_email']:
             # Update existing student with new information if needed
-            StudentMatchingService._update_student_from_form(existing_student, form_data)
+            StudentMatchingService._update_student_from_form(existing_student, form_data, match_type, enrollment)
             if enrollment:
                 enrollment.student = existing_student
                 enrollment.is_new_student = False
@@ -140,38 +140,63 @@ class StudentMatchingService:
         return student
     
     @staticmethod
-    def _update_student_from_form(student, form_data):
-        """Update existing student with new form data if fields are empty"""
-        # Only update empty fields to avoid overwriting existing data
+    def _update_student_from_form(student, form_data, match_type=None, enrollment=None):
+        """Update existing student with new form data, preserving critical contact info"""
         updated = False
-        
+        contact_updated = False
+
         if not student.address and form_data.get('address'):
             student.address = form_data['address']
             updated = True
-        
-        if not student.contact_email and form_data.get('email'):
-            student.contact_email = form_data['email']
-            updated = True
-        
+
+        new_email = (form_data.get('email') or '').strip()
+        current_email = (student.contact_email or '').strip()
+        if new_email:
+            if not current_email:
+                student.contact_email = new_email
+                updated = True
+                contact_updated = True
+            elif match_type in ['name_dob', 'name_phone'] and current_email.lower() != new_email.lower():
+                student.contact_email = new_email
+                updated = True
+                contact_updated = True
+
         if not student.contact_phone and form_data.get('phone'):
             student.contact_phone = form_data['phone']
             updated = True
-        
+
         if not student.guardian_name and form_data.get('guardian_name'):
             student.guardian_name = form_data['guardian_name']
             updated = True
-        
+
         if not student.emergency_contact_name and form_data.get('emergency_contact_name'):
             student.emergency_contact_name = form_data['emergency_contact_name']
             updated = True
-        
+
         if not student.emergency_contact_phone and form_data.get('emergency_contact_phone'):
             student.emergency_contact_phone = form_data['emergency_contact_phone']
             updated = True
-        
+
         if updated:
             student.save()
-        
+
+        if contact_updated:
+            try:
+                StudentActivity.create_activity(
+                    student=student,
+                    activity_type='contact_updated',
+                    title='Contact email updated from enrollment form',
+                    description='Email updated after matching existing student during enrollment',
+                    metadata={
+                        'match_type': match_type,
+                        'previous_email': current_email,
+                        'new_email': student.contact_email,
+                        'source': 'public_enrollment' if enrollment is None else 'staff_enrollment'
+                    }
+                )
+            except Exception:
+                pass
+
         return student
     
     @staticmethod

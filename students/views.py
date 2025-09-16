@@ -45,7 +45,7 @@ class StudentListView(LoginRequiredMixin, ListView):
             if tag_ids:
                 queryset = queryset.filter(tags__id__in=tag_ids)
 
-        return queryset.order_by('last_name', 'first_name').distinct()
+        return queryset.order_by('-created_at').distinct()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

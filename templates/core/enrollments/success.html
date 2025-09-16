@@ -5,6 +5,12 @@
 
 {% block extra_css %}
 <link href="{% static 'css/public-enrollment.css' %}" rel="stylesheet">
+<style>
+/* Hide Django messages on success page to prevent layout interference */
+.alert.alert-success.alert-dismissible {
+    display: none !important;
+}
+</style>
 {% endblock %}
 
 {% block content %}
