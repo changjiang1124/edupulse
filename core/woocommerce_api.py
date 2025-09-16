@@ -525,10 +525,13 @@ class WooCommerceSyncService:
             site = Site.objects.get_current()
             enrollment_url = f"https://{site.domain}{reverse('enrollment:public_enrollment')}?course={course.id}"
             
-            # Handle featured image URL
+            # Handle featured image URL - only include if accessible
             featured_image_url = None
             if course.featured_image:
-                featured_image_url = f"https://{site.domain}{course.featured_image.url}"
+                # For now, skip image URL to avoid 404 errors during development
+                # TODO: Implement proper image URL validation or use local development domain
+                # featured_image_url = f"https://{site.domain}{course.featured_image.url}"
+                pass
             
             # Map category to WooCommerce category
             category_mapping = {
@@ -580,7 +583,7 @@ class WooCommerceSyncService:
                 'enrollment_deadline': course.enrollment_deadline.isoformat() if course.enrollment_deadline else None,
                 'start_date': course.start_date.isoformat() if course.start_date else None,
                 'end_date': course.end_date.isoformat() if course.end_date else None,
-                'start_time': course.start_time.isoformat() if course.start_time else None,
+                'start_time': course.start_time.strftime('%H:%M:%S') if course.start_time else None,
                 'duration_minutes': course.duration_minutes,
                 'facility_name': course.facility.name if course.facility else None,
                 'facility_address': course.facility.address if course.facility else None,
@@ -659,7 +662,7 @@ class WooCommerceSyncService:
                 else:
                     sync_log.status = 'failed'
                     sync_log.error_message = success_result.get('message', 'Unknown error')
-                    sync_log.response_data = success_result.get('data', {})
+                    sync_log.response_data = success_result.get('data') or {}
                 
                 sync_log.duration_ms = duration_ms
                 sync_log.save()
@@ -676,6 +679,7 @@ class WooCommerceSyncService:
                 
                 sync_log.status = 'failed'
                 sync_log.error_message = str(e)
+                sync_log.response_data = {}
                 sync_log.duration_ms = duration_ms
                 sync_log.retry_count += 1
                 sync_log.save()
