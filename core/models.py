@@ -57,6 +57,11 @@ class OrganisationSettings(models.Model):
         default='info@perthartschool.com.au',
         verbose_name='Contact Email'
     )
+    reply_to_email = models.EmailField(
+        default='info@perthartschool.com.au',
+        verbose_name='Reply-to Email Address',
+        help_text='Default email address for recipients to reply to. Used when no specific reply-to is configured in email settings.'
+    )
     contact_phone = models.CharField(
         max_length=20,
         default='(08) 9000 0000',
@@ -331,6 +336,7 @@ Best regards,
 Perth Art School EduPulse System''',
                 from_email=f'{self.from_name} <{self.from_email}>',
                 to=[recipient_email],
+                reply_to=[self.reply_to_email or OrganisationSettings.get_instance().reply_to_email],
                 connection=backend
             )
             

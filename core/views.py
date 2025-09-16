@@ -666,12 +666,16 @@ def _get_student_contact_info(student):
 def _send_email_notification(recipient_email, recipient_name, subject, message, message_type, recipient_type):
     """Send email notification using the configured email backend"""
     from django.core.mail import EmailMessage
+    from core.models import OrganisationSettings
+    
+    org_settings = OrganisationSettings.get_instance()
     
     email = EmailMessage(
         subject=subject,
         body=f"Dear {recipient_name},\n\n{message}\n\nBest regards,\nPerth Art School",
         from_email=None,  # Will use configured from_email
-        to=[recipient_email]
+        to=[recipient_email],
+        reply_to=[org_settings.reply_to_email]
     )
     
     email.send()

@@ -6,385 +6,265 @@
     <title>Enrolment Received - {{ course.name }}</title>
     <style>
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
             margin: 0;
             padding: 0;
+            background-color: #f8f9fa;
+            font-family: 'Montserrat', Arial, sans-serif;
+            color: #212529;
+            line-height: 1.6;
         }
-        .container {
-            max-width: 600px;
+        .email-wrapper {
+            max-width: 640px;
             margin: 0 auto;
             background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
             overflow: hidden;
         }
-        .header {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 600;
-        }
-        .header p {
-            margin: 10px 0 0 0;
-            font-size: 16px;
-            opacity: 0.9;
-        }
-        .content {
-            padding: 40px 30px;
-        }
-        .greeting {
-            font-size: 18px;
-            margin-bottom: 20px;
-            color: #2563eb;
-        }
-        
-        /* Status Section */
-        .status-section {
-            background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 20%);
-            border: 2px solid #f59e0b;
-            border-radius: 12px;
-            padding: 25px;
-            margin: 25px 0;
-            text-align: center;
-        }
-        .status-section h3 {
-            margin: 0 0 10px 0;
-            color: #92400e;
-            font-size: 20px;
-        }
-        .status-section p {
-            margin: 0;
-            color: #78350f;
-            font-size: 16px;
-        }
-        
-        /* Course Details */
-        .course-details {
-            background-color: #f8fafc;
-            border-left: 4px solid #2563eb;
-            padding: 20px;
-            margin: 25px 0;
-            border-radius: 0 8px 8px 0;
-        }
-        .course-details h3 {
-            margin: 0 0 15px 0;
-            color: #2563eb;
-            font-size: 20px;
-        }
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 10px 0;
-            padding: 5px 0;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .detail-label {
-            font-weight: 600;
-            color: #475569;
-        }
-        .detail-value {
-            color: #64748b;
-        }
-        
-        /* Fee Summary */
-        .fee-summary {
-            background-color: #eff6ff;
-            border: 1px solid #3b82f6;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-        }
-        .fee-summary h4 {
-            margin: 0 0 15px 0;
-            color: #1e40af;
-            font-size: 18px;
-        }
-        .total-fee {
-            font-size: 24px;
-            font-weight: bold;
-            color: #2563eb;
-            text-align: center;
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #dbeafe;
-            border-radius: 8px;
-        }
-        
-        /* Payment Information */
-        .payment-info {
-            background: linear-gradient(135deg, #f0fdf4 0%, #f7fee7 100%);
-            border: 2px solid #16a34a;
-            border-radius: 12px;
-            padding: 25px;
-            margin: 25px 0;
-        }
-        .payment-info h4 {
-            margin: 0 0 20px 0;
-            color: #15803d;
-            font-size: 20px;
-            text-align: center;
-        }
-        .bank-transfer-details {
+        .email-header {
             background-color: #ffffff;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 15px 0;
-            border: 1px solid #d1fae5;
+            padding: 32px 40px;
+            border-bottom: 1px solid #dee2e6;
+            text-align: left;
         }
-        .bank-detail-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .email-header h1 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: #212529;
+        }
+        .email-header p {
+            margin: 12px 0 0;
+            font-size: 15px;
+            color: #6c757d;
+        }
+        .email-body {
+            padding: 40px;
+        }
+        .section-title {
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 12px;
+        }
+        .intro-text {
+            font-size: 16px;
+            margin-bottom: 24px;
+        }
+        .card {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 24px;
+            margin-bottom: 24px;
+            background-color: #ffffff;
+        }
+        .status-pill {
+            display: inline-block;
+            padding: 6px 14px;
+            border: 1px solid #adb5bd;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 16px;
+        }
+        .muted-copy {
+            color: #6c757d;
+            margin: 0;
+        }
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+        .detail-table tr {
+            border-bottom: 1px solid #f1f3f5;
+        }
+        .detail-table td {
             padding: 10px 0;
-            border-bottom: 1px solid #e2e8f0;
+            font-size: 15px;
         }
-        .bank-detail-row:last-child {
-            border-bottom: none;
+        .detail-table td:first-child {
+            font-weight: 600;
+            color: #343a40;
+            width: 45%;
         }
-        .payment-reference {
-            background-color: #fef3c7;
-            padding: 6px 12px;
-            border-radius: 6px;
-            border: 1px solid #f59e0b;
-            color: #92400e;
+        .total-amount {
+            font-size: 22px;
+            font-weight: 600;
+            margin: 20px 0 0;
+            color: #212529;
+        }
+        .highlight-strip {
+            padding: 14px 18px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 2px;
+            margin-top: 16px;
+            font-weight: 600;
             font-family: 'Courier New', monospace;
-            font-weight: 700;
         }
-        .payment-warning {
-            background-color: #fef2f2;
-            border: 1px solid #fca5a5;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 15px;
-        }
-        .payment-warning p {
+        .list-reset {
             margin: 0;
-            color: #b91c1c;
-            font-size: 14px;
+            padding-left: 18px;
+            color: #495057;
         }
-        
-        /* Next Steps */
-        .next-steps {
-            background-color: #f0fdf4;
-            border: 1px solid #22c55e;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
+        .list-reset li {
+            margin-bottom: 10px;
         }
-        .next-steps h4 {
-            margin: 0 0 15px 0;
-            color: #15803d;
-            font-size: 18px;
-        }
-        .next-steps ol {
-            margin: 0;
-            padding-left: 20px;
-            color: #166534;
-        }
-        .next-steps li {
-            margin: 10px 0;
-        }
-        
-        /* Contact Info */
-        .contact-info {
-            background-color: #f1f5f9;
-            padding: 20px;
-            margin: 25px 0;
-            border-radius: 8px;
+        .contact-card {
             text-align: center;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 24px;
+            background-color: #f8f9fa;
+            margin-top: 24px;
         }
-        .contact-info h4 {
-            margin: 0 0 15px 0;
-            color: #475569;
-        }
-        .contact-details {
-            color: #64748b;
-        }
-        
-        /* Footer */
-        .footer {
-            background-color: #f8fafc;
-            padding: 30px;
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-            color: #64748b;
-            font-size: 14px;
-        }
-        .footer a {
-            color: #2563eb;
+        .contact-card a {
+            color: #212529;
             text-decoration: none;
+            font-weight: 600;
         }
-        
-        @media (max-width: 600px) {
-            .container {
-                margin: 10px;
-                border-radius: 0;
+        .email-footer {
+            text-align: center;
+            padding: 24px;
+            font-size: 13px;
+            color: #868e96;
+        }
+        .email-footer a {
+            color: #212529;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        @media (max-width: 640px) {
+            .email-header,
+            .email-body {
+                padding: 24px;
             }
-            .content {
-                padding: 30px 20px;
-            }
-            .header {
-                padding: 25px 20px;
-            }
-            .payment-info {
-                padding: 20px 15px;
-            }
-            .bank-detail-row {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-            }
-            .payment-reference {
-                font-size: 14px;
+            .card {
+                padding: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Perth Art School</h1>
-            <p>Enrolment Application Received</p>
-        </div>
-        
-        <div class="content">
-            <div class="greeting">
-                Dear {{ recipient_name }},
+    <div style="padding: 32px 16px; background-color: #f8f9fa;">
+        <div class="email-wrapper">
+            <div class="email-header">
+                <h1>Enrolment Pending</h1>
+                <p>Thanks for starting your journey with Perth Art School.</p>
             </div>
-            
-            <p>Thank you for your enrolment application with Perth Art School! We have successfully received your application for the following course:</p>
-            
-            <div class="status-section">
-                <h3>⏳ Application Status: PENDING PAYMENT</h3>
-                <p>Your enrolment will be confirmed once payment is received</p>
-            </div>
-            
-            <div class="course-details">
-                <h3>{{ course.name }}</h3>
-                <div class="detail-row">
-                    <span class="detail-label">Reference ID:</span>
-                    <span class="detail-value" style="font-family: 'Courier New', monospace; font-weight: 700; color: #2563eb;">{{ enrollment.get_reference_id }}</span>
+            <div class="email-body">
+                <p class="intro-text">Hi {{ student.first_name }},<br>
+                Thanks for submitting your enrolment for <strong>{{ course.name }}</strong>. Our team is finalising the last checks and will be in touch shortly.</p>
+
+                <div class="card">
+                    <div class="section-title">Status</div>
+                    <span class="status-pill">Pending review</span>
+                    <p class="muted-copy">We are confirming availability and details. A confirmation email will follow once everything is locked in.</p>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Course Type:</span>
-                    <span class="detail-value">{{ course.get_course_type_display }}</span>
+
+                <div class="card">
+                    <div class="section-title">Course Details</div>
+                    <table class="detail-table" role="presentation">
+                        <tr>
+                            <td>Course</td>
+                            <td>{{ course.name }}</td>
+                        </tr>
+                        <tr>
+                            <td>Course code</td>
+                            <td>{{ course.code }}</td>
+                        </tr>
+                        <tr>
+                            <td>Schedule</td>
+                            <td>{{ course.schedule_display }}</td>
+                        </tr>
+                        <tr>
+                            <td>Location</td>
+                            <td>{{ course.location_display }}</td>
+                        </tr>
+                        <tr>
+                            <td>Start date</td>
+                            <td>{{ course.start_date|date:"d M Y" }}</td>
+                        </tr>
+                    </table>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Duration:</span>
-                    <span class="detail-value">{{ course.get_duration_display }}</span>
-                </div>
-                {% if course.start_date %}
-                <div class="detail-row">
-                    <span class="detail-label">Start Date:</span>
-                    <span class="detail-value">{{ course.start_date|date:"l, d F Y" }}</span>
-                </div>
-                {% endif %}
-                {% if course.facility %}
-                <div class="detail-row">
-                    <span class="detail-label">Location:</span>
-                    <span class="detail-value">{{ course.facility.name }}</span>
-                </div>
-                {% endif %}
-            </div>
-            
-            {% load price_tags %}
-            <div class="fee-summary">
-                <h4>💰 Payment Required</h4>
-                
-                <!-- Course Fee Breakdown -->
-                <div class="detail-row">
-                    <span class="detail-label">Course Fee:</span>
-                    <span class="detail-value">{% price_with_gst_label course.price %}</span>
-                </div>
-                
-                {% if has_registration_fee %}
-                <div class="detail-row">
-                    <span class="detail-label">Registration Fee:</span>
-                    <span class="detail-value">{{ registration_fee|currency }}</span>
-                </div>
-                {% endif %}
-                
-                <div class="total-fee">
-                    Total Amount Due: {{ total_fee|currency }}
-                    <br><small style="font-size: 16px; font-weight: normal;">
-                        {% gst_config as gst_settings %}
-                        {% if gst_settings.includes_gst %}
-                            (inc {{ gst_settings.label }})
-                        {% else %}
-                            (ex {{ gst_settings.label }})
+
+                <div class="card">
+                    <div class="section-title">Fee Summary</div>
+                    <table class="detail-table" role="presentation">
+                        <tr>
+                            <td>Course fee</td>
+                            <td>{{ course_fee|currency }}</td>
+                        </tr>
+                        {% if has_registration_fee %}
+                        <tr>
+                            <td>Registration</td>
+                            <td>{{ registration_fee|currency }}</td>
+                        </tr>
                         {% endif %}
-                    </small>
+                        <tr>
+                            <td>GST</td>
+                            <td>Included</td>
+                        </tr>
+                    </table>
+                    <div class="total-amount">Total due: {{ total_fee|currency }}</div>
                 </div>
-            </div>
-            
-            <!-- Payment Information Section -->
-            <div class="payment-info">
-                <h4>💳 Payment Instructions</h4>
-                <p>Please complete payment within <strong>7 days</strong> to secure your place in the course.</p>
-                
-                <div class="bank-transfer-details">
-                    <div class="bank-detail-row">
-                        <span class="detail-label">Account Name:</span>
-                        <span class="detail-value">Perth Art School Pty Ltd</span>
-                    </div>
-                    <div class="bank-detail-row">
-                        <span class="detail-label">BSB:</span>
-                        <span class="detail-value">036-032</span>
-                    </div>
-                    <div class="bank-detail-row">
-                        <span class="detail-label">Account Number:</span>
-                        <span class="detail-value">123456789</span>
-                    </div>
-                    <div class="bank-detail-row">
-                        <span class="detail-label">Payment Reference:</span>
-                        <span class="detail-value payment-reference">{{ enrollment.get_reference_id }}</span>
-                    </div>
-                    <div class="bank-detail-row">
-                        <span class="detail-label">Amount:</span>
-                        <span class="detail-value" style="font-weight: bold; color: #15803d;">{{ total_fee|currency }}</span>
-                    </div>
+
+                <div class="card">
+                    <div class="section-title">Payment Details</div>
+                    <p class="muted-copy">Organise payment once you receive the confirmation email from our team.</p>
+                    <table class="detail-table" role="presentation">
+                        <tr>
+                            <td>Account name</td>
+                            <td>Perth Art School Pty Ltd</td>
+                        </tr>
+                        <tr>
+                            <td>BSB</td>
+                            <td>036-032</td>
+                        </tr>
+                        <tr>
+                            <td>Account number</td>
+                            <td>123456789</td>
+                        </tr>
+                        <tr>
+                            <td>Payment amount</td>
+                            <td>{{ total_fee|currency }}</td>
+                        </tr>
+                    </table>
+                    <div class="highlight-strip">Reference: {{ enrollment.get_reference_id }}</div>
+                    <p class="muted-copy" style="margin-top: 16px;">Already paid? Please forward your receipt to <a href="mailto:{{ contact_email }}" style="color:#212529; font-weight:600; text-decoration:none;">{{ contact_email }}</a>.</p>
                 </div>
-                <div class="payment-warning">
-                    <p><strong>⚠️ Important:</strong> Please include the payment reference <strong>{{ enrollment.get_reference_id }}</strong> exactly as shown above to ensure your payment is processed correctly and your enrolment is confirmed promptly.</p>
+
+                <div class="card">
+                    <div class="section-title">Next Steps</div>
+                    <ol class="list-reset">
+                        <li>Our team reviews your enrolment and confirms a place.</li>
+                        <li>We send confirmation together with your invoice.</li>
+                        <li>Process payment using the bank details above once confirmed.</li>
+                        <li>Closer to commencement, you will receive a welcome pack with class information.</li>
+                    </ol>
                 </div>
-            </div>
-            
-            <div class="next-steps">
-                <h4>📋 Next Steps</h4>
-                <ol>
-                    <li><strong>Make Payment:</strong> Transfer the full amount using the bank details above within 7 days</li>
-                    <li><strong>Payment Processing:</strong> Allow 1-2 business days for payment confirmation</li>
-                    <li><strong>Enrolment Confirmation:</strong> Once payment is received, we'll send you a welcome email with course details</li>
-                    <li><strong>Course Materials:</strong> Detailed class information and preparation instructions will follow</li>
-                </ol>
-            </div>
-            
-            <p><strong>Important:</strong> Your place in the course is not guaranteed until payment is received. Course spaces are limited and filled on a first-come, first-served basis upon payment confirmation.</p>
-            
-            <p>If you have any questions about your enrolment or need assistance with payment, please don't hesitate to contact our friendly team.</p>
-            
-            <div class="contact-info">
-                <h4>Need Help?</h4>
-                <div class="contact-details">
-                    <p><strong>Email:</strong> {{ contact_email }}</p>
-                    <p><strong>Phone:</strong> {{ contact_phone }}</p>
-                    <p><strong>Business Hours:</strong> Monday - Friday, 9:00 AM - 5:00 PM</p>
+
+                <p class="muted-copy">If your availability changes, let us know so we can assist another student on the waiting list.</p>
+
+                <div class="contact-card">
+                    <div class="section-title" style="margin-bottom:8px;">We're here to help</div>
+                    <p style="margin:6px 0;">Call: <a href="tel:{{ contact_phone }}">{{ contact_phone }}</a></p>
+                    <p style="margin:6px 0;">Email: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>
+                    <p style="margin:6px 0;">This inbox is monitored Monday to Friday, 9.00am – 5.00pm AWST.</p>
                 </div>
+
+                <p style="margin-top: 24px;">Warm regards,<br>The Perth Art School Team</p>
             </div>
-        </div>
-        
-        <div class="footer">
-            <p>This email was sent to {{ recipient_email }} regarding your enrolment application at Perth Art School.</p>
-            <p>© 2025 Perth Art School. All rights reserved.</p>
-            <p><a href="https://{{ site_domain }}">Visit our website</a> | <a href="mailto:{{ contact_email }}">Contact us</a></p>
+            <div class="email-footer">
+                <p style="margin:4px 0;">This email was sent to {{ recipient_email }} about your enrolment.</p>
+                <p style="margin:4px 0;">&copy; {{ current_year }} Perth Art School</p>
+                <p style="margin:4px 0;"><a href="https://{{ site_domain }}">perthartschool.com.au</a></p>
+            </div>
         </div>
     </div>
 </body>

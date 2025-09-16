@@ -281,13 +281,15 @@ def _send_email_notification(student, email, subject, message, message_type):
     # Get active email configuration
     email_config = EmailSettings.get_active_config()
 
-    # Fallback sender details when no active configuration is stored
-    reply_to_override = 'info@perthartschool.com.au'
+    # Get organisation settings for default reply-to
+    from core.models import OrganisationSettings
+    org_settings = OrganisationSettings.get_instance()
+    default_reply_to = org_settings.reply_to_email
 
     if email_config:
         from_name = email_config.from_name
         from_email_address = email_config.from_email
-        reply_to_email = reply_to_override
+        reply_to_email = email_config.reply_to_email or default_reply_to
         backend_label = email_config.get_email_backend_type_display()
     else:
         from django.conf import settings
@@ -295,7 +297,7 @@ def _send_email_notification(student, email, subject, message, message_type):
         from_email_address = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', None)
         if not from_email_address:
             raise Exception('No active email configuration found and DEFAULT_FROM_EMAIL is not set')
-        reply_to_email = reply_to_override
+        reply_to_email = default_reply_to
         backend_label = 'environment'
     
     # Create email backend connection using configured backend

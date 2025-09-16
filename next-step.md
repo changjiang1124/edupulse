@@ -140,6 +140,13 @@ create:
 
 
 ### enrolment
+
+- [x] what is the url of public access enrolment form? /enroll/public or just /enroll/ ? please confirm.
+  - **CONFIRMED**: The public access enrollment form URL is `/enroll/` (just /enroll/)
+  - This is configured in `edupulse/urls.py` as `path('enroll/', include('enrollment.urls'))`
+  - The enrollment app's URL pattern maps the root path `''` to `PublicEnrollmentView`, making the full URL `/enroll/`
+  - Course-specific enrollment URLs use `/enroll/?course=123` format with query parameters
+
 - [x] after submission, the email should include bank transfer information, and if new student, the registration fee (if any) should be included in the total amount. and the course should have a new enrolment added as well, with pending status. and the vacancy should not be changed until the enrolment is confirmed by operator.
 
 - [x] The enrollment URL copied from course detail page should be identical to the public enrollment URL, with the only addition being a course ID parameter. When accessing this URL, the course selection dropdown should automatically pre-select the specified course. For example:
@@ -201,6 +208,21 @@ create:
 
 - [x] in student detail page, review the code to see if all the infomration shown are accurate. e.g. attendance history.
 
+- [x] student's list multiple select should add 'add tag' action in batch as well, thus, it can be easily edited. and in the list filter, should allow multi choose tags to filter, after filtered, the select all should apply to filtered result. thus the operator can easily edit their tags in batch (like wordpress post tags), or send notification.
+- and in the student detail page, should show all the tags of the student, and allow add or remove tag action as well. 
+
+
+- [x] the action after selected multiple students in the list, should be embeded next to the select all checkbox, instead of having a separate row for it, as it will make the list position changed upon selection. actions should be as options in a dropdown next to the select all checkbox. and the actions should include: add tag, remove tag, send notification, and a `apply` button next to it to trigger the action. 
+
+- [x] the current tags are pre-configured. can we make it free text input with suggestions? so the operator can create new tags on the fly. and the tags should be saved in lower case to avoid duplication. e.g. VIP and vip are the same tag. the tag textbox interaction should be used in both student detail page to edit tag, and student list to add tags for multiple selected students. 
+
+- [x] the tags filter should be a select of existing tags with multi select enabled, instead of a crowd group.  
+
+- [x] edit student form is messy. `http://127.0.0.1:9001/students/11/edit/` please refine the layout and style, and review the fields from user expeirence point of view. 
+
+- [x] enrolment if match existing student but with different email address, the enrolment submission confirmation email is sent to the old email address. actually if matched (name + DOB or phone number), the email should be updated to the new one provided in the enrolment form, so as the email sent to the new email address. please check and fix it. and test it.
+
+- [o] email function test. as there is no indication after send email to selected students, there should be a notification history in their detail page. and a notification history page for operator to check the email and sms sent history, with filter by name search, type (email or sms). email 
 
 ### Staff 
 - [x] why in staff detail page, there could be showing staff role is not staff in system access panel? it's confusing, especially for those who are not aware of there is django admin backend. what do you recommend? should we change the label or remove this panel? and check the information of this page is accurate or not.

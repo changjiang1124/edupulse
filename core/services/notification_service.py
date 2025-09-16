@@ -64,7 +64,7 @@ class NotificationService:
                 body=text_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[recipient_email],
-                reply_to=[org_settings.contact_email],
+                reply_to=[org_settings.reply_to_email],
             )
             email.attach_alternative(html_content, "text/html")
             
@@ -136,12 +136,12 @@ class NotificationService:
                 body=text_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[recipient_email],
-                reply_to=[org_settings.contact_email],
+                reply_to=[org_settings.reply_to_email],
             )
             email.attach_alternative(html_content, "text/html")
-            
+
             sent = email.send()
-            
+
             if sent:
                 logger.info(f"Enrollment pending email sent to {recipient_email} for enrollment {enrollment.id}")
                 return True
@@ -193,12 +193,12 @@ class NotificationService:
                 body=text_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[recipient_email],
-                reply_to=[org_settings.contact_email],
+                reply_to=[org_settings.reply_to_email],
             )
             email.attach_alternative(html_content, "text/html")
-            
+
             sent = email.send()
-            
+
             if sent:
                 logger.info(f"Welcome email sent to {recipient_email} for enrollment {enrollment.id}")
                 return True
@@ -253,12 +253,12 @@ class NotificationService:
                 body=text_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[recipient_email],
-                reply_to=[org_settings.contact_email],
+                reply_to=[org_settings.reply_to_email],
             )
             email.attach_alternative(html_content, "text/html")
-            
+
             sent = email.send()
-            
+
             if sent:
                 logger.info(f"Course reminder email sent to {recipient_email} for class {class_instance.id}")
                 return True
@@ -313,12 +313,12 @@ class NotificationService:
                 body=text_content,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[recipient_email],
-                reply_to=[org_settings.contact_email],
+                reply_to=[org_settings.reply_to_email],
             )
             email.attach_alternative(html_content, "text/html")
-            
+
             sent = email.send()
-            
+
             if sent:
                 logger.info(f"Attendance notice email sent to {recipient_email} for attendance {attendance_record.id}")
                 return True

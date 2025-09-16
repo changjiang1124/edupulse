@@ -4,9 +4,42 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 from .models import (
     ClockInOut, EmailSettings, SMSSettings, EmailLog, SMSLog, 
-    NotificationQuota, WooCommerceSyncLog, WooCommerceSyncQueue
+    NotificationQuota, WooCommerceSyncLog, WooCommerceSyncQueue, OrganisationSettings
 )
 import json
+
+
+@admin.register(OrganisationSettings)
+class OrganisationSettingsAdmin(admin.ModelAdmin):
+    list_display = ('organisation_name', 'contact_email', 'reply_to_email', 'contact_phone', 'updated_at')
+    search_fields = ('organisation_name', 'contact_email', 'reply_to_email')
+    
+    fieldsets = (
+        ('Organisation Details', {
+            'fields': ('organisation_name', 'abn_number')
+        }),
+        ('Contact Information', {
+            'fields': ('contact_email', 'reply_to_email', 'contact_phone')
+        }),
+        ('GST Configuration', {
+            'fields': ('prices_include_gst', 'gst_rate', 'show_gst_breakdown', 'gst_label'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at', 'updated_by'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    readonly_fields = ('created_at', 'updated_at')
+    
+    def has_add_permission(self, request):
+        # Only allow one instance (singleton pattern)
+        return not OrganisationSettings.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        # Don't allow deletion of organisation settings
+        return False
 
 
 @admin.register(EmailSettings)
