@@ -3,6 +3,89 @@
 
 {% block title %}{{ student.first_name }} {{ student.last_name }} - Student Details - EduPulse{% endblock %}
 
+{% block extra_css %}
+<style>
+    .tag-badge {
+        font-size: 0.75rem;
+        margin-right: 2px;
+        margin-bottom: 2px;
+    }
+
+    /* Tag selection in modal */
+    .tag-selection-item {
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .tag-selection-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .tag-selection-item.selected {
+        background-color: #e3f2fd;
+        border-color: #1976d2;
+    }
+
+    .tag-selection-item .tag-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .tag-count {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    /* Tag suggestions styles */
+    .dropdown-item.tag-option {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.55rem 0.85rem;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        white-space: normal;
+        width: 100%;
+        text-align: left;
+        border-left: 3px solid transparent;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .dropdown-item.tag-option:hover {
+        background-color: #eef2ff;
+        border-left-color: #4566ff;
+    }
+
+    .dropdown-item.tag-option .badge {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.75rem;
+        border-radius: 999px;
+        min-width: 60px;
+        text-align: center;
+    }
+
+    .dropdown-item.tag-option small {
+        margin-left: auto;
+        color: #64748b;
+        font-size: 0.75rem;
+    }
+
+    /* Search functionality */
+    .dropdown-empty-state {
+        padding: 1rem;
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Standard Detail Page Header -->
 <div class="mb-3">
