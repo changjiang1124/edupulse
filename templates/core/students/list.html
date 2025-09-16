@@ -13,32 +13,263 @@
     .student-checkbox {
         cursor: pointer;
     }
+    /* Z-Index层级体系标准化 */
+    /* 层级体系：
+       1-10: 基础内容层
+       11-50: 交互元素层 (悬停、选中状态)
+       51-100: 粘性/固定元素层
+       1051-1070: 下拉框/模态框层 (遵循Bootstrap标准)
+    */
+
+    .card {
+        position: relative;
+        z-index: 1;
+    }
+
+    .card.card-filter {
+        z-index: 30;
+    }
+
+    .card.card-student-list {
+        z-index: 20;
+    }
+
+    .card-header, .card-body {
+        position: relative;
+        z-index: 2;
+    }
+
+    /* 表格悬停效果层级调整 */
+    .table-hover tbody tr:hover {
+        z-index: 15;
+        position: relative;
+    }
+
+    /* 确保选中的行有合适的层级 */
     .clickable-row.selected {
         background-color: #e3f2fd !important;
+        z-index: 16;
+        position: relative;
     }
 
-    /* Tag filter styles */
-    .tag-filter-container {
+    /* 批量操作区域层级 */
+    #bulkActionsCompact {
+        border-left: 1px solid #dee2e6;
+        padding-left: 1rem;
+        white-space: nowrap;
+        align-items: center;
+        z-index: 10;
+        position: relative;
+    }
+
+    #bulkActionsCompact .text-muted {
+        margin-right: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    /* Multi-select dropdown styles */
+    .multi-select-dropdown {
+        position: relative;
+        width: 100%;
+        z-index: 1055;
+    }
+
+    /* 移除Bootstrap默认箭头，避免重复 */
+    #tagFilterButton::after {
+        display: none !important;
+    }
+
+    /* 确保容器不会干扰下拉框显示 */
+    .card, .card-body, .table-responsive {
+        overflow: visible !important;
+    }
+
+    .multi-select-dropdown .dropdown-menu {
+        width: 100%;
+        min-width: 100%;
+        max-height: 348px;
+        overflow: hidden;
+        padding: 0;
         border: 1px solid #dee2e6;
-        border-radius: 0.375rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 1rem 2rem rgba(15, 23, 42, 0.18);
+        background-color: #ffffff;
+        position: absolute;
+        left: 0;
+        right: 0;
+        z-index: 1100;
+    }
+
+    .multi-select-dropdown .dropdown-menu.show {
+        transform: none !important;
+    }
+
+    .multi-select-dropdown .dropdown-menu[data-bs-popper] {
+        margin-top: 0;
+        top: calc(100% + 0.375rem);
+        left: 0;
+    }
+
+    .dropdown-search {
         padding: 0.75rem;
-        background-color: #f8f9fa;
+        background: #ffffff;
+        border-bottom: 1px solid #e2e8f0;
+        position: sticky;
+        top: 0;
+        z-index: 2;
     }
 
-    .tag-filters-wrapper {
-        max-height: 120px;
+    .dropdown-search .form-control {
+        border-radius: 0.5rem;
+        border-color: #cbd5f5;
+        box-shadow: none;
+    }
+
+    .dropdown-search .form-control:focus {
+        border-color: #4361ee;
+        box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.15);
+    }
+
+    .dropdown-options {
+        max-height: 240px;
         overflow-y: auto;
-        margin-bottom: 0.5rem;
+        padding: 0.5rem 0;
     }
 
-    .tag-filters-wrapper .form-check-inline {
-        margin-bottom: 0.25rem;
+    .dropdown-item.tag-option {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.55rem 0.85rem;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        white-space: normal;
+        width: 100%;
+        text-align: left;
+        border-left: 3px solid transparent;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
     }
 
-    .tag-filter-controls {
-        border-top: 1px solid #dee2e6;
-        padding-top: 0.5rem;
+    .dropdown-item.tag-option:hover {
+        background-color: #eef2ff;
+        border-left-color: #4566ff;
     }
+
+    .dropdown-item.tag-option .form-check-input {
+        margin-top: 0;
+    }
+
+    .dropdown-item.tag-option .badge {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.75rem;
+        border-radius: 999px;
+    }
+
+    .dropdown-item.tag-option small {
+        margin-left: auto;
+        color: #64748b;
+        font-size: 0.75rem;
+    }
+
+    .dropdown-item.tag-option:active {
+        background-color: #e9ecef;
+    }
+
+    .dropdown-footer {
+        padding: 0.75rem;
+        background-color: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        position: sticky;
+        bottom: 0;
+        z-index: 1;
+    }
+
+    .dropdown-footer .btn-link {
+        color: #64748b;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .dropdown-footer .btn-link:hover {
+        color: #1d4ed8;
+        text-decoration: underline;
+    }
+
+    .multi-select-dropdown .dropdown-toggle {
+        text-align: left;
+        cursor: pointer;
+        border: 1px solid #ced4da;
+        background-color: #fff;
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        border-radius: 0.375rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    #tagFilterButton {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    #tagFilterLabel {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .multi-select-dropdown .dropdown-toggle:hover {
+        border-color: #86b7fe;
+    }
+
+    .multi-select-dropdown .dropdown-toggle:focus {
+        border-color: #86b7fe;
+        outline: 0;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .multi-select-dropdown .dropdown-toggle .fas {
+        font-size: 0.75rem;
+        transition: transform 0.15s ease-in-out;
+    }
+
+    .multi-select-dropdown .dropdown-toggle[aria-expanded="true"] .fas {
+        transform: rotate(180deg);
+    }
+
+    .dropdown-item.tag-option .form-check-input {
+        margin-top: 0;
+    }
+
+    .dropdown-item.tag-option .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    /* Search functionality */
+    .dropdown-options .dropdown-item.hidden {
+        display: none;
+    }
+
+    .dropdown-item.tag-option .badge {
+        min-width: 60px;
+        text-align: center;
+    }
+
+    /* Empty state */
+    .dropdown-empty-state {
+        padding: 1rem;
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+    }
+
+    /* Tag filter styles - keep for legacy compatibility */
 
     /* Compact bulk actions styles */
     .gap-3 {
@@ -47,18 +278,6 @@
 
     .gap-2 {
         gap: 0.5rem !important;
-    }
-
-    #bulkActionsCompact {
-        border-left: 1px solid #dee2e6;
-        padding-left: 1rem;
-        white-space: nowrap;
-        align-items: center;
-    }
-
-    #bulkActionsCompact .text-muted {
-        margin-right: 0.5rem;
-        flex-shrink: 0;
     }
 
     /* Tag selection in modal */
@@ -107,7 +326,7 @@
 <!-- Search and Filters -->
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card">
+        <div class="card card-filter">
             <div class="card-body">
                 <form method="get" class="row g-3" id="searchForm">
                     <div class="col-md-6">
@@ -117,37 +336,43 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Filter by Tags</label>
-                        <div class="tag-filter-container">
-                            <div class="tag-filters-wrapper" id="tagFiltersWrapper">
-                                {% for tag in student_tags %}
-                                <div class="form-check form-check-inline">
-                                    <input type="checkbox"
-                                           class="form-check-input tag-filter-checkbox"
-                                           name="tags"
-                                           value="{{ tag.id }}"
-                                           id="tag_{{ tag.id }}"
-                                           {% if tag.id in selected_tag_ids %}checked{% endif %}
-                                           onchange="updateTagFilter()">
-                                    <label class="form-check-label" for="tag_{{ tag.id }}">
-                                        <span class="badge" style="background-color: {{ tag.colour }};">
-                                            {{ tag.name }}
-                                        </span>
-                                    </label>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            {% if student_tags %}
-                            <div class="tag-filter-controls mt-2">
-                                <button type="button" class="btn btn-link btn-sm p-0" onclick="clearAllTagFilters()">
-                                    <i class="fas fa-times"></i> Clear All
+                        <div class="position-relative">
+                            <div class="multi-select-dropdown" id="tagFilterDropdown">
+                                <button type="button" class="form-control dropdown-toggle d-flex justify-content-between align-items-center"
+                                        data-bs-toggle="dropdown" aria-expanded="false" id="tagFilterButton">
+                                    <span id="tagFilterLabel">Select tags...</span>
+                                    <i class="fas fa-chevron-down"></i>
                                 </button>
-                                <span class="mx-2">|</span>
-                                <small class="text-muted">
-                                    <span id="selectedTagCount">{{ selected_tag_ids|length }}</span>
-                                    tag{{ selected_tag_ids|length|pluralize }} selected
-                                </small>
+                                <div class="dropdown-menu" style="width: 100%;" id="tagFilterMenu">
+                                    <div class="dropdown-search">
+                                        <input type="text" class="form-control form-control-sm"
+                                               placeholder="Search tags..." id="tagSearchInput">
+                                    </div>
+                                    <div class="dropdown-divider"></div>
+                                    <div class="dropdown-options" id="tagDropdownOptions">
+                                        {% for tag in student_tags %}
+                                        <label class="dropdown-item tag-option" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name }}">
+                                            <input type="checkbox" name="tags" value="{{ tag.id }}"
+                                                   class="form-check-input me-2 tag-filter-checkbox"
+                                                   {% if tag.id in selected_tag_ids %}checked{% endif %}>
+                                            <span class="badge me-2" style="background-color: {{ tag.colour }};">
+                                                {{ tag.name }}
+                                            </span>
+                                            <small class="text-muted ms-auto">({{ tag.students.count }} students)</small>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="dropdown-divider"></div>
+                                    <div class="dropdown-footer d-flex justify-content-between align-items-center">
+                                        <button type="button" class="btn btn-link btn-sm p-0" onclick="clearAllTagFilters()">
+                                            <i class="fas fa-times"></i> Clear All
+                                        </button>
+                                        <small class="text-muted">
+                                            <span id="selectedTagCount">{{ selected_tag_ids|length }}</span> tag{{ selected_tag_ids|length|pluralize }} selected
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
-                            {% endif %}
                         </div>
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
@@ -162,7 +387,7 @@
 <!-- Students List -->
 <div class="row">
     <div class="col-12">
-        <div class="card">
+        <div class="card card-student-list">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Students ({{ students|length }})</h5>
                 <div class="d-flex align-items-center gap-3">
@@ -466,26 +691,169 @@ let availableTags = [];
 let selectedTagsForOperation = new Set();
 let currentTagOperation = 'add';
 
-// Tag filtering functions
+// Multi-select dropdown tag filter functions
+class TagFilterDropdown {
+    constructor() {
+        this.selectedTags = new Set();
+        this.allTags = [];
+        this.searchInput = null;
+        this.dropdownOptions = null;
+        this.init();
+    }
+
+    init() {
+        this.loadTags();
+        this.bindEvents();
+        this.updateDisplay();
+    }
+
+    loadTags() {
+        // Load tags from DOM
+        const tagOptions = document.querySelectorAll('.tag-option');
+        this.allTags = Array.from(tagOptions).map(option => ({
+            id: parseInt(option.dataset.tagId),
+            name: option.dataset.tagName,
+            element: option,
+            checkbox: option.querySelector('input[type="checkbox"]')
+        }));
+
+        // Load selected tags from checkboxes
+        this.allTags.forEach(tag => {
+            if (tag.checkbox.checked) {
+                this.selectedTags.add(tag.id);
+            }
+        });
+    }
+
+    bindEvents() {
+        // Search input
+        this.searchInput = document.getElementById('tagSearchInput');
+        if (this.searchInput) {
+            this.searchInput.addEventListener('input', (e) => this.filterTags(e.target.value));
+        }
+
+        // Tag checkboxes
+        this.allTags.forEach(tag => {
+            tag.checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                this.toggleTag(tag.id, e.target.checked);
+            });
+        });
+
+        // Dropdown menu click handling
+        this.dropdownOptions = document.getElementById('tagDropdownOptions');
+        if (this.dropdownOptions) {
+            this.dropdownOptions.addEventListener('click', (e) => {
+                // Prevent dropdown from closing when clicking inside
+                e.stopPropagation();
+            });
+        }
+
+        // Prevent dropdown from closing when clicking search input
+        if (this.searchInput) {
+            this.searchInput.addEventListener('click', (e) => e.stopPropagation());
+        }
+    }
+
+    toggleTag(tagId, checked) {
+        if (checked) {
+            this.selectedTags.add(tagId);
+        } else {
+            this.selectedTags.delete(tagId);
+        }
+        this.updateDisplay();
+        this.submitFilter();
+    }
+
+    filterTags(searchTerm) {
+        const term = searchTerm.toLowerCase().trim();
+        let visibleCount = 0;
+
+        this.allTags.forEach(tag => {
+            const matches = tag.name.toLowerCase().includes(term);
+            tag.element.classList.toggle('hidden', !matches);
+            if (matches) visibleCount++;
+        });
+
+        // Show/hide empty state
+        this.updateEmptyState(visibleCount === 0 && term.length > 0);
+    }
+
+    updateEmptyState(show) {
+        let emptyState = document.getElementById('tagDropdownEmptyState');
+
+        if (show && !emptyState) {
+            // Create empty state element
+            emptyState = document.createElement('div');
+            emptyState.id = 'tagDropdownEmptyState';
+            emptyState.className = 'dropdown-empty-state';
+            emptyState.textContent = 'No tags found matching your search';
+            this.dropdownOptions.appendChild(emptyState);
+        } else if (!show && emptyState) {
+            // Remove empty state element
+            emptyState.remove();
+        }
+    }
+
+    updateDisplay() {
+        // Update button label
+        const button = document.getElementById('tagFilterLabel');
+        const count = this.selectedTags.size;
+
+        if (count === 0) {
+            button.textContent = 'Select tags...';
+        } else if (count === 1) {
+            const selectedTag = this.allTags.find(tag => this.selectedTags.has(tag.id));
+            button.textContent = selectedTag ? selectedTag.name : '1 tag selected';
+        } else {
+            button.textContent = `${count} tags selected`;
+        }
+
+        // Update count in footer
+        const countSpan = document.getElementById('selectedTagCount');
+        if (countSpan) {
+            countSpan.textContent = count;
+        }
+    }
+
+    clearAll() {
+        this.selectedTags.clear();
+        this.allTags.forEach(tag => {
+            tag.checkbox.checked = false;
+        });
+        this.updateDisplay();
+        this.submitFilter();
+    }
+
+    submitFilter() {
+        // Auto-submit form when selection changes
+        setTimeout(() => {
+            document.getElementById('searchForm').submit();
+        }, 100);
+    }
+}
+
+// Initialize tag filter dropdown
+let tagFilterDropdown;
+
+// Tag filtering functions (legacy compatibility)
 function updateTagFilter() {
-    updateSelectedTagCount();
-    // Auto-submit form when tag selection changes
-    setTimeout(() => {
-        document.getElementById('searchForm').submit();
-    }, 100);
+    if (tagFilterDropdown) {
+        tagFilterDropdown.updateDisplay();
+        tagFilterDropdown.submitFilter();
+    }
 }
 
 function updateSelectedTagCount() {
-    const checkedTags = document.querySelectorAll('.tag-filter-checkbox:checked');
-    document.getElementById('selectedTagCount').textContent = checkedTags.length;
+    if (tagFilterDropdown) {
+        tagFilterDropdown.updateDisplay();
+    }
 }
 
 function clearAllTagFilters() {
-    document.querySelectorAll('.tag-filter-checkbox').forEach(checkbox => {
-        checkbox.checked = false;
-    });
-    updateSelectedTagCount();
-    document.getElementById('searchForm').submit();
+    if (tagFilterDropdown) {
+        tagFilterDropdown.clearAll();
+    }
 }
 
 // Student selection functions
@@ -768,6 +1136,9 @@ async function performBulkTagOperation() {
 
 // Handle notification type change
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tag filter dropdown
+    tagFilterDropdown = new TagFilterDropdown();
+
     const notificationTypeSelect = document.getElementById('notificationType');
     const emailSubjectGroup = document.getElementById('emailSubjectGroup');
     const messageContent = document.getElementById('messageContent');
