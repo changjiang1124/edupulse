@@ -19,14 +19,10 @@ class EmailSettingsForm(forms.ModelForm):
     class Meta:
         model = EmailSettings
         fields = [
-            'email_backend_type', 'smtp_host', 'smtp_port', 'smtp_username', 
+            'smtp_host', 'smtp_port', 'smtp_username', 
             'smtp_password', 'use_tls', 'from_email', 'from_name', 'reply_to_email', 'is_active'
         ]
         widgets = {
-            'email_backend_type': forms.Select(attrs={
-                'class': 'form-select',
-                'onchange': 'handleBackendTypeChange(this.value)'
-            }),
             'smtp_host': forms.TextInput(attrs={
                 'class': 'form-control'
             }),
@@ -35,11 +31,11 @@ class EmailSettingsForm(forms.ModelForm):
             }),
             'smtp_username': forms.EmailInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'your-email@gmail.com'
+                'placeholder': 'your-email@example.com'
             }),
             'smtp_password': forms.PasswordInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'App Password (16 characters)'
+                'placeholder': 'Your email password or App Password'
             }),
             'use_tls': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
@@ -63,51 +59,18 @@ class EmailSettingsForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        # Add help text for Google Workspace
-        self.fields['smtp_password'].help_text = '''
-        For Google Workspace:
-        1. Enable 2-Factor Authentication on your Google account
-        2. Generate an App Password (16 characters, no spaces)
-        3. Use the App Password here, NOT your regular password
-        '''
-        
-        # Set initial values based on backend type
-        if self.instance and self.instance.email_backend_type == 'google_workspace':
-            self.fields['smtp_host'].widget.attrs['readonly'] = True
-            self.fields['smtp_port'].widget.attrs['readonly'] = True
-            self.fields['use_tls'].widget.attrs['disabled'] = True
-    
+        self.fields['smtp_password'].help_text = (
+            'For some providers like Google Workspace, you may need to use an App Password.'
+        )
+
     def clean(self):
         cleaned_data = super().clean()
-        email_backend_type = cleaned_data.get('email_backend_type')
-        smtp_username = cleaned_data.get('smtp_username')
-        smtp_password = cleaned_data.get('smtp_password')
-        
-        # Google Workspace specific validation
-        if email_backend_type == 'google_workspace':
-            if smtp_username and not (smtp_username.endswith('@gmail.com') or '@' in smtp_username):
-                raise ValidationError({
-                    'smtp_username': 'Google Workspace requires a valid Gmail address'
-                })
-            
-            # App Password validation (basic check)
-            if smtp_password and len(smtp_password) < 8:
-                raise ValidationError({
-                    'smtp_password': 'Google Workspace App Password should be at least 8 characters'
-                })
-        
+        # Add any SMTP-specific validation here if needed in the future
         return cleaned_data
-    
+
     def save(self, commit=True):
         instance = super().save(commit=False)
-        
-        # Auto-fill Google Workspace settings
-        if instance.email_backend_type == 'google_workspace':
-            instance.smtp_host = 'smtp.gmail.com'
-            instance.smtp_port = 587
-            instance.use_tls = True
-        
+        instance.email_backend_type = 'smtp'  # Always set to smtp
         if commit:
             instance.save()
         return instance

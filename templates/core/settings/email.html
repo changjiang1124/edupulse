@@ -54,8 +54,8 @@
     <div class="settings-header">
         <div class="row align-items-center">
             <div class="col">
-                <h1 class="display-6 fw-bold mb-2">
-                    <i class="fas fa-cog me-3"></i>Email Configuration
+                <h1 class="display-6 fw-bold mb-2 text-white">
+                    Email Configuration
                 </h1>
                 <p class="lead mb-0">Manage SMTP settings for sending system emails</p>
             </div>
@@ -66,32 +66,14 @@
         <!-- Configuration Form -->
         <div class="col-lg-8">
             <div class="card settings-card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-envelope me-2"></i>SMTP Configuration
+                <div class="card-header bg-primary">
+                    <h5 class="mb-0 text-white">
+                        SMTP Configuration
                     </h5>
                 </div>
                 <div class="card-body">
                     <form method="post" id="emailConfigForm">
                         {% csrf_token %}
-                        
-                        <!-- Service Type Selection -->
-                        <div class="mb-4">
-                            <label for="{{ form.email_backend_type.id_for_label }}" class="form-label fw-bold">
-                                Email Service Type
-                            </label>
-                            {{ form.email_backend_type }}
-                            
-                            <!-- Preset buttons -->
-                            <div class="mt-2">
-                                <button type="button" class="btn btn-sm btn-outline-success preset-btn" onclick="setGoogleWorkspaceDefaults()">
-                                    <i class="fab fa-google me-1"></i>Google Workspace Quick Setup
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-info preset-btn" onclick="setAWSDefaults()">
-                                    <i class="fab fa-aws me-1"></i>AWS SES Setup
-                                </button>
-                            </div>
-                        </div>
 
                         <!-- SMTP Settings -->
                         <div class="row">
