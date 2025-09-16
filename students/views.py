@@ -150,7 +150,7 @@ def bulk_notification(request):
     subject = cleaned_data.get('subject', '')
     message = cleaned_data['message']
     send_to = cleaned_data['send_to']
-    student_ids = cleaned_data.get('student_ids', [])
+    student_ids = cleaned_data.get('student_id_list', [])
     selected_tags = cleaned_data.get('selected_tags', [])
     
     # Determine recipient students
@@ -276,26 +276,38 @@ def bulk_notification(request):
 
 def _send_email_notification(student, email, subject, message, message_type):
     """Send email notification to student"""
-    from django.core.mail import EmailMessage
-    from core.backends import get_email_backend
+    from django.core.mail import EmailMessage, get_connection
     
     # Get active email configuration
     email_config = EmailSettings.get_active_config()
-    if not email_config:
-        raise Exception('No active email configuration found')
+
+    # Fallback sender details when no active configuration is stored
+    reply_to_override = 'info@perthartschool.com.au'
+
+    if email_config:
+        from_name = email_config.from_name
+        from_email_address = email_config.from_email
+        reply_to_email = reply_to_override
+        backend_label = email_config.get_email_backend_type_display()
+    else:
+        from django.conf import settings
+        from_name = getattr(settings, 'DEFAULT_FROM_NAME', 'EduPulse Notifications')
+        from_email_address = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', None)
+        if not from_email_address:
+            raise Exception('No active email configuration found and DEFAULT_FROM_EMAIL is not set')
+        reply_to_email = reply_to_override
+        backend_label = 'environment'
     
-    # Create email backend
-    backend = get_email_backend()
-    if not backend:
-        raise Exception('Email backend not available')
+    # Create email backend connection using configured backend
+    backend = get_connection()
     
     # Create and send email
     email_message = EmailMessage(
         subject=subject,
         body=message,
-        from_email=f'{email_config.from_name} <{email_config.from_email}>',
+        from_email=f'{from_name} <{from_email_address}>' if from_name else from_email_address,
         to=[email],
-        reply_to=[email_config.reply_to_email or email_config.from_email],
+        reply_to=[reply_to_email] if reply_to_email else None,
         connection=backend
     )
     
@@ -309,7 +321,7 @@ def _send_email_notification(student, email, subject, message, message_type):
         content=message,
         email_type=message_type,
         status='sent',
-        email_backend=email_config.get_email_backend_type_display(),
+        email_backend=backend_label,
         sent_at=timezone.now()
     )
 

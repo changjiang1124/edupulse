@@ -532,6 +532,7 @@
                 <div class="modal-body">
                     {% csrf_token %}
                     <input type="hidden" name="student_ids" id="selectedStudentIds">
+                    <input type="hidden" name="send_to" value="selected">
                     
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i>
@@ -1130,74 +1131,81 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize tag filter dropdown
     tagFilterDropdown = new TagFilterDropdown();
 
+    const bulkNotificationForm = document.getElementById('bulkNotificationForm');
+    if (!bulkNotificationForm) {
+        return;
+    }
+
     const notificationTypeSelect = document.getElementById('notificationType');
     const emailSubjectGroup = document.getElementById('emailSubjectGroup');
     const messageContent = document.getElementById('messageContent');
     const messageCounter = document.getElementById('messageCounter');
     const smsWarning = document.getElementById('smsWarning');
-    
-    function updateFormVisibility() {
-        const notificationType = notificationTypeSelect.value;
-        
-        // Show/hide email subject field
-        if (notificationType === 'email' || notificationType === 'both') {
-            emailSubjectGroup.style.display = 'block';
-            document.getElementById('emailSubject').required = true;
-        } else {
-            emailSubjectGroup.style.display = 'none';
-            document.getElementById('emailSubject').required = false;
+
+    if (notificationTypeSelect && emailSubjectGroup && messageContent && messageCounter && smsWarning) {
+        function updateFormVisibility() {
+            const notificationType = notificationTypeSelect.value;
+
+            // Show/hide email subject field
+            if (notificationType === 'email' || notificationType === 'both') {
+                emailSubjectGroup.style.display = 'block';
+                document.getElementById('emailSubject').required = true;
+            } else {
+                emailSubjectGroup.style.display = 'none';
+                document.getElementById('emailSubject').required = false;
+            }
+
+            // Show/hide SMS character warning
+            if (notificationType === 'sms' || notificationType === 'both') {
+                smsWarning.style.display = 'inline';
+            } else {
+                smsWarning.style.display = 'none';
+            }
         }
-        
-        // Show/hide SMS character warning
-        if (notificationType === 'sms' || notificationType === 'both') {
-            smsWarning.style.display = 'inline';
-        } else {
-            smsWarning.style.display = 'none';
+
+        function updateCharacterCount() {
+            const length = messageContent.value.length;
+            messageCounter.textContent = length;
+
+            if (length > 160 && (notificationTypeSelect.value === 'sms' || notificationTypeSelect.value === 'both')) {
+                messageCounter.classList.add('text-danger');
+            } else {
+                messageCounter.classList.remove('text-danger');
+            }
         }
+
+        notificationTypeSelect.addEventListener('change', updateFormVisibility);
+        messageContent.addEventListener('input', updateCharacterCount);
+
+        // Initial setup
+        updateFormVisibility();
+        updateCharacterCount();
+
+        // Handle form submission
+        bulkNotificationForm.addEventListener('submit', function(e) {
+            const notificationType = notificationTypeSelect.value;
+            const messageLength = messageContent.value.length;
+
+            // Validate SMS length
+            if ((notificationType === 'sms' || notificationType === 'both') && messageLength > 160) {
+                e.preventDefault();
+                alert('SMS messages cannot exceed 160 characters. Please shorten your message.');
+                return false;
+            }
+
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            submitBtn.disabled = true;
+
+            // Re-enable after 10 seconds as fallback
+            setTimeout(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }, 10000);
+        });
     }
-    
-    function updateCharacterCount() {
-        const length = messageContent.value.length;
-        messageCounter.textContent = length;
-        
-        if (length > 160 && (notificationTypeSelect.value === 'sms' || notificationTypeSelect.value === 'both')) {
-            messageCounter.classList.add('text-danger');
-        } else {
-            messageCounter.classList.remove('text-danger');
-        }
-    }
-    
-    notificationTypeSelect.addEventListener('change', updateFormVisibility);
-    messageContent.addEventListener('input', updateCharacterCount);
-    
-    // Initial setup
-    updateFormVisibility();
-    updateCharacterCount();
-    
-    // Handle form submission
-    document.getElementById('bulkNotificationForm').addEventListener('submit', function(e) {
-        const notificationType = notificationTypeSelect.value;
-        const messageLength = messageContent.value.length;
-        
-        // Validate SMS length
-        if ((notificationType === 'sms' || notificationType === 'both') && messageLength > 160) {
-            e.preventDefault();
-            alert('SMS messages cannot exceed 160 characters. Please shorten your message.');
-            return false;
-        }
-        
-        // Show loading state
-        const submitBtn = this.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-        submitBtn.disabled = true;
-        
-        // Re-enable after 10 seconds as fallback
-        setTimeout(() => {
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-        }, 10000);
-    });
 });
 
 // Reset interfaces
