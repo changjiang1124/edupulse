@@ -1,26 +1,46 @@
-aiohappyeyeballs==2.6.1
+# Core Django and web framework
+Django==5.2.5
+asgiref==3.9.1
+sqlparse==0.5.3
+gunicorn==22.0.0
+
+# Django extensions and plugins
+django-tinymce==4.1.0
+django-crontab==0.7.1
+
+# Environment and configuration
+python-dotenv==1.1.1
+
+# Image processing
+pillow==11.3.0
+
+# Excel/spreadsheet support
+openpyxl==3.1.5
+et_xmlfile==2.0.0
+
+# QR code generation
+qrcode==8.2
+
+# Communication services
+twilio==9.7.2
+
+# HTTP requests and networking
+requests==2.32.5
 aiohttp==3.12.15
 aiohttp-retry==2.9.1
+aiohappyeyeballs==2.6.1
 aiosignal==1.4.0
-asgiref==3.9.1
 attrs==25.3.0
+frozenlist==1.7.0
+multidict==6.6.4
+propcache==0.3.2
+yarl==1.20.1
+
+# Security and authentication
+PyJWT==2.10.1
+
+# Utilities
 certifi==2025.8.3
 charset-normalizer==3.4.3
-Django==5.2.5
-django-tinymce==4.1.0
-et_xmlfile==2.0.0
-frozenlist==1.7.0
 idna==3.10
-multidict==6.6.4
-openpyxl==3.1.5
-pillow==11.3.0
-propcache==0.3.2
-PyJWT==2.10.1
-python-dotenv==1.1.1
-qrcode==8.2
-requests==2.32.5
-sqlparse==0.5.3
-twilio==9.7.2
 urllib3==2.5.0
-yarl==1.20.1
-gunicorn==22.0.0

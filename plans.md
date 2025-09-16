@@ -1,3 +1,131 @@
+## 域名配置优化 - 解决生产环境URL问题 (2025-01-25) ✅ 已完成
+
+### 问题描述
+在生产环境中，公共注册链接（同步到WordPress）仍然使用example.com作为主机名，而不是正确的域名。需要实现环境感知的域名配置。
+
+### 根本原因
+课程详情页面模板中使用硬编码的 `request.scheme` 和 `request.get_host` 来构建URL，这在某些生产环境配置下可能返回不正确的域名。
+
+### 解决方案
+
+#### 1. Django设置增强 ✅
+**文件**: `edupulse/settings.py`
+**新增配置**:
+```python
+# Site domain configuration for URL generation
+SITE_DOMAIN = os.getenv('SITE_DOMAIN', 'localhost:8000')
+SITE_PROTOCOL = os.getenv('SITE_PROTOCOL', 'https' if not DEBUG else 'http')
+```
+
+#### 2. 自定义模板标签 ✅
+**文件**: `core/templatetags/custom_filters.py`
+**新增功能**:
+- `site_url` - 生成完整的站点URL
+- `enrollment_url` - 专门生成注册URL（带课程参数）
+
+```python
+@register.simple_tag
+def enrollment_url(course_id=None):
+    base_url = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}{reverse('enrollment:public_enrollment')}"
+    if course_id:
+        return f"{base_url}?course={course_id}"
+    return base_url
+```
+
+#### 3. 模板更新 ✅
+**文件**: `templates/core/courses/detail.html`
+**修改内容**:
+- 加载 `{% load custom_filters %}`
+- 替换硬编码URL生成: `{% enrollment_url course.pk %}`
+- 统一JavaScript中的URL构建逻辑
+
+#### 4. 部署文档完善 ✅
+**文件**: `DEPLOYMENT.md`
+**新增章节**: "Domain Configuration"
+**包含内容**:
+- 环境特定配置示例
+- 模板标签使用说明
+- 故障排除指南
+
+### 环境配置示例
+
+#### 开发环境
+```env
+SITE_DOMAIN=localhost:8000
+SITE_PROTOCOL=http
+DEBUG=True
+```
+
+#### 生产环境
+```env
+SITE_DOMAIN=edupulse.perthartschool.com.au
+SITE_PROTOCOL=https
+DEBUG=False
+```
+
+### 技术优势
+1. **环境感知**: 自动根据环境变量选择正确的域名和协议
+2. **集中管理**: 所有URL生成逻辑统一管理
+3. **向后兼容**: 不影响现有功能
+4. **易于维护**: 清晰的配置和文档
+5. **最佳实践**: 遵循Django推荐的环境变量配置模式
+
+### 影响范围
+- ✅ 课程详情页面的注册URL复制功能
+- ✅ 未来的邮件通知中的链接
+- ✅ WordPress/WooCommerce集成URL
+- ✅ 所有需要生成绝对URL的场景
+
+---
+
+## 更新和优化requirements.txt (2025-09-16) ✅ 已完成
+
+### 问题描述
+需要更新项目的requirements.txt文件，确保包含所有必要的依赖包，并提供清晰的组织结构。
+
+### 发现的问题
+1. **缺失依赖** - django-crontab在settings.py中使用但未在requirements.txt中列出
+2. **组织混乱** - 依赖包没有分类，难以理解各包的用途
+3. **版本管理** - 需要确保所有依赖版本兼容
+
+### 解决方案
+
+#### 1. 添加缺失依赖 ✅
+- **添加**：`django-crontab==0.7.1`
+- **原因**：settings.py中配置了CRONJOBS，需要此包支持定时任务
+
+#### 2. 重新组织结构 ✅
+按功能分类整理依赖包：
+- **Core Django and web framework** - Django核心和Web服务器
+- **Django extensions and plugins** - Django扩展插件
+- **Environment and configuration** - 环境配置
+- **Image processing** - 图像处理
+- **Excel/spreadsheet support** - Excel支持
+- **QR code generation** - 二维码生成
+- **Communication services** - 通信服务
+- **HTTP requests and networking** - HTTP请求和网络
+- **Security and authentication** - 安全认证
+- **Utilities** - 工具包
+
+#### 3. 验证兼容性 ✅
+- ✅ 执行`pip install -r requirements.txt --dry-run`测试成功
+- ✅ 所有依赖版本兼容
+- ✅ 无冲突依赖
+
+#### 4. 更新部署文档 ✅
+- **文件**：`DEPLOYMENT.md`
+- **添加**：requirements.txt更新说明
+- **内容**：依赖包分类说明和安装注意事项
+
+### 完成效果
+- ✅ requirements.txt结构清晰，易于维护
+- ✅ 包含所有必要依赖，无遗漏
+- ✅ 按功能分类，便于理解各包用途
+- ✅ 版本兼容性验证通过
+- ✅ 部署文档同步更新
+
+---
+
 ## 修复SMS发送功能错误 (2025-09-16) ✅ 已完成
 
 ### 问题描述

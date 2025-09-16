@@ -36,6 +36,12 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 # e.g., ALLOWED_HOSTS=edupulse.perthartschool.com.au
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
 
+# Site domain configuration for URL generation
+# In development: SITE_DOMAIN=localhost:8000
+# In production: SITE_DOMAIN=edupulse.perthartschool.com.au
+SITE_DOMAIN = os.getenv('SITE_DOMAIN', 'localhost:8000')
+SITE_PROTOCOL = os.getenv('SITE_PROTOCOL', 'https' if not DEBUG else 'http')
+
 
 # Production security settings
 # These settings are activated when DEBUG = False

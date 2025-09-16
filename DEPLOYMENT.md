@@ -34,6 +34,15 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+**Note**: The requirements.txt file has been organized and updated to include:
+- Core Django framework and web server components
+- Django extensions (TinyMCE, django-crontab)
+- Communication services (Twilio for SMS)
+- Image processing and file handling
+- All necessary utilities and dependencies
+
+Ensure all dependencies install successfully before proceeding.
+
 ### 4. Environment Variables
 Create a `.env` file in the project root with the following variables:
 
@@ -42,6 +51,12 @@ Create a `.env` file in the project root with the following variables:
 DEBUG=False
 SECRET_KEY=your-secret-key-here
 ALLOWED_HOSTS=edupulse.perthartschool.com.au,www.perthartschool.com.au,localhost,127.0.0.1
+
+# Site Domain Configuration (for URL generation)
+# Development: SITE_DOMAIN=localhost:8000
+# Production: SITE_DOMAIN=edupulse.perthartschool.com.au
+SITE_DOMAIN=edupulse.perthartschool.com.au
+SITE_PROTOCOL=https
 
 # Database (if using PostgreSQL/MySQL)
 # DATABASE_URL=postgresql://user:password@host:port/database
@@ -405,6 +420,56 @@ python manage.py update_expired_courses --dry-run
 # Show courses expiring in next N days
 python manage.py update_expired_courses --upcoming 7
 ```
+
+## Domain Configuration
+
+### Overview
+EduPulse uses environment variables to configure the correct domain for URL generation across different environments. This is crucial for features like:
+- Public enrollment URL copying in course details
+- Email notifications with correct links
+- WordPress/WooCommerce integration URLs
+
+### Environment-Specific Configuration
+
+#### Development Environment
+```env
+SITE_DOMAIN=localhost:8000
+SITE_PROTOCOL=http
+DEBUG=True
+```
+
+#### Production Environment
+```env
+SITE_DOMAIN=edupulse.perthartschool.com.au
+SITE_PROTOCOL=https
+DEBUG=False
+```
+
+### Template Usage
+The system provides custom template tags for generating correct URLs:
+
+```django
+{% load custom_filters %}
+
+<!-- Generate full site URL -->
+{% site_url 'enrollment:public_enrollment' %}
+
+<!-- Generate enrollment URL with course parameter -->
+{% enrollment_url course.pk %}
+```
+
+### Important Notes
+- **SITE_DOMAIN**: Should NOT include protocol (http/https)
+- **SITE_PROTOCOL**: Automatically defaults to 'https' in production (DEBUG=False) and 'http' in development
+- **Port Numbers**: Include port number in SITE_DOMAIN for development (e.g., localhost:8000)
+- **SSL**: Ensure SITE_PROTOCOL matches your actual SSL configuration
+
+### Troubleshooting
+If enrollment URLs show incorrect domains:
+1. Verify SITE_DOMAIN is set correctly in your .env file
+2. Ensure SITE_PROTOCOL matches your server configuration
+3. Restart the Django application after changing environment variables
+4. Check that custom_filters template tags are loaded in templates
 
 ### Removing Tasks
 
