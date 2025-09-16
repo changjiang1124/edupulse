@@ -4,6 +4,19 @@ from .models import Student, StudentTag
 
 class StudentForm(forms.ModelForm):
     """Student form with Bootstrap styling - aligned with enrollment form"""
+
+    birth_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                'class': 'form-control',
+                'type': 'date'
+            },
+            format='%Y-%m-%d'
+        ),
+        input_formats=['%Y-%m-%d'],
+        label='Date of Birth'
+    )
     
     class Meta:
         model = Student
@@ -33,10 +46,6 @@ class StudentForm(forms.ModelForm):
             'last_name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Enter last name'
-            }),
-            'birth_date': forms.DateInput(attrs={
-                'class': 'form-control',
-                'type': 'date'
             }),
             'address': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -129,13 +138,21 @@ class StudentForm(forms.ModelForm):
             
             # Store calculated age for use in templates or other validation
             cleaned_data['calculated_age'] = age
-            
+
             if age < 18:
                 # Student is under 18, guardian name is required
                 if not guardian_name or guardian_name.strip() == '':
                     self.add_error('guardian_name', 'Guardian name is required for students under 18 years of age.')
-        
+
         return cleaned_data
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Ensure birth_date field has correct initial value and format
+        if self.instance and self.instance.pk and self.instance.birth_date:
+            self.fields['birth_date'].initial = self.instance.birth_date
+            # Ensure the widget has the correct type attribute
+            self.fields['birth_date'].widget.attrs.update({'type': 'date'})
 
 
 class StudentTagForm(forms.ModelForm):
