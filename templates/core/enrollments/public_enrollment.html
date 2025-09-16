@@ -119,7 +119,7 @@
                                 </div>
                                 
                                 <!-- Student Matching Status Hint -->
-                                <div id="studentMatchingHint" class="alert alert-warning d-none mt-2" role="alert">
+                                <div id="studentMatchingHint" class="alert alert-warning mt-2{% if not form.student_status.errors %} d-none{% endif %}" role="alert" data-match-error="{% if form.student_status.errors %}true{% else %}false{% endif %}">
                                     <div class="d-flex align-items-center">
                                         <div class="small">
                                             <strong>No matching student record found.</strong><br>
@@ -398,11 +398,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     const dobField = document.getElementById('{{ form.date_of_birth.id_for_label }}');
     const guardianNameField = document.getElementById('{{ form.guardian_name.id_for_label }}');
-    const firstNameField = document.getElementById('{{ form.first_name.id_for_label }}');
-    const lastNameField = document.getElementById('{{ form.last_name.id_for_label }}');
-    const emailField = document.getElementById('{{ form.email.id_for_label }}');
-    const phoneField = document.getElementById('{{ form.phone.id_for_label }}');
     const studentStatusField = document.getElementById('{{ form.student_status.id_for_label }}');
+    const studentMatchingHint = document.getElementById('studentMatchingHint');
     
     // UI Elements
     const contactFields = document.getElementById('contactFields');
@@ -412,7 +409,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const ageAlertTitle = document.getElementById('ageAlertTitle');
     const ageAlertText = document.getElementById('ageAlertText');
     const guardianNameRow = document.getElementById('guardianNameRow');
-    const studentMatchingHint = document.getElementById('studentMatchingHint');
     
     // Labels
     const emailLabel = document.getElementById('emailLabel');
@@ -423,61 +419,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initially disable all contact fields
     disableFormSections();
     
-    // Listen for field changes that could affect student matching
-    [firstNameField, lastNameField, dobField, emailField, phoneField].forEach(field => {
-        if (field) {
-            field.addEventListener('change', checkStudentMatching);
-            field.addEventListener('blur', checkStudentMatching);
-        }
-    });
-    
     // Listen for date of birth changes for age detection
     dobField.addEventListener('change', function() {
         checkAge();
     });
-    
-    function checkStudentMatching() {
-        const firstName = firstNameField.value.trim();
-        const lastName = lastNameField.value.trim();
-        const dob = dobField.value;
-        const email = emailField ? emailField.value.trim() : '';
-        const phone = phoneField ? phoneField.value.trim() : '';
-        const studentStatus = studentStatusField.value;
-        
-        // Only check if we have minimum required data and user selected "returning"
-        if (firstName && lastName && studentStatus === 'returning') {
-            // Simple client-side logic: if user has filled DOB, phone, or email, 
-            // assume they're providing matching information
-            if (dob || email || phone) {
-                hideStudentMatchingHint();
+
+    if (studentStatusField && studentMatchingHint) {
+        studentStatusField.addEventListener('change', function() {
+            const hasMatchError = studentMatchingHint.dataset.matchError === 'true';
+            if (studentStatusField.value === 'returning' && hasMatchError) {
+                studentMatchingHint.classList.remove('d-none');
             } else {
-                showStudentMatchingHint();
+                studentMatchingHint.classList.add('d-none');
+                if (studentStatusField.value !== 'returning') {
+                    studentMatchingHint.dataset.matchError = 'false';
+                }
             }
-        } else if (studentStatus === 'returning' && (firstName || lastName)) {
-            // Show hint if user selected returning but hasn't provided enough info
-            showStudentMatchingHint();
-        } else {
-            hideStudentMatchingHint();
-        }
+        });
     }
-    
-    function showStudentMatchingHint() {
-        studentMatchingHint.classList.remove('d-none');
-    }
-    
-    function hideStudentMatchingHint() {
-        studentMatchingHint.classList.add('d-none');
-    }
-    
-    // Listen for student status changes
-    studentStatusField.addEventListener('change', function() {
-        checkStudentMatching();
-        // Hide hint when "new" is selected
-        if (studentStatusField.value === 'new') {
-            hideStudentMatchingHint();
-        }
-    });
-    
+
     function checkAge() {
         if (!dobField.value) {
             disableFormSections();
@@ -505,8 +465,6 @@ document.addEventListener('DOMContentLoaded', function() {
             showOver18Interface(age);
         }
         
-        // Check student matching after age is determined
-        checkStudentMatching();
     }
     
     function showUnder18Interface(age) {
@@ -595,8 +553,6 @@ document.addEventListener('DOMContentLoaded', function() {
         checkAge();
     }
     
-    // Initial student matching check
-    checkStudentMatching();
 });
 </script>
 {% endblock %}
