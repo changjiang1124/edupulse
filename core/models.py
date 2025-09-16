@@ -68,6 +68,34 @@ class OrganisationSettings(models.Model):
         verbose_name='Contact Phone'
     )
     
+    # Banking Details
+    bank_account_name = models.CharField(
+        max_length=100,
+        default='Perth Art School Pty Ltd',
+        verbose_name='Bank Account Name',
+        help_text='Account name for bank transfers'
+    )
+    bank_bsb = models.CharField(
+        max_length=7,
+        default='036-032',
+        verbose_name='BSB',
+        help_text='Bank State Branch number (format: XXX-XXX)'
+    )
+    bank_account_number = models.CharField(
+        max_length=20,
+        default='123456789',
+        verbose_name='Account Number',
+        help_text='Bank account number for payments'
+    )
+    
+    # Website Configuration
+    site_domain = models.CharField(
+        max_length=100,
+        default='perthartschool.com.au',
+        verbose_name='Website Domain',
+        help_text='Primary website domain (without https://)'
+    )
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -110,7 +138,11 @@ class OrganisationSettings(models.Model):
                 'prices_include_gst': True,
                 'gst_rate': Decimal('0.1000'),
                 'show_gst_breakdown': True,
-                'contact_email': 'info@perthartschool.com.au'
+                'contact_email': 'info@perthartschool.com.au',
+                'bank_account_name': 'Perth Art School Pty Ltd',
+                'bank_bsb': '036-032',
+                'bank_account_number': '123456789',
+                'site_domain': 'perthartschool.com.au'
             }
         )
         return instance

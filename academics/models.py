@@ -294,6 +294,39 @@ class Course(models.Model):
         """Check if course has a registration fee"""
         return self.registration_fee and self.registration_fee > 0
     
+    def schedule_display(self):
+        """Return formatted schedule information for display"""
+        if self.is_single_session:
+            return f"{self.start_date.strftime('%A, %d %B %Y')} at {self.start_time.strftime('%I:%M %p')}"
+        else:
+            weekday_name = dict(self.WEEKDAY_CHOICES).get(self.repeat_weekday, '')
+            if self.repeat_pattern == 'weekly' and weekday_name:
+                return f"Every {weekday_name} at {self.start_time.strftime('%I:%M %p')}"
+            elif self.repeat_pattern == 'daily':
+                return f"Daily at {self.start_time.strftime('%I:%M %p')}"
+            elif self.repeat_pattern == 'monthly' and self.repeat_day_of_month:
+                return f"Monthly on the {self.repeat_day_of_month}{self._get_ordinal_suffix(self.repeat_day_of_month)} at {self.start_time.strftime('%I:%M %p')}"
+            else:
+                return f"{self.start_time.strftime('%I:%M %p')}"
+    
+    def location_display(self):
+        """Return formatted location information for display"""
+        if self.classroom and self.facility:
+            return f"{self.classroom.name}, {self.facility.name}"
+        elif self.facility:
+            return self.facility.name
+        elif self.classroom:
+            return f"{self.classroom.name}, {self.classroom.facility.name if self.classroom.facility else 'Unknown Facility'}"
+        else:
+            return "Location to be confirmed"
+    
+    def _get_ordinal_suffix(self, day):
+        """Helper method to get ordinal suffix for day numbers"""
+        if 10 <= day % 100 <= 20:
+            return 'th'
+        else:
+            return {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+    
     def clean(self):
         """Validate Course model data"""
         from django.core.exceptions import ValidationError

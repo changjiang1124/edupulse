@@ -1308,8 +1308,15 @@ def organisation_settings_view(request):
         contact_email = request.POST.get('contact_email')
         contact_phone = request.POST.get('contact_phone')
         prices_include_gst = request.POST.get('prices_include_gst') == 'on'
-
         
+        # Banking details
+        bank_account_name = request.POST.get('bank_account_name')
+        bank_bsb = request.POST.get('bank_bsb')
+        bank_account_number = request.POST.get('bank_account_number')
+        
+        # Website configuration
+        site_domain = request.POST.get('site_domain')
+
         try:
             # Update organisation settings
             org_settings.organisation_name = organisation_name
@@ -1317,6 +1324,14 @@ def organisation_settings_view(request):
             org_settings.contact_email = contact_email
             org_settings.contact_phone = contact_phone
             org_settings.prices_include_gst = prices_include_gst
+            
+            # Update banking details
+            org_settings.bank_account_name = bank_account_name
+            org_settings.bank_bsb = bank_bsb
+            org_settings.bank_account_number = bank_account_number
+            
+            # Update website configuration
+            org_settings.site_domain = site_domain
 
             org_settings.updated_by = request.user
             org_settings.save()

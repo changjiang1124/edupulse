@@ -16,6 +16,12 @@
         border-radius: 12px 12px 0 0;
         padding: 20px 30px;
     }
+
+    .settings-header h5 {
+        font-size: 18px;
+        font-weight: 600;
+        color:white;
+    }
     .gst-calculator {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
@@ -77,7 +83,7 @@
             <div class="col-lg-6">
                 <div class="card settings-card mb-4">
                     <div class="settings-header">
-                        <h5 class="mb-0"><i class="bi bi-building me-2"></i>Organisation Details</h5>
+                        <h5 class="mb-0">Organisation Details</h5>
                     </div>
                     <div class="card-body p-4">
                         <div class="mb-3">
@@ -104,6 +110,56 @@
                             <label for="contact_phone" class="form-label">Contact Phone <span class="text-danger">*</span></label>
                             <input type="tel" class="form-control" id="contact_phone" name="contact_phone" 
                                    value="{{ org_settings.contact_phone }}" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Banking Details -->
+            <div class="col-lg-6">
+                <div class="card settings-card mb-4">
+                    <div class="settings-header">
+                        <h5 class="mb-0"><i class="bi bi-bank me-2"></i>Banking Details</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-3">
+                            <label for="bank_account_name" class="form-label">Account Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="bank_account_name" name="bank_account_name" 
+                                   value="{{ org_settings.bank_account_name }}" required>
+                            <div class="form-text">Account name for bank transfers</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="bank_bsb" class="form-label">BSB <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="bank_bsb" name="bank_bsb" 
+                                   value="{{ org_settings.bank_bsb }}" placeholder="XXX-XXX" required>
+                            <div class="form-text">Bank State Branch number (format: XXX-XXX)</div>
+                        </div>
+                        
+                        <div class="mb-0">
+                            <label for="bank_account_number" class="form-label">Account Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="bank_account_number" name="bank_account_number" 
+                                   value="{{ org_settings.bank_account_number }}" required>
+                            <div class="form-text">Bank account number for payments</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Website Configuration -->
+            <div class="col-lg-6">
+                <div class="card settings-card mb-4">
+                    <div class="settings-header">
+                        <h5 class="mb-0"><i class="bi bi-globe me-2"></i>Website Configuration</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-0">
+                            <label for="site_domain" class="form-label">Website Domain <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="site_domain" name="site_domain" 
+                                   value="{{ org_settings.site_domain }}" placeholder="perthartschool.com.au" required>
+                            <div class="form-text">Primary website domain (without https://)</div>
                         </div>
                     </div>
                 </div>

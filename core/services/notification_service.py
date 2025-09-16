@@ -105,9 +105,12 @@ class NotificationService:
                 'course': enrollment.course,
                 'recipient_name': recipient_name,
                 'recipient_email': recipient_email,
-                'site_domain': site.domain,
+                'site_domain': org_settings.site_domain,
                 'contact_email': org_settings.contact_email,
                 'contact_phone': org_settings.contact_phone,
+                'bank_account_name': org_settings.bank_account_name,
+                'bank_bsb': org_settings.bank_bsb,
+                'bank_account_number': org_settings.bank_account_number,
                 'fee_breakdown': fee_breakdown or {}
             }
             
@@ -122,7 +125,8 @@ class NotificationService:
                 'registration_fee': registration_fee,
                 'total_fee': total_fee,
                 'has_registration_fee': registration_fee > 0,
-                'charge_registration_fee': fee_breakdown.get('charge_registration_fee', True) if fee_breakdown else True
+                'charge_registration_fee': fee_breakdown.get('charge_registration_fee', True) if fee_breakdown else True,
+                'current_year': timezone.now().year
             })
             
             # Render email templates

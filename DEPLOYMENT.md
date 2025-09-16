@@ -271,6 +271,43 @@ Ensure regular backups of:
 
 ## Recent Changes
 
+### Organisation Settings Enhancement (2025-01-XX)
+**Impact**: Database migration required, new configurable fields added
+
+**Changes Made**:
+- Added configurable banking details fields (BSB, account number, account name)
+- Added configurable website domain field
+- Updated email templates to use configurable values instead of hardcoded ones
+- Enhanced organisation settings admin interface and frontend form
+
+**Database Changes**:
+- New fields: `bank_account_name`, `bank_bsb`, `bank_account_number`, `site_domain`
+- Migration: `core/migrations/0010_organisationsettings_bank_account_name_and_more.py`
+
+**Deployment Notes**:
+- ⚠️ **Migration required**: Run `python manage.py migrate` after deployment
+- ✅ **Backward compatible**: Default values provided for all new fields
+- ✅ **Email templates updated**: Now use configurable banking details
+- ✅ **Admin interface enhanced**: New fields available in Django admin
+
+**Verification Steps**:
+1. Run database migration: `python manage.py migrate`
+2. Access `/core/settings/organisation/` after deployment
+3. Confirm new "Banking Details" and "Website Configuration" sections are visible
+4. Test updating banking details and verify they appear in enrollment emails
+5. Verify email templates use configurable values instead of hardcoded ones
+
+**Files Modified**:
+- `core/models.py`: Added new fields to OrganisationSettings model
+- `core/views.py`: Updated organisation_settings_view to handle new fields
+- `core/admin.py`: Enhanced admin interface with new fieldsets
+- `core/services/notification_service.py`: Updated email context with new variables
+- `templates/core/emails/enrollment_pending.html`: Use configurable banking details
+- `templates/core/emails/enrollment_pending.txt`: Use configurable banking details
+- `templates/core/settings/organisation.html`: Added form fields for new settings
+
+**Rollback**: If needed, revert migration and related code changes - no data loss risk as defaults are provided
+
 ### GST Settings Simplification (2025-09-08)
 **Impact**: Code-level changes only, no database migration required
 

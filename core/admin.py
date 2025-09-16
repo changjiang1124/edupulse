@@ -21,6 +21,14 @@ class OrganisationSettingsAdmin(admin.ModelAdmin):
         ('Contact Information', {
             'fields': ('contact_email', 'reply_to_email', 'contact_phone')
         }),
+        ('Banking Details', {
+            'fields': ('bank_account_name', 'bank_bsb', 'bank_account_number'),
+            'description': 'Bank account details for payment instructions in emails'
+        }),
+        ('Website Configuration', {
+            'fields': ('site_domain',),
+            'description': 'Website domain used in email templates and links'
+        }),
         ('GST Configuration', {
             'fields': ('prices_include_gst', 'gst_rate', 'show_gst_breakdown', 'gst_label'),
             'classes': ('collapse',)

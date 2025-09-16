@@ -1,7 +1,7 @@
 {% load price_tags %}
 PERTH ART SCHOOL - ENROLMENT APPLICATION RECEIVED
 
-Dear {{ recipient_name }},
+Dear {{ student.first_name }},
 
 Thank you for your enrolment application with Perth Art School! We have successfully received your application for the following course:
 
@@ -31,9 +31,9 @@ PAYMENT INSTRUCTIONS:
 Please complete payment within 7 days to secure your place in the course.
 
 Bank Transfer Details:
-Account Name: Perth Art School Pty Ltd
-BSB: 036-032
-Account Number: 123456789
+Account Name: {{ bank_account_name }}
+BSB: {{ bank_bsb }}
+Account Number: {{ bank_account_number }}
 Payment Reference: {{ enrollment.get_reference_id }}
 Amount: {{ total_fee|currency }}
 
