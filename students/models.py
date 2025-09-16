@@ -29,12 +29,89 @@ class StudentTag(models.Model):
         auto_now_add=True,
         verbose_name='Created At'
     )
-    
+
     class Meta:
         verbose_name = 'Student Tag'
         verbose_name_plural = 'Student Tags'
         ordering = ['name']
-    
+
+    def save(self, *args, **kwargs):
+        """Automatically convert tag name to lowercase to avoid duplicates"""
+        if self.name:
+            self.name = self.name.lower().strip()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        """Validate tag name format"""
+        from django.core.exceptions import ValidationError
+        import re
+
+        if self.name:
+            # Convert to lowercase for validation
+            name_lower = self.name.lower().strip()
+
+            # Check for empty name after stripping
+            if not name_lower:
+                raise ValidationError('Tag name cannot be empty')
+
+            # Check name length
+            if len(name_lower) > 50:
+                raise ValidationError('Tag name cannot exceed 50 characters')
+
+            # Allow letters, numbers, spaces, hyphens and underscores
+            if not re.match(r'^[a-zA-Z0-9\s\-_]+$', name_lower):
+                raise ValidationError('Tag name can only contain letters, numbers, spaces, hyphens and underscores')
+
+            self.name = name_lower
+
+    @classmethod
+    def get_or_create_by_name(cls, name):
+        """
+        Get or create tag by name (case insensitive)
+        Returns tuple (tag, created)
+        """
+        if not name or not name.strip():
+            return None, False
+
+        name_lower = name.strip().lower()
+
+        try:
+            tag = cls.objects.get(name=name_lower)
+            return tag, False
+        except cls.DoesNotExist:
+            # Create new tag with random color
+            tag = cls(name=name_lower, colour=cls.generate_random_color())
+            tag.full_clean()  # Validate before saving
+            tag.save()
+            return tag, True
+
+    @staticmethod
+    def generate_random_color():
+        """Generate a random hex color for new tags"""
+        import random
+        colors = [
+            '#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8',
+            '#6f42c1', '#e83e8c', '#fd7e14', '#20c997', '#6c757d',
+            '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7',
+            '#dda0dd', '#98d8c8', '#f7dc6f', '#bb8fce', '#85c1e9'
+        ]
+        return random.choice(colors)
+
+    @classmethod
+    def search_tags(cls, query, limit=10):
+        """
+        Search tags by name (case insensitive)
+        Returns queryset of matching active tags
+        """
+        if not query:
+            return cls.objects.filter(is_active=True).order_by('name')[:limit]
+
+        query_lower = query.lower().strip()
+        return cls.objects.filter(
+            name__icontains=query_lower,
+            is_active=True
+        ).order_by('name')[:limit]
+
     def __str__(self):
         return self.name
 

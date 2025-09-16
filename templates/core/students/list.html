@@ -52,6 +52,13 @@
     #bulkActionsCompact {
         border-left: 1px solid #dee2e6;
         padding-left: 1rem;
+        white-space: nowrap;
+        align-items: center;
+    }
+
+    #bulkActionsCompact .text-muted {
+        margin-right: 0.5rem;
+        flex-shrink: 0;
     }
 
     /* Tag selection in modal */
@@ -176,7 +183,7 @@
                     </div>
                     <!-- Select All Area -->
                     <div>
-                        <input type="checkbox" class="form-check-input" id="selectAllCheckbox" onchange="toggleAllStudents(this)">
+                        <input type="checkbox" class="form-check-input" id="selectAllCheckbox" onchange="toggleAllStudents()">
                         <label class="form-check-label ms-2" for="selectAllCheckbox">Select All</label>
                     </div>
                 </div>
@@ -200,9 +207,9 @@
                             </thead>
                             <tbody>
                                 {% for student in students %}
-                                <tr class="clickable-row" data-href="{% url 'students:student_detail' student.pk %}" data-student-id="{{ student.pk }}" id="student-row-{{ student.pk }}">
+                                <tr id="student-row-{{ student.pk }}">
                                     <td>
-                                        <input type="checkbox" class="form-check-input student-checkbox" 
+                                        <input type="checkbox" class="form-check-input student-checkbox"
                                                value="{{ student.pk }}" onchange="toggleStudentSelection({{ student.pk }}, this.checked)"
                                                onclick="event.stopPropagation()">
                                     </td>
@@ -383,12 +390,54 @@
                     <strong>Operation:</strong> <span id="tagOperationMode">Add</span> tags for <span id="tagRecipientCount">0</span> selected students
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Select Tags:</label>
-                    <div id="tagSelectionContainer" class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
-                        <!-- Tags will be loaded here via AJAX -->
-                        <div class="text-center">
-                            <i class="fas fa-spinner fa-spin"></i> Loading tags...
+                <!-- Add Tags Interface -->
+                <div id="addTagsInterface" style="display: none;">
+                    <div class="mb-3">
+                        <label for="tagNameInput" class="form-label">Enter Tag Names:</label>
+                        <div class="position-relative">
+                            <input type="text" class="form-control" id="tagNameInput"
+                                   placeholder="Type tag names separated by commas (e.g. VIP, New Student, Regular)"
+                                   autocomplete="off">
+                            <div id="tagSuggestions" class="position-absolute bg-white border rounded shadow-sm w-100"
+                                 style="top: 100%; z-index: 1050; display: none; max-height: 200px; overflow-y: auto;">
+                                <!-- Suggestions will be loaded here -->
+                            </div>
+                        </div>
+                        <div class="form-text">
+                            New tags will be created automatically. Tag names are case-insensitive.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tags to Add:</label>
+                        <div id="selectedTagsDisplay" class="border rounded p-2 bg-light" style="min-height: 50px;">
+                            <span class="text-muted">No tags selected</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Remove Tags Interface -->
+                <div id="removeTagsInterface" style="display: none;">
+                    <div class="mb-3">
+                        <label for="tagSearchInput" class="form-label">Search Existing Tags:</label>
+                        <div class="position-relative">
+                            <input type="text" class="form-control" id="tagSearchInput"
+                                   placeholder="Search for tags to remove..."
+                                   autocomplete="off">
+                            <div id="tagSearchResults" class="position-absolute bg-white border rounded shadow-sm w-100"
+                                 style="top: 100%; z-index: 1050; display: none; max-height: 200px; overflow-y: auto;">
+                                <!-- Search results will be loaded here -->
+                            </div>
+                        </div>
+                        <div class="form-text">
+                            Only existing tags can be removed from students.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tags to Remove:</label>
+                        <div id="selectedRemoveTagsDisplay" class="border rounded p-2 bg-light" style="min-height: 50px;">
+                            <span class="text-muted">No tags selected</span>
                         </div>
                     </div>
                 </div>
@@ -439,7 +488,123 @@ function clearAllTagFilters() {
     document.getElementById('searchForm').submit();
 }
 
+// Student selection functions
+function toggleStudentSelection(studentId, checked) {
+    const row = document.getElementById(`student-row-${studentId}`);
+
+    if (checked) {
+        selectedStudents.add(studentId);
+        if (row) row.classList.add('selected');
+    } else {
+        selectedStudents.delete(studentId);
+        if (row) row.classList.remove('selected');
+    }
+
+    updateBulkActionsVisibility();
+    updateSelectAllCheckbox();
+}
+
+function toggleAllStudents() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const studentCheckboxes = document.querySelectorAll('.student-checkbox');
+
+    studentCheckboxes.forEach(checkbox => {
+        const studentId = parseInt(checkbox.value);
+        const row = document.getElementById(`student-row-${studentId}`);
+
+        checkbox.checked = selectAllCheckbox.checked;
+
+        if (selectAllCheckbox.checked) {
+            selectedStudents.add(studentId);
+            if (row) row.classList.add('selected');
+        } else {
+            selectedStudents.delete(studentId);
+            if (row) row.classList.remove('selected');
+        }
+    });
+
+    updateBulkActionsVisibility();
+}
+
+function updateBulkActionsVisibility() {
+    const compactActions = document.getElementById('bulkActionsCompact');
+    const countSpan = document.getElementById('selectedCountCompact');
+
+    countSpan.textContent = selectedStudents.size;
+
+    if (selectedStudents.size > 0) {
+        compactActions.style.display = 'flex';
+    } else {
+        compactActions.style.display = 'none';
+        // Reset the action selection when no students selected
+        document.getElementById('bulkActionSelect').value = '';
+    }
+}
+
+function updateSelectAllCheckbox() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const visibleCheckboxes = document.querySelectorAll('.student-checkbox');
+    const checkedBoxes = document.querySelectorAll('.student-checkbox:checked');
+
+    if (checkedBoxes.length === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (checkedBoxes.length === visibleCheckboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+        selectAllCheckbox.checked = false;
+    }
+}
+
+function handleBulkAction() {
+    const selectedAction = document.getElementById('bulkActionSelect').value;
+
+    if (!selectedAction) {
+        alert('Please select an action first.');
+        return;
+    }
+
+    if (selectedStudents.size === 0) {
+        alert('Please select at least one student first.');
+        return;
+    }
+
+    switch (selectedAction) {
+        case 'add_tag':
+            openBulkTagModal('add');
+            break;
+        case 'remove_tag':
+            openBulkTagModal('remove');
+            break;
+        case 'send_notification':
+            openBulkNotificationModal();
+            break;
+        default:
+            alert('Unknown action selected.');
+    }
+}
+
+function openBulkNotificationModal() {
+    if (selectedStudents.size === 0) {
+        alert('Please select at least one student first.');
+        return;
+    }
+
+    // Update the modal with selected student IDs
+    document.getElementById('selectedStudentIds').value = Array.from(selectedStudents).join(',');
+    document.getElementById('recipientCount').textContent = selectedStudents.size;
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('bulkNotificationModal'));
+    modal.show();
+}
+
 // Bulk tag operation functions
+// selectedTagsForOperation already declared above, just clear it and add data storage
+let selectedTagsData = new Map(); // Store tag data (id, name, colour, exists)
+
 async function openBulkTagModal(operation) {
     if (selectedStudents.size === 0) {
         alert('Please select at least one student first.');
@@ -447,6 +612,8 @@ async function openBulkTagModal(operation) {
     }
 
     currentTagOperation = operation;
+    selectedTagsForOperation.clear();
+    selectedTagsData.clear();
 
     // Update modal UI
     document.getElementById('tagOperationMode').textContent = operation === 'add' ? 'Add' : 'Remove';
@@ -456,8 +623,19 @@ async function openBulkTagModal(operation) {
     const performButton = document.getElementById('performTagOperation');
     performButton.className = operation === 'add' ? 'btn btn-success' : 'btn btn-warning';
 
-    // Load available tags
-    await loadAvailableTags();
+    // Show/hide appropriate interface
+    const addInterface = document.getElementById('addTagsInterface');
+    const removeInterface = document.getElementById('removeTagsInterface');
+
+    if (operation === 'add') {
+        addInterface.style.display = 'block';
+        removeInterface.style.display = 'none';
+        resetAddTagsInterface();
+    } else {
+        addInterface.style.display = 'none';
+        removeInterface.style.display = 'block';
+        resetRemoveTagsInterface();
+    }
 
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('bulkTagModal'));
@@ -550,7 +728,10 @@ async function performBulkTagOperation() {
         const formData = new FormData();
         formData.append('student_ids', Array.from(selectedStudents).join(','));
         formData.append('operation', currentTagOperation);
-        formData.append('tag_ids', Array.from(selectedTagsForOperation).join(','));
+
+        // Use tag names instead of IDs for the new dynamic system
+        const tagNames = Array.from(selectedTagsForOperation);
+        formData.append('tag_names', tagNames.join(','));
 
         const response = await fetch('{% url "students:bulk_tag_operation" %}', {
             method: 'POST',
@@ -582,116 +763,8 @@ async function performBulkTagOperation() {
     }
 }
 
-function toggleStudentSelection(studentId, checked) {
-    const row = document.getElementById(`student-row-${studentId}`);
-
-    if (checked) {
-        selectedStudents.add(studentId);
-        row.classList.add('selected');
-    } else {
-        selectedStudents.delete(studentId);
-        row.classList.remove('selected');
-    }
-
-    updateCompactBulkActions();
-    updateSelectAllCheckbox();
-}
-
-function toggleAllStudents(checkbox) {
-    const studentCheckboxes = document.querySelectorAll('.student-checkbox');
-
-    studentCheckboxes.forEach(cb => {
-        const studentId = parseInt(cb.value);
-        const row = document.getElementById(`student-row-${studentId}`);
-
-        cb.checked = checkbox.checked;
-
-        if (checkbox.checked) {
-            selectedStudents.add(studentId);
-            row.classList.add('selected');
-        } else {
-            selectedStudents.delete(studentId);
-            row.classList.remove('selected');
-        }
-    });
-
-    updateCompactBulkActions();
-}
-
-function updateCompactBulkActions() {
-    const compactActions = document.getElementById('bulkActionsCompact');
-    const countSpan = document.getElementById('selectedCountCompact');
-
-    countSpan.textContent = selectedStudents.size;
-
-    if (selectedStudents.size > 0) {
-        compactActions.style.display = 'flex';
-    } else {
-        compactActions.style.display = 'none';
-        // Reset the action selection when no students selected
-        document.getElementById('bulkActionSelect').value = '';
-    }
-}
-
-function updateSelectAllCheckbox() {
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-    const visibleCheckboxes = document.querySelectorAll('.student-checkbox');
-    const checkedBoxes = document.querySelectorAll('.student-checkbox:checked');
-
-    if (checkedBoxes.length === 0) {
-        selectAllCheckbox.indeterminate = false;
-        selectAllCheckbox.checked = false;
-    } else if (checkedBoxes.length === visibleCheckboxes.length) {
-        selectAllCheckbox.indeterminate = false;
-        selectAllCheckbox.checked = true;
-    } else {
-        selectAllCheckbox.indeterminate = true;
-        selectAllCheckbox.checked = false;
-    }
-}
-
-function handleBulkAction() {
-    const selectedAction = document.getElementById('bulkActionSelect').value;
-
-    if (!selectedAction) {
-        alert('Please select an action first.');
-        return;
-    }
-
-    if (selectedStudents.size === 0) {
-        alert('Please select at least one student first.');
-        return;
-    }
-
-    switch (selectedAction) {
-        case 'add_tag':
-            openBulkTagModal('add');
-            break;
-        case 'remove_tag':
-            openBulkTagModal('remove');
-            break;
-        case 'send_notification':
-            openBulkNotificationModal();
-            break;
-        default:
-            alert('Unknown action selected.');
-    }
-}
-
-function openBulkNotificationModal() {
-    if (selectedStudents.size === 0) {
-        alert('Please select at least one student first.');
-        return;
-    }
-    
-    // Update the modal with selected student IDs
-    document.getElementById('selectedStudentIds').value = Array.from(selectedStudents).join(',');
-    document.getElementById('recipientCount').textContent = selectedStudents.size;
-    
-    // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('bulkNotificationModal'));
-    modal.show();
-}
+// Remove duplicate functions - already defined above
+// Remove duplicate functions - already defined above
 
 // Handle notification type change
 document.addEventListener('DOMContentLoaded', function() {
@@ -763,6 +836,397 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.disabled = false;
         }, 10000);
     });
+});
+
+// Reset interfaces
+function resetAddTagsInterface() {
+    document.getElementById('tagNameInput').value = '';
+    document.getElementById('selectedTagsDisplay').innerHTML = '<span class="text-muted">No tags selected</span>';
+    hideSuggestions();
+    updateSelectedTagsCount();
+}
+
+function resetRemoveTagsInterface() {
+    document.getElementById('tagSearchInput').value = '';
+    document.getElementById('selectedRemoveTagsDisplay').innerHTML = '<span class="text-muted">No tags selected</span>';
+    hideSearchResults();
+    updateSelectedTagsCount();
+}
+
+// Tag suggestions for add interface
+let suggestionTimeout;
+async function handleTagInput(event) {
+    const input = event.target;
+    const query = input.value.trim();
+
+    // Clear previous timeout
+    if (suggestionTimeout) {
+        clearTimeout(suggestionTimeout);
+    }
+
+    if (query.length < 1) {
+        hideSuggestions();
+        return;
+    }
+
+    // Debounce API calls
+    suggestionTimeout = setTimeout(async () => {
+        await fetchTagSuggestions(query);
+    }, 300);
+}
+
+async function fetchTagSuggestions(query) {
+    try {
+        const response = await fetch(`{% url "students:suggest_tag_name" %}?q=${encodeURIComponent(query)}&limit=5`);
+        const data = await response.json();
+
+        if (data.success) {
+            displayTagSuggestions(data.suggestions);
+        }
+    } catch (error) {
+        console.error('Error fetching tag suggestions:', error);
+    }
+}
+
+function displayTagSuggestions(suggestions) {
+    const container = document.getElementById('tagSuggestions');
+
+    if (suggestions.length === 0) {
+        hideSuggestions();
+        return;
+    }
+
+    let html = '';
+    suggestions.forEach(suggestion => {
+        const existsText = suggestion.exists ?
+            `<small class="text-success ms-2">(${suggestion.student_count} students)</small>` :
+            '<small class="text-primary ms-2">(new tag)</small>';
+
+        html += `
+            <div class="dropdown-item" style="cursor: pointer;" onclick="selectTagSuggestion('${suggestion.name}', ${suggestion.exists}, '${suggestion.colour}')">
+                <span class="badge" style="background-color: ${suggestion.colour};">${suggestion.name}</span>
+                ${existsText}
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+    container.style.display = 'block';
+}
+
+function selectTagSuggestion(name, exists, colour) {
+    const input = document.getElementById('tagNameInput');
+    const currentValue = input.value.trim();
+    const parts = currentValue.split(',');
+
+    // Replace the last part (current typing) with selected suggestion
+    parts[parts.length - 1] = name;
+    input.value = parts.join(', ') + ', ';
+
+    // Add to selected tags
+    addTagToSelection(name, exists, colour);
+
+    hideSuggestions();
+    input.focus();
+}
+
+function addTagToSelection(name, exists, colour) {
+    const normalizedName = name.toLowerCase().trim();
+
+    if (selectedTagsData.has(normalizedName)) {
+        return; // Already selected
+    }
+
+    selectedTagsData.set(normalizedName, {
+        name: normalizedName,
+        exists: exists,
+        colour: colour
+    });
+
+    selectedTagsForOperation.add(normalizedName);
+    updateSelectedTagsDisplay();
+}
+
+function updateSelectedTagsDisplay() {
+    const container = document.getElementById('selectedTagsDisplay');
+
+    if (selectedTagsData.size === 0) {
+        container.innerHTML = '<span class="text-muted">No tags selected</span>';
+        updateSelectedTagsCount();
+        return;
+    }
+
+    let html = '';
+    selectedTagsData.forEach((tagData, key) => {
+        const existsText = tagData.exists ? '' : ' (new)';
+        html += `
+            <span class="badge me-2 mb-2" style="background-color: ${tagData.colour};">
+                ${tagData.name}${existsText}
+                <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.6rem;"
+                        onclick="removeTagFromSelection('${key}')" title="Remove tag"></button>
+            </span>
+        `;
+    });
+
+    container.innerHTML = html;
+    updateSelectedTagsCount();
+}
+
+function removeTagFromSelection(key) {
+    selectedTagsData.delete(key);
+    selectedTagsForOperation.delete(key);
+    updateSelectedTagsDisplay();
+}
+
+function hideSuggestions() {
+    document.getElementById('tagSuggestions').style.display = 'none';
+}
+
+// Tag search for remove interface
+let searchTimeout;
+async function handleTagSearch(event) {
+    const input = event.target;
+    const query = input.value.trim();
+
+    // Clear previous timeout
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+
+    if (query.length < 2) {
+        hideSearchResults();
+        return;
+    }
+
+    // Debounce API calls
+    searchTimeout = setTimeout(async () => {
+        await searchExistingTags(query);
+    }, 300);
+}
+
+async function searchExistingTags(query) {
+    try {
+        const response = await fetch(`{% url "students:search_tags" %}?q=${encodeURIComponent(query)}&limit=10`);
+        const data = await response.json();
+
+        if (data.success) {
+            displayTagSearchResults(data.tags);
+        }
+    } catch (error) {
+        console.error('Error searching tags:', error);
+    }
+}
+
+function displayTagSearchResults(tags) {
+    const container = document.getElementById('tagSearchResults');
+
+    if (tags.length === 0) {
+        container.innerHTML = '<div class="dropdown-item text-muted">No matching tags found</div>';
+        container.style.display = 'block';
+        return;
+    }
+
+    let html = '';
+    tags.forEach(tag => {
+        const isSelected = selectedTagsData.has(tag.name);
+        const disabledClass = isSelected ? 'text-muted' : '';
+        const clickHandler = isSelected ? '' : `onclick="selectTagForRemoval('${tag.name}', '${tag.colour}', ${tag.id})"`;
+
+        html += `
+            <div class="dropdown-item ${disabledClass}" style="cursor: ${isSelected ? 'default' : 'pointer'};" ${clickHandler}>
+                <span class="badge" style="background-color: ${tag.colour};">${tag.name}</span>
+                <small class="text-muted ms-2">(${tag.student_count} students)</small>
+                ${isSelected ? '<small class="text-success ms-2">✓ Selected</small>' : ''}
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+    container.style.display = 'block';
+}
+
+function selectTagForRemoval(name, colour, id) {
+    if (selectedTagsData.has(name)) {
+        return; // Already selected
+    }
+
+    selectedTagsData.set(name, {
+        name: name,
+        exists: true,
+        colour: colour,
+        id: id
+    });
+
+    selectedTagsForOperation.add(name);
+    updateSelectedRemoveTagsDisplay();
+
+    // Refresh search results to show selected state
+    const query = document.getElementById('tagSearchInput').value.trim();
+    if (query.length >= 2) {
+        searchExistingTags(query);
+    }
+}
+
+function updateSelectedRemoveTagsDisplay() {
+    const container = document.getElementById('selectedRemoveTagsDisplay');
+
+    if (selectedTagsData.size === 0) {
+        container.innerHTML = '<span class="text-muted">No tags selected</span>';
+        updateSelectedTagsCount();
+        return;
+    }
+
+    let html = '';
+    selectedTagsData.forEach((tagData, key) => {
+        html += `
+            <span class="badge me-2 mb-2" style="background-color: ${tagData.colour};">
+                ${tagData.name}
+                <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.6rem;"
+                        onclick="removeTagFromRemovalSelection('${key}')" title="Remove tag"></button>
+            </span>
+        `;
+    });
+
+    container.innerHTML = html;
+    updateSelectedTagsCount();
+}
+
+function removeTagFromRemovalSelection(key) {
+    selectedTagsData.delete(key);
+    selectedTagsForOperation.delete(key);
+    updateSelectedRemoveTagsDisplay();
+
+    // Refresh search results to show updated state
+    const query = document.getElementById('tagSearchInput').value.trim();
+    if (query.length >= 2) {
+        searchExistingTags(query);
+    }
+}
+
+function hideSearchResults() {
+    document.getElementById('tagSearchResults').style.display = 'none';
+}
+
+function updateSelectedTagsCount() {
+    document.getElementById('selectedTagsCount').textContent = selectedTagsForOperation.size;
+}
+
+function processTagInput() {
+    const input = document.getElementById('tagNameInput');
+    const value = input.value.trim();
+
+    if (!value) return;
+
+    // Split by comma and process each tag
+    const parts = value.split(',');
+    const lastPart = parts[parts.length - 1].trim();
+
+    if (lastPart) {
+        // Add the current tag
+        const normalizedName = lastPart.toLowerCase();
+        addTagToSelection(normalizedName, false, generateRandomColor());
+
+        // Clear input
+        input.value = '';
+        hideSuggestions();
+    }
+}
+
+function generateRandomColor() {
+    const colors = [
+        '#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8',
+        '#6f42c1', '#e83e8c', '#fd7e14', '#20c997', '#6c757d',
+        '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7',
+        '#dda0dd', '#98d8c8', '#f7dc6f', '#bb8fce', '#85c1e9'
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
+async function performBulkTagOperation() {
+    if (selectedTagsForOperation.size === 0) {
+        alert('Please select at least one tag for the operation.');
+        return;
+    }
+
+    const performButton = document.getElementById('performTagOperation');
+    const originalText = performButton.innerHTML;
+    performButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    performButton.disabled = true;
+
+    try {
+        const formData = new FormData();
+        formData.append('student_ids', Array.from(selectedStudents).join(','));
+        formData.append('operation', currentTagOperation);
+
+        // Use tag names instead of IDs for the new dynamic system
+        const tagNames = Array.from(selectedTagsForOperation);
+        formData.append('tag_names', tagNames.join(','));
+
+        const response = await fetch('{% url "students:bulk_tag_operation" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`Success! ${data.message}`);
+
+            // Hide modal
+            bootstrap.Modal.getInstance(document.getElementById('bulkTagModal')).hide();
+
+            // Refresh the page to show updated tags
+            window.location.reload();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    } catch (error) {
+        console.error('Error performing bulk tag operation:', error);
+        alert('An error occurred while performing the operation. Please try again.');
+    } finally {
+        performButton.innerHTML = originalText;
+        performButton.disabled = false;
+    }
+}
+
+// Enhanced event listeners for tag input system
+document.addEventListener('DOMContentLoaded', function() {
+    // Add tags input event listener
+    const tagNameInput = document.getElementById('tagNameInput');
+    if (tagNameInput) {
+        tagNameInput.addEventListener('input', handleTagInput);
+
+        // Handle manual tag entry on Enter or comma
+        tagNameInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.key === ',') {
+                event.preventDefault();
+                processTagInput();
+            }
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!tagNameInput.contains(event.target) && !document.getElementById('tagSuggestions').contains(event.target)) {
+                hideSuggestions();
+            }
+        });
+    }
+
+    // Tag search input event listener
+    const tagSearchInput = document.getElementById('tagSearchInput');
+    if (tagSearchInput) {
+        tagSearchInput.addEventListener('input', handleTagSearch);
+
+        // Hide search results when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!tagSearchInput.contains(event.target) && !document.getElementById('tagSearchResults').contains(event.target)) {
+                hideSearchResults();
+            }
+        });
+    }
 });
 
 // Auto-submit search form when tag filter changes

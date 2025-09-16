@@ -428,9 +428,18 @@ const enrollmentUrl = "{{ request.scheme }}://{{ request.get_host }}{% url 'enro
 ### 技术细节
 
 #### URL命名空间冲突解决
-- **公开注册**: 使用默认命名空间，路径 `/enroll/`
+- **公开注册**: 使用默认命名空间，路径 `/enroll/` ✅ **已确认**
 - **员工管理**: 使用 `staff_enrollment` 命名空间，路径 `/enrollment/`
 - **正确指定**: 为命名空间明确指定app_name，避免URL解析冲突
+
+#### 公共注册表单URL确认 ✅
+**日期**: 2024年
+**状态**: 已确认
+**URL路径**: `/enroll/` (不是 `/enroll/public`)
+**配置位置**: 
+- 主URL配置: `edupulse/urls.py` - `path('enroll/', include('enrollment.urls'))`
+- 应用URL配置: `enrollment/urls.py` - `path('', views.PublicEnrollmentView.as_view(), name='public_enrollment')`
+**课程特定URL**: `/enroll/?course=123` (使用查询参数)
 
 #### 绝对URL构造优化
 - **分离组件**: 使用 `request.scheme` 和 `request.get_host` 分别获取协议和域名

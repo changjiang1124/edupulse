@@ -384,9 +384,12 @@ def bulk_tag_operation(request):
         # Get data from request
         student_ids = request.POST.get('student_ids', '').strip()
         operation = request.POST.get('operation', '')  # 'add' or 'remove'
-        tag_ids = request.POST.get('tag_ids', '').strip()
 
-        if not student_ids or not operation or not tag_ids:
+        # Support both tag IDs and tag names
+        tag_ids = request.POST.get('tag_ids', '').strip()
+        tag_names = request.POST.get('tag_names', '').strip()
+
+        if not student_ids or not operation or (not tag_ids and not tag_names):
             return JsonResponse({
                 'success': False,
                 'error': 'Missing required parameters'
@@ -401,15 +404,6 @@ def bulk_tag_operation(request):
                 'error': 'Invalid student IDs format'
             }, status=400)
 
-        # Parse tag IDs
-        try:
-            tag_id_list = [int(id.strip()) for id in tag_ids.split(',') if id.strip()]
-        except ValueError:
-            return JsonResponse({
-                'success': False,
-                'error': 'Invalid tag IDs format'
-            }, status=400)
-
         # Validate operation
         if operation not in ['add', 'remove']:
             return JsonResponse({
@@ -417,20 +411,60 @@ def bulk_tag_operation(request):
                 'error': 'Invalid operation. Must be "add" or "remove"'
             }, status=400)
 
-        # Get students and tags
+        # Get students
         students = Student.objects.filter(id__in=student_id_list, is_active=True)
-        tags = StudentTag.objects.filter(id__in=tag_id_list, is_active=True)
-
         if not students.exists():
             return JsonResponse({
                 'success': False,
                 'error': 'No valid students found'
             }, status=404)
 
-        if not tags.exists():
+        # Process tags - support both IDs and names
+        tags = []
+        created_tags = []
+
+        # Handle tag IDs (existing functionality)
+        if tag_ids:
+            try:
+                tag_id_list = [int(id.strip()) for id in tag_ids.split(',') if id.strip()]
+                existing_tags = StudentTag.objects.filter(id__in=tag_id_list, is_active=True)
+                tags.extend(existing_tags)
+            except ValueError:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid tag IDs format'
+                }, status=400)
+
+        # Handle tag names (new functionality)
+        if tag_names:
+            tag_name_list = [name.strip() for name in tag_names.split(',') if name.strip()]
+            for tag_name in tag_name_list:
+                if operation == 'add':
+                    # For add operation, create tags if they don't exist
+                    tag, created = StudentTag.get_or_create_by_name(tag_name)
+                    if tag:
+                        tags.append(tag)
+                        if created:
+                            created_tags.append(tag)
+                else:
+                    # For remove operation, only use existing tags
+                    try:
+                        existing_tag = StudentTag.objects.get(
+                            name=tag_name.lower().strip(),
+                            is_active=True
+                        )
+                        tags.append(existing_tag)
+                    except StudentTag.DoesNotExist:
+                        # Ignore non-existent tags for remove operation
+                        continue
+
+        if not tags:
+            error_msg = 'No valid tags found'
+            if operation == 'remove':
+                error_msg += ' (tags must exist to be removed)'
             return JsonResponse({
                 'success': False,
-                'error': 'No valid tags found'
+                'error': error_msg
             }, status=404)
 
         # Perform bulk operation
@@ -445,8 +479,8 @@ def bulk_tag_operation(request):
             success_count += 1
 
             # Log activity for each student
-            tag_names = ', '.join([tag.name for tag in tags])
-            activity_title = f'Tags {"added" if operation == "add" else "removed"}: {tag_names}'
+            tag_names_str = ', '.join([tag.name for tag in tags])
+            activity_title = f'Tags {"added" if operation == "add" else "removed"}: {tag_names_str}'
             from .models import StudentActivity
             StudentActivity.create_activity(
                 student=student,
@@ -456,12 +490,19 @@ def bulk_tag_operation(request):
                 performed_by=request.user
             )
 
+        # Prepare response message
+        message = f'Successfully {operation}ed tags for {success_count} students'
+        if created_tags and operation == 'add':
+            created_names = [tag.name for tag in created_tags]
+            message += f'. Created new tags: {", ".join(created_names)}'
+
         return JsonResponse({
             'success': True,
-            'message': f'Successfully {operation}ed tags for {success_count} students',
+            'message': message,
             'students_updated': success_count,
             'operation': operation,
-            'tag_count': len(tag_id_list)
+            'tag_count': len(tags),
+            'created_tags': [{'id': tag.id, 'name': tag.name, 'colour': tag.colour} for tag in created_tags]
         })
 
     except Exception as e:
@@ -574,6 +615,94 @@ def get_available_tags(request):
         return JsonResponse({
             'success': True,
             'tags': tag_data
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+def search_tags(request):
+    """Search tags for autocomplete functionality"""
+    try:
+        query = request.GET.get('q', '').strip()
+        limit = min(int(request.GET.get('limit', 10)), 50)  # Max 50 results
+
+        if len(query) < 2:
+            return JsonResponse({
+                'success': True,
+                'tags': []
+            })
+
+        # Search for tags using the model's search method
+        tags = StudentTag.search_tags(query, limit)
+
+        tag_data = [
+            {
+                'id': tag.id,
+                'name': tag.name,
+                'colour': tag.colour,
+                'student_count': tag.students.filter(is_active=True).count()
+            }
+            for tag in tags
+        ]
+
+        return JsonResponse({
+            'success': True,
+            'tags': tag_data
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+def suggest_tag_name(request):
+    """Suggest tag names for text input autocomplete"""
+    try:
+        query = request.GET.get('q', '').strip()
+        limit = min(int(request.GET.get('limit', 5)), 20)  # Max 20 suggestions
+
+        if len(query) < 1:
+            return JsonResponse({
+                'success': True,
+                'suggestions': []
+            })
+
+        # Search for existing tag names
+        tags = StudentTag.search_tags(query, limit)
+
+        suggestions = [
+            {
+                'name': tag.name,
+                'exists': True,
+                'colour': tag.colour,
+                'student_count': tag.students.filter(is_active=True).count()
+            }
+            for tag in tags
+        ]
+
+        # If the query doesn't exactly match any existing tag, suggest creating it
+        query_lower = query.lower().strip()
+        existing_names = {tag.name for tag in tags}
+
+        if query_lower not in existing_names and query_lower:
+            suggestions.insert(0, {
+                'name': query_lower,
+                'exists': False,
+                'colour': StudentTag.generate_random_color(),
+                'student_count': 0
+            })
+
+        return JsonResponse({
+            'success': True,
+            'suggestions': suggestions
         })
 
     except Exception as e:

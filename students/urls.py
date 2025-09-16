@@ -20,4 +20,6 @@ urlpatterns = [
     # Tag management
     path('<int:student_id>/tag-management/', views.student_tag_management, name='student_tag_management'),
     path('available-tags/', views.get_available_tags, name='get_available_tags'),
+    path('search-tags/', views.search_tags, name='search_tags'),
+    path('suggest-tag-name/', views.suggest_tag_name, name='suggest_tag_name'),
 ]
