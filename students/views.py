@@ -330,32 +330,40 @@ def _send_email_notification(student, email, subject, message, message_type):
 
 def _send_sms_notification(student, phone, message, message_type):
     """Send SMS notification to student"""
-    from core.sms_backends import get_sms_backend
+    from core.sms_backends import send_sms
     
     # Get active SMS configuration
     sms_config = SMSSettings.get_active_config()
     if not sms_config:
         raise Exception('No active SMS configuration found')
     
-    # Get SMS backend
-    backend = get_sms_backend()
-    if not backend:
-        raise Exception('SMS backend not available')
-    
-    # Send SMS
-    message_sid = backend.send_sms(phone, message)
-    
-    # Log successful SMS
-    SMSLog.objects.create(
-        recipient_phone=phone,
-        recipient_type='student',
-        content=message,
-        sms_type=message_type,
-        status='sent',
-        message_sid=message_sid or '',
-        backend_type=sms_config.get_sms_backend_type_display(),
-        sent_at=timezone.now()
-    )
+    # Send SMS using the send_sms function
+    try:
+        send_sms(phone, message, message_type)
+        
+        # Log successful SMS
+        SMSLog.objects.create(
+            recipient_phone=phone,
+            recipient_type='student',
+            content=message,
+            sms_type=message_type,
+            status='sent',
+            message_sid='',  # send_sms doesn't return message_sid directly
+            backend_type=sms_config.get_sms_backend_type_display(),
+            sent_at=timezone.now()
+        )
+    except Exception as e:
+        # Log failed SMS
+        SMSLog.objects.create(
+            recipient_phone=phone,
+            recipient_type='student',
+            content=message,
+            sms_type=message_type,
+            status='failed',
+            error_message=str(e),
+            backend_type=sms_config.get_sms_backend_type_display() if sms_config else 'unknown'
+        )
+        raise e
 
 
 class StudentSearchView(LoginRequiredMixin, View):

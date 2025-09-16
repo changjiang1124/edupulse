@@ -1,3 +1,40 @@
+## 修复SMS发送功能错误 (2025-09-16) ✅ 已完成
+
+### 问题描述
+SMS发送功能失败，错误信息显示：`cannot import name 'get_sms_backend' from 'core.sms_backends'`
+
+### 问题分析
+1. **数据库配置正常** - SMSSettings中有有效的Twilio配置且处于激活状态
+2. **环境变量正常** - TWILIO_ACCOUNT_SID、TWILIO_AUTH_TOKEN、TWILIO_FROM_NUMBER都已设置
+3. **导入错误** - `students/views.py`中的`_send_sms_notification`函数试图导入不存在的`get_sms_backend`函数
+4. **函数不匹配** - `core/sms_backends.py`中提供的是`send_sms`函数，而不是`get_sms_backend`
+
+### 解决方案
+
+#### 1. 修复导入错误 ✅
+- **文件**：`students/views.py:332`
+- **修复前**：`from core.sms_backends import get_sms_backend`
+- **修复后**：`from core.sms_backends import send_sms`
+
+#### 2. 重构SMS发送逻辑 ✅
+- **简化调用**：直接使用`send_sms(phone, message, message_type)`
+- **错误处理**：添加try-catch块处理发送失败情况
+- **日志记录**：成功和失败都记录到SMSLog表中
+
+#### 3. 验证修复 ✅
+- ✅ SMS发送测试成功
+- ✅ 日志记录正常
+- ✅ 错误处理完善
+- ✅ 其他代码文件检查无类似问题
+
+### 完成效果
+- ✅ SMS发送功能恢复正常
+- ✅ 错误日志记录完善
+- ✅ 代码结构更加清晰
+- ✅ 消除了导入错误
+
+---
+
 ## 修复Staff列表页面点击错误 (2025-09-12) ✅ 已完成
 
 ### 问题描述
