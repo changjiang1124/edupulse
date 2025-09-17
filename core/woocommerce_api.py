@@ -7,7 +7,9 @@ import requests
 import json
 import logging
 import time
+import re
 from typing import Dict, Any, Optional
+from urllib.parse import urljoin
 from django.conf import settings
 from django.utils import timezone
 
@@ -89,15 +91,42 @@ class WooCommerceAPI:
                 'message': f'WooCommerce API connection failed: {str(e)}',
                 'data': None
             }
-    
+
+    def _convert_relative_urls_to_absolute(self, html_content: str) -> str:
+        """
+        Convert relative URLs in HTML content to absolute URLs
+        Processes src and href attributes to ensure images and links work on WooCommerce
+        """
+        if not html_content:
+            return html_content
+
+        base_url = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}/"
+
+        # Pattern to match src and href attributes with relative URLs
+        # Matches: src="..." or href="..." where the value doesn't start with http(s)://, data:, or mailto:
+        pattern = r'((?:src|href)=")(?!(?:https?://|data:|mailto:))([^"]*)"'
+
+        def replace_url(match):
+            attribute = match.group(1)  # src=" or href="
+            relative_url = match.group(2)  # the relative URL
+
+            # Convert to absolute URL
+            absolute_url = urljoin(base_url, relative_url)
+            return f'{attribute}{absolute_url}"'
+
+        # Apply the transformation
+        result = re.sub(pattern, replace_url, html_content, flags=re.IGNORECASE)
+        return result
+
     def _generate_enhanced_description(self, course_data: Dict[str, Any]) -> str:
         """
         Generate enhanced product description with essential user information
         """
         from datetime import datetime
         
-        # Start with basic description
+        # Start with basic description and convert relative URLs to absolute
         description = course_data.get('description', '')
+        description = self._convert_relative_urls_to_absolute(description)
         
         # Add essential course information
         info_sections = []
@@ -504,7 +533,6 @@ class WooCommerceSyncService:
         Sync a course to WooCommerce as external product with comprehensive logging
         """
         from django.urls import reverse
-        from django.contrib.sites.models import Site
         from core.models import WooCommerceSyncLog
         
         # Create sync log entry
@@ -522,16 +550,12 @@ class WooCommerceSyncService:
         
         try:
             # Prepare course data for WooCommerce
-            site = Site.objects.get_current()
-            enrollment_url = f"https://{site.domain}{reverse('enrollment:public_enrollment')}?course={course.id}"
+            enrollment_url = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}{reverse('enrollment:public_enrollment')}?course={course.id}"
             
-            # Handle featured image URL - only include if accessible
+            # Handle featured image URL - generate absolute URL
             featured_image_url = None
             if course.featured_image:
-                # For now, skip image URL to avoid 404 errors during development
-                # TODO: Implement proper image URL validation or use local development domain
-                # featured_image_url = f"https://{site.domain}{course.featured_image.url}"
-                pass
+                featured_image_url = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}{course.featured_image.url}"
             
             # Map category to WooCommerce category
             category_mapping = {

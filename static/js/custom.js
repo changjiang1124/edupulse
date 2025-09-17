@@ -53,7 +53,7 @@ $(document).ready(function() {
     $('form').submit(function() {
         var submitBtn = $(this).find('button[type="submit"]');
         submitBtn.prop('disabled', true);
-        submitBtn.html('<span class="spinner-border spinner-border-sm me-2" role="status"></span>处理中...');
+        submitBtn.html('<span class="spinner-border spinner-border-sm me-2" role="status"></span>Processing...');
     });
 
     // 数据表格排序
