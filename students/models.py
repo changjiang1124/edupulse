@@ -281,8 +281,19 @@ class Student(models.Model):
         return age is not None and age < 18
     
     def get_full_name(self):
-        """Get student's full name"""
-        return f"{self.first_name} {self.last_name}"
+        """Get student's full name with fallback for missing data"""
+        first = (self.first_name or '').strip()
+        last = (self.last_name or '').strip()
+
+        if first and last:
+            return f"{first} {last}"
+        elif first:
+            return first
+        elif last:
+            return last
+        else:
+            # Fallback for completely missing names
+            return f"Student #{self.id}" if self.id else "Unnamed Student"
 
 
 class StudentActivity(models.Model):

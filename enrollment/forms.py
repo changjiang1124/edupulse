@@ -822,12 +822,22 @@ class StudentSearchForm(forms.Form):
         # Format results
         results = []
         for student in students:
+            # Ensure we have proper names
+            full_name = student.get_full_name()
+            if not full_name or full_name.strip() == " ":
+                # Handle case where names might be empty
+                full_name = f"Student #{student.id}"
+
+            # Get contact information with better defaults
+            email = student.contact_email or 'No email provided'
+            phone = student.contact_phone or 'No phone provided'
+
             results.append({
                 'id': student.id,
-                'name': student.get_full_name(),
-                'email': student.contact_email or 'No email',
-                'phone': student.contact_phone or 'No phone',
-                'display': f"{student.get_full_name()} ({student.contact_email or 'No email'})"
+                'name': full_name,
+                'email': email,
+                'phone': phone,
+                'display': f"{full_name} ({email})"
             })
-        
+
         return results

@@ -102,14 +102,30 @@
                                     <!-- Student Search Input -->
                                     <div class="search-container">
                                         {{ enrollment_form.student_search.label_tag }}
-                                        {{ enrollment_form.student_search }}
+                                        <div class="input-group">
+                                            {{ enrollment_form.student_search }}
+                                            <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn" title="Clear search">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                        <div class="form-text">Search by name, email, or phone number</div>
+
+                                        <!-- Loading indicator -->
+                                        <div id="searchLoading" class="mt-2" style="display: none;">
+                                            <small class="text-muted">
+                                                <i class="fas fa-spinner fa-spin me-1"></i>Searching...
+                                            </small>
+                                        </div>
+
+                                        <!-- Search results container -->
                                         <div class="student-search-results" id="searchResults" style="display: none;"></div>
-                                        
+
                                         <!-- Create New Student Button -->
                         <div class="mt-2">
                             <a href="{% url 'students:student_add' %}" target="_blank" class="btn btn-outline-primary btn-sm">
                                 <i class="fas fa-plus me-1"></i>Create New Student
                             </a>
+                            <small class="text-muted ms-2">Opens in new window</small>
                         </div>
                                     </div>
                                     
@@ -262,24 +278,51 @@
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('id_student_search');
     const searchResults = document.getElementById('searchResults');
+    const searchLoading = document.getElementById('searchLoading');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
     const studentSelect = document.getElementById('id_student');
     const selectedStudentInfo = document.getElementById('selectedStudentInfo');
     const selectedStudentDetails = document.getElementById('selectedStudentDetails');
     const registrationFeeCheckbox = document.getElementById('id_charge_registration_fee');
-    
+
     let searchTimeout = null;
+
+    // Clear search functionality
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', function() {
+            if (searchInput) {
+                searchInput.value = '';
+                if (searchResults) {
+                    searchResults.style.display = 'none';
+                }
+                window.clearSelectedStudent();
+            }
+        });
+    }
 
     // Student Search Functionality
     if (searchInput) {
         searchInput.addEventListener('input', function() {
             clearTimeout(searchTimeout);
             const query = this.value.trim();
-            
-            if (query.length < 2) {
+
+            // Hide previous results
+            if (searchResults) {
                 searchResults.style.display = 'none';
+            }
+
+            if (query.length < 2) {
+                if (searchLoading) {
+                    searchLoading.style.display = 'none';
+                }
                 return;
             }
-            
+
+            // Show loading indicator
+            if (searchLoading) {
+                searchLoading.style.display = 'block';
+            }
+
             searchTimeout = setTimeout(() => {
                 performStudentSearch(query);
             }, 300);
@@ -289,32 +332,64 @@ document.addEventListener('DOMContentLoaded', function() {
     function performStudentSearch(query) {
         const url = new URL('{% url "enrollment:student_search_api" %}', window.location.origin);
         url.searchParams.append('query', query);
-        
+
         fetch(url)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                // Hide loading indicator
+                if (searchLoading) {
+                    searchLoading.style.display = 'none';
+                }
+
                 if (data.success) {
                     displaySearchResults(data.results);
                 } else {
                     console.error('Search failed:', data.errors);
+                    displaySearchError('Search failed. Please try again.');
                 }
             })
             .catch(error => {
+                // Hide loading indicator
+                if (searchLoading) {
+                    searchLoading.style.display = 'none';
+                }
+
                 console.error('Search error:', error);
+                displaySearchError('Search failed. Please check your connection and try again.');
             });
     }
 
     function displaySearchResults(results) {
+        if (!searchResults) return;
+
         if (results.length === 0) {
-            searchResults.innerHTML = '<div class="student-search-item text-muted">No students found</div>';
+            searchResults.innerHTML = `
+                <div class="student-search-item text-muted">
+                    <i class="fas fa-search me-2"></i>No students found matching your search
+                </div>`;
         } else {
             searchResults.innerHTML = results.map(student => `
-                <div class="student-search-item" data-student-id="${student.id}" data-student-name="${student.name}" data-student-email="${student.contact_email}" data-student-phone="${student.contact_phone}">
+                <div class="student-search-item" data-student-id="${student.id}" data-student-name="${student.name}" data-student-email="${student.email}" data-student-phone="${student.phone}">
                     <div class="fw-bold">${student.name}</div>
-                    <div class="small text-muted">${student.contact_email} | ${student.contact_phone}</div>
+                    <div class="small text-muted">${student.email} | ${student.phone}</div>
                 </div>
             `).join('');
         }
+        searchResults.style.display = 'block';
+    }
+
+    function displaySearchError(message) {
+        if (!searchResults) return;
+
+        searchResults.innerHTML = `
+            <div class="student-search-item text-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>${message}
+            </div>`;
         searchResults.style.display = 'block';
     }
 
@@ -327,7 +402,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const name = studentItem.dataset.studentName;
                 const email = studentItem.dataset.studentEmail;
                 const phone = studentItem.dataset.studentPhone;
-                
+
                 window.selectStudent(id, name, email, phone);
             }
         });

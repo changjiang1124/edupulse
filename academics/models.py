@@ -120,7 +120,7 @@ class Course(models.Model):
     repeat_pattern = models.CharField(
         max_length=20,
         choices=REPEAT_PATTERN_CHOICES,
-        default='once',
+        default='weekly',
         verbose_name='Repeat Pattern'
     )
     

@@ -241,3 +241,6 @@ Please fix it and test it.
 
 ### Facility & classroom 
 - [x] in class list there might be some class with `room 1` as classroom, while the facility has no such classroom. and when i tried to change its facility and classroom, it shows error as attached. please check if the classroom information is accurate or not. and check if other places have similar issue. please fix it and test it.
+
+### dashboard 
+- [] think harder to help me review the layout / features and interaction of dashboard page, to make it more user friendly and useful. e.g. the quick actions could be more obvious, and the layout of the panels could be more reasonable. and the chart could be more useful as well. please give me your suggestions and implement them, especially to the administrator. as staff has limited to the pages and functions. should we start from administrator only at this stage?

@@ -896,12 +896,12 @@ document.addEventListener('DOMContentLoaded', function() {
         courseForm.addEventListener('submit', handleFormSubmit);
     }
     
-    // Repeat pattern handler
+    // Handle repeat pattern changes
     const repeatPatternSelect = document.getElementById('{{ form.repeat_pattern.id_for_label }}');
     if (repeatPatternSelect) {
-        // Initial state
+        // Initial state - handle the default 'weekly' selection
         handleRepeatPatternChange();
-        
+
         // Handle changes
         repeatPatternSelect.addEventListener('change', handleRepeatPatternChange);
     }
