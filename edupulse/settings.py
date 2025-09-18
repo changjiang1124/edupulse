@@ -174,6 +174,15 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 DEFAULT_FROM_EMAIL = os.getenv('SMTP_USERNAME', 'noreply@perthartschool.com.au')
 
+# Email performance and reliability settings
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '60'))  # 60 seconds timeout
+EMAIL_SSL_KEYFILE = None
+EMAIL_SSL_CERTFILE = None
+
+# Batch email settings for bulk operations
+BULK_EMAIL_BATCH_SIZE = int(os.getenv('BULK_EMAIL_BATCH_SIZE', '20'))  # Send 20 emails per batch
+BULK_EMAIL_BATCH_DELAY = float(os.getenv('BULK_EMAIL_BATCH_DELAY', '0'))  # 0 delay by default to avoid blocking
+
 # Twilio 短信配置
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')

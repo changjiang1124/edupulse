@@ -67,6 +67,11 @@ SMTP_PORT=587
 SMTP_USERNAME=your-smtp-username
 SMTP_PASSWORD=your-smtp-password
 
+# Email Performance Settings (New in v1.1)
+EMAIL_TIMEOUT=60
+BULK_EMAIL_BATCH_SIZE=20
+BULK_EMAIL_BATCH_DELAY=0    # Set to 0 to avoid blocking (recommended)
+
 # SMS Configuration (Optional - Twilio)
 TWILIO_ACCOUNT_SID=your-twilio-sid
 TWILIO_AUTH_TOKEN=your-twilio-token
@@ -342,9 +347,71 @@ Ensure regular backups of:
 1. Access `/core/settings/organisation/` after deployment
 2. Confirm GST Configuration card shows only "Prices Include GST" toggle
 3. Test price display functionality on course pages
-4. Verify GST calculations use fixed 10% rate
 
-**Rollback**: If needed, revert commits related to GST simplification - no data loss risk
+**Rollback**: Simply revert to previous code version - no data changes required
+
+### Batch Email Performance Optimization (2025-09-18) - UPDATED
+**Impact**: Performance improvement for bulk email operations with critical bug fixes
+
+**Changes Made**:
+- Enhanced email sending with batch processing (default 20 emails per batch)
+- Added SMTP connection pooling and validation with retry logic (max 2 retries)
+- Fixed N+1 database query issue in bulk course reminders
+- Improved error handling with per-email error isolation
+- Immediate quota consumption (per successful email)
+- Created `BatchEmailService` class for reliable bulk email sending
+- Updated `NotificationService.send_bulk_course_reminders()` with optimized queries
+- Modified `students.views.bulk_notification()` to use batch service
+
+**Critical Bug Fixes**:
+- ✅ SMTP connection management and validation
+- ✅ Database query optimization (N+1 problem)
+- ✅ Quota consumption timing
+- ✅ Individual email retry logic
+- ⚠️ **Still synchronous**: User requests are blocked during email sending
+
+**New Environment Variables Required**:
+```env
+EMAIL_TIMEOUT=60                # SMTP connection timeout in seconds
+BULK_EMAIL_BATCH_SIZE=20       # Number of emails per batch
+BULK_EMAIL_BATCH_DELAY=0       # Delay between batches (0=no delay, recommended)
+```
+
+**Files Modified**:
+- `edupulse/settings.py`: Updated email performance configuration
+- `core/services/batch_email_service.py`: Enhanced batch service with fixes
+- `core/services/notification_service.py`: Fixed N+1 queries and caching
+- `students/views.py`: Enhanced bulk notification with batch processing
+- `templates/core/emails/bulk_notification.html`: New template (NEW FILE)
+- `templates/core/emails/bulk_notification.txt`: New template (NEW FILE)
+- `EMAIL_QUEUE_DEPLOYMENT.md`: Comprehensive deployment guide
+- `EMAIL_SYSTEM_LIMITATIONS.md`: Current limitations and solutions (NEW FILE)
+
+**Testing Steps**:
+1. Configure new environment variables in .env file
+2. Restart application server (gunicorn/runserver)
+3. Test bulk email functionality with 10-20 recipients first
+4. Monitor logs for batch processing and retry confirmation
+5. Limit production usage to max 50 emails per batch
+
+**Performance Benefits**:
+- Reliable SMTP connection handling with auto-retry
+- Optimized database queries (eliminated N+1 problem)
+- Better error isolation (failed emails don't affect entire batch)
+- Immediate quota tracking prevents double-billing
+- Enhanced monitoring and logging capabilities
+
+**⚠️ Known Limitations**:
+- **Still synchronous**: Email sending blocks user interface
+- **Recommended limit**: Max 30-50 emails per batch for good UX
+- **Large batches**: 100+ emails may cause browser timeout
+
+**Future Upgrade Path**:
+- Phase 2: Django-RQ for async processing (50+ emails)
+- Phase 3: Celery for enterprise-scale operations (200+ emails)
+- See `EMAIL_QUEUE_DEPLOYMENT.md` for detailed upgrade instructions
+
+**Rollback**: Revert code changes and remove new environment variables - no database changes required
 
 ## Support
 For technical support or questions about deployment, refer to the project documentation or contact the development team.

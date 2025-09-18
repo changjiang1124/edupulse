@@ -1,0 +1,20 @@
+Perth Art School
+
+Dear {{ recipient_name }},
+
+{{ message }}
+
+{% if student %}
+Student: {{ student.get_full_name }}
+{% if student.student_id %}Student ID: {{ student.student_id }}{% endif %}
+{% endif %}
+
+---
+
+Perth Art School
+{{ site_domain }}
+{% if contact_email %}Email: {{ contact_email }}{% endif %}
+{% if contact_phone %}Phone: {{ contact_phone }}{% endif %}
+
+This is an automated message from Perth Art School.
+Please do not reply to this email.

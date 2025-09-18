@@ -528,16 +528,46 @@
                 <h5 class="modal-title" id="bulkNotificationModalLabel">Send Bulk Notification</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="post" action="{% url 'students:bulk_notification' %}" id="bulkNotificationForm">
+            <form method="post" action="{% url 'students:bulk_notification_start' %}" id="bulkNotificationForm">
                 <div class="modal-body">
                     {% csrf_token %}
                     <input type="hidden" name="student_ids" id="selectedStudentIds">
                     <input type="hidden" name="send_to" value="selected">
-                    
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Recipients:</strong> <span id="recipientCount">0</span> students selected
+
+                    <!-- Progress Display Area (initially hidden) -->
+                    <div id="progressArea" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-paper-plane"></i>
+                            <strong>Sending notifications...</strong>
+                        </div>
+                        <div class="progress mb-3">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                 id="progressBar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center">
+                            <small id="progressText">Preparing to send notifications...</small>
+                        </div>
+                        <div id="progressStats" class="mt-2" style="display: none;">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <small class="text-success">Sent: <span id="progressSent">0</span></small>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-danger">Failed: <span id="progressFailed">0</span></small>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-info">Total: <span id="progressTotal">0</span></small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Form Fields Area -->
+                    <div id="formFieldsArea">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Recipients:</strong> <span id="recipientCount">0</span> students selected
+                        </div>
                     
                     <div class="row">
                         <div class="col-md-6">
@@ -581,11 +611,15 @@
                             </span>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
+
+                </div> <!-- End of formFieldsArea -->
+                <div class="modal-footer" id="modalFooter">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="sendBtn">
                         <i class="fas fa-paper-plane"></i> Send Notification
+                    </button>
+                    <button type="button" class="btn btn-success" style="display: none;" id="doneBtn" data-bs-dismiss="modal">
+                        <i class="fas fa-check"></i> Done
                     </button>
                 </div>
             </form>
@@ -1181,29 +1215,34 @@ document.addEventListener('DOMContentLoaded', function() {
         updateFormVisibility();
         updateCharacterCount();
 
-        // Handle form submission
-        bulkNotificationForm.addEventListener('submit', function(e) {
+        // Handle form submission with progress tracking
+        bulkNotificationForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
             const notificationType = notificationTypeSelect.value;
             const messageLength = messageContent.value.length;
 
             // Validate SMS length
             if ((notificationType === 'sms' || notificationType === 'both') && messageLength > 160) {
-                e.preventDefault();
                 alert('SMS messages cannot exceed 160 characters. Please shorten your message.');
                 return false;
             }
 
-            // Show loading state
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-            submitBtn.disabled = true;
+            // Start progress display
+            showProgressArea();
 
-            // Re-enable after 10 seconds as fallback
-            setTimeout(() => {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }, 10000);
+            try {
+                // Step 1: Start the bulk notification task
+                const taskId = await startBulkNotification();
+
+                // Step 2: Execute the task and monitor progress
+                await executeBulkNotificationWithProgress(taskId);
+
+            } catch (error) {
+                console.error('Bulk notification error:', error);
+                hideProgressArea();
+                alert('An error occurred while sending notifications. Please try again.');
+            }
         });
     }
 });
@@ -1603,5 +1642,153 @@ document.addEventListener('DOMContentLoaded', function() {
 document.getElementById('tag_filter').addEventListener('change', function() {
     document.getElementById('searchForm').submit();
 });
+
+// Bulk Notification Progress Functions
+function showProgressArea() {
+    document.getElementById('formFieldsArea').style.display = 'none';
+    document.getElementById('progressArea').style.display = 'block';
+    document.getElementById('sendBtn').style.display = 'none';
+    document.getElementById('cancelBtn').style.display = 'none';
+}
+
+function hideProgressArea() {
+    document.getElementById('formFieldsArea').style.display = 'block';
+    document.getElementById('progressArea').style.display = 'none';
+    document.getElementById('sendBtn').style.display = 'inline-block';
+    document.getElementById('cancelBtn').style.display = 'inline-block';
+    document.getElementById('doneBtn').style.display = 'none';
+}
+
+function showCompletionState() {
+    document.getElementById('doneBtn').style.display = 'inline-block';
+}
+
+async function startBulkNotification() {
+    const formData = new FormData(document.getElementById('bulkNotificationForm'));
+
+    const response = await fetch('{% url "students:bulk_notification_start" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+        throw new Error(data.error || 'Failed to start bulk notification');
+    }
+
+    // Update progress display
+    document.getElementById('progressTotal').textContent = data.total_recipients;
+    updateProgressBar(0, `Starting ${data.notification_type} notification for ${data.total_recipients} recipients...`);
+
+    return data.task_id;
+}
+
+async function executeBulkNotificationWithProgress(taskId) {
+    // Start execution
+    const executePromise = fetch(`{% url "students:bulk_notification_execute" task_id="TASK_ID" %}`.replace('TASK_ID', taskId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    });
+
+    // Start progress monitoring
+    const progressPromise = monitorProgress(taskId);
+
+    // Wait for both to complete
+    const [executeResponse, progressResult] = await Promise.all([executePromise, progressPromise]);
+
+    const executeData = await executeResponse.json();
+
+    if (!executeData.success) {
+        throw new Error(executeData.error || 'Failed to execute bulk notification');
+    }
+
+    return executeData;
+}
+
+async function monitorProgress(taskId) {
+    const progressUrl = `{% url "students:bulk_notification_progress" task_id="TASK_ID" %}`.replace('TASK_ID', taskId);
+    let lastStatus = '';
+
+    while (true) {
+        try {
+            const response = await fetch(progressUrl);
+            const data = await response.json();
+
+            if (!data) {
+                throw new Error('Failed to get progress data');
+            }
+
+            updateProgressDisplay(data);
+
+            // Check if completed or failed
+            if (data.status === 'completed') {
+                showCompletionState();
+                break;
+            } else if (data.status === 'failed') {
+                throw new Error(data.error_message || 'Task failed');
+            }
+
+            // Continue polling
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Poll every 1 second
+
+        } catch (error) {
+            console.error('Progress monitoring error:', error);
+            // Continue monitoring on non-critical errors
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+    }
+}
+
+function updateProgressDisplay(progressData) {
+    const percentage = progressData.percentage || 0;
+    const processed = progressData.processed_emails || 0;
+    const total = progressData.total_emails || 0;
+    const sent = progressData.sent_emails || 0;
+    const failed = progressData.failed_emails || 0;
+
+    // Update progress bar
+    updateProgressBar(percentage, `Processing ${processed} of ${total} notifications...`);
+
+    // Update stats
+    document.getElementById('progressSent').textContent = sent;
+    document.getElementById('progressFailed').textContent = failed;
+    document.getElementById('progressTotal').textContent = total;
+
+    // Show stats when we have data
+    if (processed > 0) {
+        document.getElementById('progressStats').style.display = 'block';
+    }
+
+    // Update status text based on progress
+    let statusText = 'Preparing to send notifications...';
+    if (progressData.status === 'starting') {
+        statusText = 'Starting notification process...';
+    } else if (progressData.status === 'sending') {
+        statusText = `Sending notification ${processed} of ${total}...`;
+        if (progressData.current_batch && progressData.total_batches) {
+            statusText += ` (Batch ${progressData.current_batch}/${progressData.total_batches})`;
+        }
+    } else if (progressData.status === 'completed') {
+        statusText = `Completed! Sent ${sent} notifications, ${failed} failed.`;
+    }
+
+    document.getElementById('progressText').textContent = statusText;
+}
+
+function updateProgressBar(percentage, text) {
+    const progressBar = document.getElementById('progressBar');
+    progressBar.style.width = percentage + '%';
+    progressBar.setAttribute('aria-valuenow', percentage);
+
+    if (text) {
+        document.getElementById('progressText').textContent = text;
+    }
+}
 </script>
 {% endblock %}

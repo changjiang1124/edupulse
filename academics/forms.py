@@ -11,7 +11,7 @@ class CourseForm(forms.ModelForm):
         model = Course
         fields = [
             'name', 'short_description', 'description', 'featured_image', 'price', 'registration_fee', 'course_type', 'category', 'status', 'teacher',
-            'start_date', 'end_date', 'repeat_pattern', 'repeat_weekday', 'repeat_day_of_month', 
+            'start_date', 'end_date', 'repeat_pattern', 'repeat_weekday', 'repeat_day_of_month', 'daily_weekdays',
             'start_time', 'duration_minutes', 'vacancy', 'facility', 'classroom', 'is_online_bookable',
             'enrollment_deadline'
         ]
@@ -71,6 +71,9 @@ class CourseForm(forms.ModelForm):
             'repeat_day_of_month': forms.Select(attrs={
                 'class': 'form-select'
             }),
+            'daily_weekdays': forms.CheckboxSelectMultiple(attrs={
+                'class': 'form-check-input'
+            }),
             'start_time': forms.TimeInput(attrs={
                 'class': 'form-control',
                 'type': 'time'
@@ -124,9 +127,12 @@ class CourseForm(forms.ModelForm):
             # Set other field initial values
             if self.instance.repeat_weekday is not None:
                 self.initial['repeat_weekday'] = self.instance.repeat_weekday
-                
+
             if self.instance.repeat_day_of_month is not None:
                 self.initial['repeat_day_of_month'] = self.instance.repeat_day_of_month
+
+            if self.instance.daily_weekdays is not None:
+                self.initial['daily_weekdays'] = self.instance.daily_weekdays
         
         # Create day of month choices (1-31)
         day_choices = [('', 'Select day...')] + [(i, f'{i}') for i in range(1, 32)]
@@ -134,6 +140,18 @@ class CourseForm(forms.ModelForm):
             choices=day_choices,
             required=False,
             widget=forms.Select(attrs={'class': 'form-select'})
+        )
+
+        # Configure daily weekdays field with custom choices
+        from .models import Course
+        weekday_choices = Course.WEEKDAY_CHOICES
+        self.fields['daily_weekdays'] = forms.MultipleChoiceField(
+            choices=weekday_choices,
+            widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+            required=False,
+            label='Days of the Week',
+            help_text='Select which days of the week classes should occur',
+            initial=[0, 1, 2, 3, 4]  # Default to weekdays (Mon-Fri)
         )
         
         # Configure classroom field for dynamic filtering
@@ -179,6 +197,14 @@ class CourseForm(forms.ModelForm):
         """Clean repeat_day_of_month field to convert empty string to None"""
         value = self.cleaned_data.get('repeat_day_of_month')
         return None if value == '' else value
+
+    def clean_daily_weekdays(self):
+        """Clean daily_weekdays field to convert string values to integers"""
+        value = self.cleaned_data.get('daily_weekdays')
+        if value:
+            # Convert string values to integers for JSON storage
+            return [int(day) for day in value]
+        return value
     
     def clean(self):
         """Validate facility-classroom matching"""
@@ -241,9 +267,12 @@ class CourseUpdateForm(CourseForm):
                 
             if self.instance.repeat_weekday is not None:
                 self.initial['repeat_weekday'] = self.instance.repeat_weekday
-                
+
             if self.instance.repeat_day_of_month is not None:
                 self.initial['repeat_day_of_month'] = self.instance.repeat_day_of_month
+
+            if self.instance.daily_weekdays is not None:
+                self.initial['daily_weekdays'] = self.instance.daily_weekdays
                 
             # Set date and time field initial values  
             if self.instance.end_date:
@@ -257,7 +286,7 @@ class CourseUpdateForm(CourseForm):
         
         if self.instance and self.instance.pk:
             # Disable fields that shouldn't be changed in edit mode to avoid complications
-            readonly_fields = ['repeat_pattern', 'course_type', 'start_date', 'end_date']
+            readonly_fields = ['repeat_pattern', 'course_type', 'start_date', 'end_date', 'daily_weekdays']
             for field_name in readonly_fields:
                 if field_name in self.fields:
                     self.fields[field_name].disabled = True
@@ -265,9 +294,11 @@ class CourseUpdateForm(CourseForm):
                     if field_name == 'repeat_pattern':
                         self.fields[field_name].help_text = "Cannot be changed after course creation to avoid affecting existing classes"
                     elif field_name in ['start_date', 'end_date']:
-                        self.fields[field_name].help_text = "Cannot be changed after course creation to avoid affecting class schedules"  
+                        self.fields[field_name].help_text = "Cannot be changed after course creation to avoid affecting class schedules"
                     elif field_name == 'course_type':
                         self.fields[field_name].help_text = "Cannot be changed after course creation"
+                    elif field_name == 'daily_weekdays':
+                        self.fields[field_name].help_text = "Cannot be changed after course creation to avoid affecting existing classes"
             
             # Add individual class selection field for upcoming classes
             from django.utils import timezone

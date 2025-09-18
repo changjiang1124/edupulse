@@ -138,6 +138,13 @@ class Course(models.Model):
         verbose_name='Day of Month',
         help_text='Day of the month for monthly courses (1-31, auto-filled from start date)'
     )
+    daily_weekdays = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name='Daily Weekdays',
+        help_text='Days of the week for daily courses (list of weekday numbers)',
+        default=list
+    )
     start_time = models.TimeField(
         verbose_name='Start Time'
     )
@@ -259,8 +266,19 @@ class Course(models.Model):
                 self.repeat_day_of_month = None
             elif self.repeat_pattern == 'weekly':
                 self.repeat_day_of_month = None
+                self.daily_weekdays = None
             elif self.repeat_pattern == 'monthly':
                 self.repeat_weekday = None
+                self.daily_weekdays = None
+
+            # Handle daily_weekdays for daily pattern
+            if self.repeat_pattern == 'daily':
+                # If daily_weekdays is empty, set default to weekdays (Mon-Fri)
+                if not self.daily_weekdays:
+                    self.daily_weekdays = [0, 1, 2, 3, 4]  # Mon-Fri
+            else:
+                # Clear daily_weekdays for non-daily patterns
+                self.daily_weekdays = None
                 
         super().save(*args, **kwargs)
     
@@ -303,7 +321,17 @@ class Course(models.Model):
             if self.repeat_pattern == 'weekly' and weekday_name:
                 return f"Every {weekday_name} at {self.start_time.strftime('%I:%M %p')}"
             elif self.repeat_pattern == 'daily':
-                return f"Daily at {self.start_time.strftime('%I:%M %p')}"
+                if self.daily_weekdays:
+                    weekday_names = [dict(self.WEEKDAY_CHOICES)[wd] for wd in self.daily_weekdays]
+                    if len(weekday_names) == 7:
+                        return f"Daily at {self.start_time.strftime('%I:%M %p')}"
+                    elif weekday_names == ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']:
+                        return f"Weekdays at {self.start_time.strftime('%I:%M %p')}"
+                    else:
+                        days_str = ", ".join(weekday_names)
+                        return f"Daily ({days_str}) at {self.start_time.strftime('%I:%M %p')}"
+                else:
+                    return f"Daily at {self.start_time.strftime('%I:%M %p')}"
             elif self.repeat_pattern == 'monthly' and self.repeat_day_of_month:
                 return f"Monthly on the {self.repeat_day_of_month}{self._get_ordinal_suffix(self.repeat_day_of_month)} at {self.start_time.strftime('%I:%M %p')}"
             else:
@@ -399,18 +427,23 @@ class Course(models.Model):
             )
             classes_created = 1
         elif self.repeat_pattern == 'daily':
-            # Daily classes
+            # Daily classes with weekday filtering
+            allowed_weekdays = self.daily_weekdays or [0, 1, 2, 3, 4, 5, 6]  # Default to all days if not set
+
             while current_date <= end_date:
-                Class.objects.create(
-                    course=self,
-                    date=current_date,
-                    start_time=self.start_time,
-                    duration_minutes=self.duration_minutes,
-                    teacher=self.teacher,
-                    facility=self.facility,
-                    classroom=self.classroom
-                )
-                classes_created += 1
+                # Check if current date's weekday is in allowed weekdays
+                current_weekday = current_date.weekday()
+                if current_weekday in allowed_weekdays:
+                    Class.objects.create(
+                        course=self,
+                        date=current_date,
+                        start_time=self.start_time,
+                        duration_minutes=self.duration_minutes,
+                        teacher=self.teacher,
+                        facility=self.facility,
+                        classroom=self.classroom
+                    )
+                    classes_created += 1
                 current_date += timedelta(days=1)
         elif self.repeat_pattern == 'weekly':
             # Weekly classes - use specific weekday
@@ -500,7 +533,17 @@ class Course(models.Model):
                 day_suffix = 'rd'
             return f"Every {self.repeat_day_of_month}{day_suffix} of the month"
         elif self.repeat_pattern == 'daily':
-            return "Every day"
+            if self.daily_weekdays:
+                weekday_names = [dict(self.WEEKDAY_CHOICES)[wd] for wd in self.daily_weekdays]
+                if len(weekday_names) == 7:
+                    return "Every day"
+                elif weekday_names == ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']:
+                    return "Every weekday"
+                else:
+                    days_str = ", ".join(weekday_names)
+                    return f"Daily ({days_str})"
+            else:
+                return "Every day"
         elif self.repeat_pattern == 'once':
             return "Single session"
         return self.get_repeat_pattern_display()

@@ -11,10 +11,14 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
 from datetime import timedelta
+import logging
 
 from .models import Student, StudentTag
 from .forms import StudentForm, BulkNotificationForm
 from core.models import EmailSettings, SMSSettings, EmailLog, SMSLog, NotificationQuota
+from core.services.notification_service import NotificationService
+
+logger = logging.getLogger(__name__)
 
 
 class StudentListView(LoginRequiredMixin, ListView):
@@ -129,6 +133,255 @@ class StudentUpdateView(LoginRequiredMixin, UpdateView):
 
 
 @login_required
+def bulk_notification_start(request):
+    """Start bulk notification sending and return task ID for progress tracking"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+    from core.services.bulk_notification_progress import BulkNotificationProgress
+
+    form = BulkNotificationForm(request.POST)
+
+    if not form.is_valid():
+        errors = {}
+        for field, field_errors in form.errors.items():
+            errors[field] = field_errors
+        return JsonResponse({'error': 'Form validation failed', 'details': errors}, status=400)
+
+    # Get cleaned data
+    cleaned_data = form.cleaned_data
+    notification_type = cleaned_data['notification_type']
+    send_to = cleaned_data['send_to']
+    student_ids = cleaned_data.get('student_id_list', [])
+    selected_tags = cleaned_data.get('selected_tags', [])
+
+    # Determine recipient students (same logic as before)
+    recipients = []
+
+    if send_to == 'selected':
+        if student_ids:
+            recipients = Student.objects.filter(id__in=student_ids, is_active=True)
+    elif send_to == 'all_active':
+        recipients = Student.objects.filter(is_active=True)
+    elif send_to == 'by_tag':
+        if selected_tags:
+            recipients = Student.objects.filter(tags__in=selected_tags, is_active=True).distinct()
+    elif send_to == 'pending_enrollments':
+        try:
+            from enrollment.models import Enrollment
+            pending_enrollment_ids = Enrollment.objects.filter(
+                status='pending'
+            ).values_list('student_id', flat=True).distinct()
+            recipients = Student.objects.filter(id__in=pending_enrollment_ids, is_active=True)
+        except ImportError:
+            recipients = []
+    elif send_to == 'recent_enrollments':
+        try:
+            from enrollment.models import Enrollment
+            recent_date = timezone.now() - timedelta(days=30)
+            recent_enrollment_ids = Enrollment.objects.filter(
+                created_at__gte=recent_date
+            ).values_list('student_id', flat=True).distinct()
+            recipients = Student.objects.filter(id__in=recent_enrollment_ids, is_active=True)
+        except ImportError:
+            recipients = []
+
+    if not recipients:
+        return JsonResponse({'error': 'No students found matching the selected criteria'}, status=400)
+
+    # Check notification quotas
+    email_quota_ok = True
+    sms_quota_ok = True
+
+    if notification_type in ['email', 'both']:
+        email_quota_ok = NotificationQuota.check_quota_available('email', len(recipients))
+        if not email_quota_ok:
+            return JsonResponse({
+                'error': f'Email quota exceeded. Cannot send {len(recipients)} emails.'
+            }, status=400)
+
+    if notification_type in ['sms', 'both']:
+        sms_quota_ok = NotificationQuota.check_quota_available('sms', len(recipients))
+        if not sms_quota_ok:
+            return JsonResponse({
+                'error': f'SMS quota exceeded. Cannot send {len(recipients)} SMS messages.'
+            }, status=400)
+
+    # Create progress tracking task
+    task_id = BulkNotificationProgress.create_task(len(recipients), notification_type)
+
+    # Store task data in session for the actual execution
+    request.session[f'bulk_task_{task_id}'] = {
+        'notification_type': notification_type,
+        'message_type': cleaned_data['message_type'],
+        'subject': cleaned_data.get('subject', ''),
+        'message': cleaned_data['message'],
+        'recipient_ids': [r.id for r in recipients],
+        'total_recipients': len(recipients)
+    }
+
+    return JsonResponse({
+        'success': True,
+        'task_id': task_id,
+        'total_recipients': len(recipients),
+        'notification_type': notification_type
+    })
+
+
+@login_required
+def bulk_notification_execute(request, task_id):
+    """Execute the actual bulk notification sending with progress tracking"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+    from core.services.bulk_notification_progress import BulkNotificationProgress, create_progress_callback
+    from core.services.batch_email_service import BatchEmailService
+
+    # Get task data from session
+    task_data = request.session.get(f'bulk_task_{task_id}')
+    if not task_data:
+        BulkNotificationProgress.mark_failed(task_id, 'Task data not found')
+        return JsonResponse({'error': 'Task data not found'}, status=404)
+
+    try:
+        # Get recipients
+        recipient_ids = task_data['recipient_ids']
+        recipients = Student.objects.filter(id__in=recipient_ids, is_active=True)
+
+        notification_type = task_data['notification_type']
+        message_type = task_data['message_type']
+        subject = task_data['subject']
+        message = task_data['message']
+
+        # Create progress callback
+        progress_callback = create_progress_callback(task_id)
+
+        # Send notifications using batch service for emails
+        email_sent = 0
+        sms_sent = 0
+        email_failed = 0
+        sms_failed = 0
+
+        # Prepare bulk email data if email notifications are needed
+        if notification_type in ['email', 'both']:
+            email_data_list = []
+            for student in recipients:
+                contact_email = student.get_contact_email()
+                if contact_email:
+                    context = {
+                        'student': student,
+                        'recipient_name': student.guardian_name if student.guardian_name else student.get_full_name(),
+                        'message': message,
+                        'message_type': message_type,
+                        'site_domain': 'edupulse.perthartschool.com.au',  # TODO: Make configurable
+                    }
+
+                    email_data = {
+                        'to': contact_email,
+                        'subject': subject,
+                        'context': context,
+                        'template_name': 'core/emails/bulk_notification.html'
+                    }
+                    email_data_list.append(email_data)
+
+            if email_data_list:
+                try:
+                    batch_service = BatchEmailService(progress_callback=progress_callback)
+                    stats = batch_service.send_bulk_emails(email_data_list)
+                    email_sent = stats['sent']
+                    email_failed = stats['failed']
+
+                    logger.info(f"Bulk email notification completed: sent {email_sent}, failed {email_failed}")
+                except Exception as e:
+                    logger.error(f"Bulk email notification error: {e}")
+                    BulkNotificationProgress.mark_failed(task_id, str(e))
+                    return JsonResponse({'error': f'Email sending failed: {e}'}, status=500)
+
+        # Send SMS notifications (individual processing as before)
+        if notification_type in ['sms', 'both']:
+            for student in recipients:
+                if student.guardian_phone or student.phone:
+                    phone = student.guardian_phone or student.phone
+                    try:
+                        success = NotificationService.send_sms_notification(phone, message, 'bulk')
+                        if success:
+                            sms_sent += 1
+                            SMSLog.objects.create(
+                                recipient_phone=phone,
+                                recipient_type='student',
+                                content=message,
+                                sms_type='bulk',
+                                status='sent',
+                                sent_at=timezone.now()
+                            )
+                        else:
+                            sms_failed += 1
+                            SMSLog.objects.create(
+                                recipient_phone=phone,
+                                recipient_type='student',
+                                content=message,
+                                sms_type='bulk',
+                                status='failed',
+                                error_message='SMS sending failed',
+                                sent_at=timezone.now()
+                            )
+                    except Exception as e:
+                        sms_failed += 1
+                        SMSLog.objects.create(
+                            recipient_phone=phone,
+                            recipient_type='student',
+                            content=message,
+                            sms_type='bulk',
+                            status='failed',
+                            error_message=str(e),
+                            sent_at=timezone.now()
+                        )
+
+        # Update quotas
+        if sms_sent > 0:
+            NotificationQuota.consume_quota('sms', sms_sent)
+
+        # Mark task as completed
+        final_stats = {
+            'sent': email_sent + sms_sent,
+            'failed': email_failed + sms_failed,
+            'email_sent': email_sent,
+            'email_failed': email_failed,
+            'sms_sent': sms_sent,
+            'sms_failed': sms_failed
+        }
+
+        BulkNotificationProgress.mark_completed(task_id, final_stats)
+
+        # Clean up session data
+        if f'bulk_task_{task_id}' in request.session:
+            del request.session[f'bulk_task_{task_id}']
+
+        return JsonResponse({
+            'success': True,
+            'stats': final_stats
+        })
+
+    except Exception as e:
+        logger.error(f"Bulk notification execution error: {e}")
+        BulkNotificationProgress.mark_failed(task_id, str(e))
+        return JsonResponse({'error': f'Execution failed: {e}'}, status=500)
+
+
+@login_required
+def bulk_notification_progress(request, task_id):
+    """Get progress status for a bulk notification task"""
+    from core.services.bulk_notification_progress import BulkNotificationProgress
+
+    progress_data = BulkNotificationProgress.get_progress(task_id)
+
+    if not progress_data:
+        return JsonResponse({'error': 'Task not found'}, status=404)
+
+    return JsonResponse(progress_data)
+
+
+@login_required
 def bulk_notification(request):
     """Handle bulk notification sending to students"""
     if request.method != 'POST':
@@ -205,48 +458,87 @@ def bulk_notification(request):
     if not email_quota_ok or not sms_quota_ok:
         return redirect('students:student_list')
     
-    # Send notifications
+    # Send notifications using batch service for emails
     email_sent = 0
     sms_sent = 0
     email_failed = 0
     sms_failed = 0
-    
-    for student in recipients:
-        # Send email
-        if notification_type in ['email', 'both']:
+
+    # Prepare bulk email data if email notifications are needed
+    if notification_type in ['email', 'both']:
+        from core.services.batch_email_service import BatchEmailService
+
+        email_data_list = []
+        for student in recipients:
             contact_email = student.get_contact_email()
             if contact_email:
+                context = {
+                    'student': student,
+                    'recipient_name': student.guardian_name if student.guardian_name else student.get_full_name(),
+                    'message': message,
+                    'message_type': message_type,
+                    'site_domain': 'edupulse.perthartschool.com.au',  # TODO: Make configurable
+                }
+
+                email_data = {
+                    'to': contact_email,
+                    'subject': subject,
+                    'context': context,
+                    'template_name': 'core/emails/bulk_notification.html'  # Create this template
+                }
+                email_data_list.append(email_data)
+
+        if email_data_list:
+            try:
+                batch_service = BatchEmailService()
+                stats = batch_service.send_bulk_emails(email_data_list)
+                email_sent = stats['sent']
+                email_failed = stats['failed']
+
+                logger.info(f"Bulk email notification completed: sent {email_sent}, failed {email_failed}")
+            except Exception as e:
+                logger.error(f"Bulk email notification error: {e}")
+                email_failed = len(email_data_list)
+
+    # Send SMS notifications (individual processing as before)
+    if notification_type in ['sms', 'both']:
+        for student in recipients:
+            # Send SMS
+            if student.guardian_phone or student.phone:
+                phone = student.guardian_phone or student.phone
                 try:
-                    _send_email_notification(student, contact_email, subject, message, message_type)
-                    email_sent += 1
-                except Exception as e:
-                    email_failed += 1
-                    EmailLog.objects.create(
-                        recipient_email=contact_email,
-                        recipient_type='student',
-                        subject=subject,
-                        content=message,
-                        email_type=message_type,
-                        status='failed',
-                        error_message=str(e)
-                    )
-        
-        # Send SMS
-        if notification_type in ['sms', 'both']:
-            contact_phone = student.get_contact_phone()
-            if contact_phone:
-                try:
-                    _send_sms_notification(student, contact_phone, message, message_type)
-                    sms_sent += 1
+                    success = NotificationService.send_sms_notification(phone, message, 'bulk')
+                    if success:
+                        sms_sent += 1
+                        SMSLog.objects.create(
+                            recipient_phone=phone,
+                            recipient_type='student',
+                            content=message,
+                            sms_type='bulk',
+                            status='sent',
+                            sent_at=timezone.now()
+                        )
+                    else:
+                        sms_failed += 1
+                        SMSLog.objects.create(
+                            recipient_phone=phone,
+                            recipient_type='student',
+                            content=message,
+                            sms_type='bulk',
+                            status='failed',
+                            error_message='SMS sending failed',
+                            sent_at=timezone.now()
+                        )
                 except Exception as e:
                     sms_failed += 1
                     SMSLog.objects.create(
-                        recipient_phone=contact_phone,
+                        recipient_phone=phone,
                         recipient_type='student',
                         content=message,
-                        sms_type=message_type,
+                        sms_type='bulk',
                         status='failed',
-                        error_message=str(e)
+                        error_message=str(e),
+                        sent_at=timezone.now()
                     )
     
     # Update quotas

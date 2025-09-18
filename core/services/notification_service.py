@@ -338,36 +338,96 @@ class NotificationService:
     def send_bulk_course_reminders(days_ahead=1):
         """
         Send course reminders for all classes happening in specified days
+        Enhanced with batch processing for better performance
         """
         from academics.models import Class
         from enrollment.models import Enrollment
-        
+        from core.services.batch_email_service import BatchEmailService
+
         try:
             # Get target date
             target_date = timezone.now().date() + timedelta(days=days_ahead)
-            
-            # Get classes happening on target date
+
+            # Get classes happening on target date with enrolled students
             classes = Class.objects.filter(
                 date=target_date,
                 is_active=True
             ).select_related('course', 'facility', 'classroom', 'teacher')
-            
-            sent_count = 0
-            
+
+            if not classes.exists():
+                logger.info(f"No classes found for {target_date}")
+                return 0
+
+            # Get all enrollments for these classes in a single query to avoid N+1
+            class_course_ids = list(classes.values_list('course_id', flat=True))
+            enrollments = Enrollment.objects.filter(
+                course_id__in=class_course_ids,
+                status='confirmed'
+            ).select_related('student', 'course').prefetch_related('course__classes')
+
+            # Group enrollments by course for efficient lookup
+            enrollments_by_course = {}
+            for enrollment in enrollments:
+                course_id = enrollment.course.id
+                if course_id not in enrollments_by_course:
+                    enrollments_by_course[course_id] = []
+                enrollments_by_course[course_id].append(enrollment)
+
+            # Cache site and organization settings
+            site_domain = Site.objects.get_current().domain
+            org_settings = OrganisationSettings.get_instance()
+
+            # Prepare bulk email data
+            email_data_list = []
+
             for class_instance in classes:
-                # Get enrolled students for this class
-                enrollments = Enrollment.objects.filter(
-                    course=class_instance.course,
-                    status='confirmed'
-                ).select_related('student')
-                
-                for enrollment in enrollments:
-                    if NotificationService.send_course_reminder(enrollment.student, class_instance, days_ahead):
-                        sent_count += 1
-            
-            logger.info(f"Sent {sent_count} course reminder emails for classes on {target_date}")
-            return sent_count
-            
+                # Get enrollments for this class (already loaded)
+                course_enrollments = enrollments_by_course.get(class_instance.course.id, [])
+
+                for enrollment in course_enrollments:
+                    student = enrollment.student
+                    recipient_email = student.contact_email
+                    recipient_name = student.guardian_name if student.guardian_name else student.get_full_name()
+
+                    if not recipient_email:
+                        continue
+
+                    # Prepare context for this student/class
+                    context = {
+                        'student': student,
+                        'class': class_instance,
+                        'course': class_instance.course,
+                        'recipient_name': recipient_name,
+                        'days_ahead': days_ahead,
+                        'class_date': class_instance.date,
+                        'class_time': class_instance.start_time,
+                        'facility': class_instance.facility,
+                        'classroom': class_instance.classroom,
+                        'teacher': class_instance.teacher,
+                        'site_domain': site_domain,
+                        'contact_email': org_settings.contact_email,
+                        'contact_phone': org_settings.contact_phone
+                    }
+
+                    email_data = {
+                        'to': recipient_email,
+                        'subject': f"Class Reminder - {class_instance.course.name} {'Tomorrow' if days_ahead == 1 else f'in {days_ahead} days'}",
+                        'context': context,
+                        'template_name': 'core/emails/course_reminder.html'
+                    }
+                    email_data_list.append(email_data)
+
+            if not email_data_list:
+                logger.info(f"No students with email addresses found for classes on {target_date}")
+                return 0
+
+            # Send emails in batches
+            batch_service = BatchEmailService()
+            stats = batch_service.send_bulk_emails(email_data_list)
+
+            logger.info(f"Bulk course reminders completed for {target_date}: {stats}")
+            return stats['sent']
+
         except Exception as e:
             logger.error(f"Error sending bulk course reminders: {str(e)}")
             return 0

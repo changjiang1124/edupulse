@@ -252,6 +252,29 @@
                                     <div class="invalid-feedback d-block">{{ form.repeat_day_of_month.errors.0 }}</div>
                                 {% endif %}
                             </div>
+
+                            <!-- Daily Configuration -->
+                            <div id="dailyConfig" class="mb-3" style="display: none;">
+                                <label for="{{ form.daily_weekdays.id_for_label }}" class="form-label">{{ form.daily_weekdays.label }}</label>
+                                <div class="row">
+                                    {% for choice in form.daily_weekdays %}
+                                    <div class="col-md-3 col-sm-4 col-6">
+                                        <div class="form-check">
+                                            {{ choice.tag }}
+                                            <label class="form-check-label" for="{{ choice.id_for_label }}">
+                                                {{ choice.choice_label }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% if form.daily_weekdays.help_text %}
+                                    <div class="form-text">{{ form.daily_weekdays.help_text }}</div>
+                                {% endif %}
+                                {% if form.daily_weekdays.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.daily_weekdays.errors.0 }}</div>
+                                {% endif %}
+                            </div>
                         </div>
                         
                         <!-- Time and Duration -->
@@ -740,24 +763,26 @@ function handleRepeatPatternChange() {
     const multiSessionDates = document.getElementById('multiSessionDates');
     const weeklyConfig = document.getElementById('weeklyConfig');
     const monthlyConfig = document.getElementById('monthlyConfig');
+    const dailyConfig = document.getElementById('dailyConfig');
     const classGenerationSection = document.getElementById('classGenerationSection');
     const endDateField = document.getElementById('{{ form.end_date.id_for_label }}');
     const isEditMode = {{ form.instance.pk|yesno:"true,false" }};
-    
+
     // Hide all configuration sections first
     weeklyConfig.style.display = 'none';
     monthlyConfig.style.display = 'none';
-    
+    dailyConfig.style.display = 'none';
+
     if (repeatPattern === 'once') {
         // Single session mode
         singleSessionDate.style.display = 'block';
         multiSessionDates.style.display = 'none';
-        
+
         // Hide class generation section for single sessions
         if (classGenerationSection) {
             classGenerationSection.style.display = 'none';
         }
-        
+
         // Clear end date only for creating new course
         if (endDateField && !isEditMode) {
             endDateField.value = '';
@@ -766,12 +791,12 @@ function handleRepeatPatternChange() {
         // Multi-session mode
         singleSessionDate.style.display = 'none';
         multiSessionDates.style.display = 'block';
-        
+
         // Show class generation section
         if (classGenerationSection) {
             classGenerationSection.style.display = 'block';
         }
-        
+
         // Show specific configuration based on pattern
         if (repeatPattern === 'weekly') {
             weeklyConfig.style.display = 'block';
@@ -781,8 +806,26 @@ function handleRepeatPatternChange() {
             monthlyConfig.style.display = 'block';
             // Auto-set day of month based on start date
             autoSetDayOfMonthFromStartDate();
+        } else if (repeatPattern === 'daily') {
+            dailyConfig.style.display = 'block';
+            // Default to weekdays if not in edit mode and no values are set
+            if (!isEditMode) {
+                setDefaultWeekdays();
+            }
         }
     }
+}
+
+// Set default weekdays (Mon-Fri) for daily pattern
+function setDefaultWeekdays() {
+    const dailyWeekdaysCheckboxes = document.querySelectorAll('input[name="daily_weekdays"]');
+    const defaultWeekdays = ['0', '1', '2', '3', '4']; // Mon-Fri
+
+    dailyWeekdaysCheckboxes.forEach(checkbox => {
+        if (defaultWeekdays.includes(checkbox.value)) {
+            checkbox.checked = true;
+        }
+    });
 }
 
 // Auto-set weekday based on start date

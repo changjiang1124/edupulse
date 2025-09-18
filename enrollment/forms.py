@@ -698,9 +698,9 @@ class BulkAttendanceForm(forms.Form):
 
 class StaffEnrollmentForm(forms.ModelForm):
     """
-    Enhanced enrollment form for staff members with student search and creation capabilities
+    Simplified enrollment form for staff members with student search functionality
     """
-    
+
     # Student Selection/Search
     student_search = forms.CharField(
         required=False,
@@ -713,103 +713,6 @@ class StaffEnrollmentForm(forms.ModelForm):
         }),
         help_text='Search for existing student or create new if not found'
     )
-    
-    # Student information fields (to align with public enrollment form)
-    student_birth_date = forms.DateField(
-        required=False,
-        label='Student Birth Date',
-        widget=forms.DateInput(attrs={
-            'class': 'form-control',
-            'type': 'date'
-        }),
-        help_text='Used for age verification and guardian requirement determination'
-    )
-
-    student_address = forms.CharField(
-        required=False,
-        label='Student Address',
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 2,
-            'placeholder': 'Full residential address'
-        })
-    )
-
-    # Contact information
-    student_email = forms.EmailField(
-        required=False,
-        label='Contact Email',
-        widget=forms.EmailInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Primary contact email'
-        }),
-        help_text='Primary email for communications (student or guardian based on age)'
-    )
-
-    student_phone = forms.CharField(
-        required=False,
-        max_length=20,
-        label='Contact Phone',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': '0412 345 678'
-        }),
-        help_text='Primary phone for SMS notifications'
-    )
-
-    # Guardian information (for students under 18)
-    guardian_name = forms.CharField(
-        required=False,
-        max_length=100,
-        label='Guardian Name',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Parent/Guardian full name'
-        }),
-        help_text='Required for students under 18 years of age'
-    )
-
-    # Emergency contact information
-    emergency_contact_name = forms.CharField(
-        required=False,
-        max_length=100,
-        label='Emergency Contact Name',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Emergency contact person'
-        })
-    )
-
-    emergency_contact_phone = forms.CharField(
-        required=False,
-        max_length=20,
-        label='Emergency Contact Phone',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': '0412 345 678'
-        })
-    )
-
-    # Medical & special requirements
-    medical_conditions = forms.CharField(
-        required=False,
-        label='Medical Conditions',
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 2,
-            'placeholder': 'Any medical conditions we should be aware of'
-        })
-    )
-
-    special_requirements = forms.CharField(
-        required=False,
-        label='Special Requirements',
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 2,
-            'placeholder': 'Any special requirements or accommodations needed'
-        })
-    )
 
     # Registration fee option
     charge_registration_fee = forms.BooleanField(
@@ -821,7 +724,7 @@ class StaffEnrollmentForm(forms.ModelForm):
         }),
         help_text='Check if this enrollment should include registration fee (for new students)'
     )
-    
+
     # Additional enrollment options
     send_confirmation_email = forms.BooleanField(
         required=False,
@@ -844,7 +747,7 @@ class StaffEnrollmentForm(forms.ModelForm):
         }),
         help_text='Internal notes visible only to staff members'
     )
-    
+
     class Meta:
         model = Enrollment
         fields = ['student', 'course', 'class_instance', 'status', 'registration_status', 'source_channel']
@@ -867,23 +770,23 @@ class StaffEnrollmentForm(forms.ModelForm):
             }),
             'source_channel': forms.HiddenInput(),
         }
-    
+
     def __init__(self, *args, **kwargs):
         # Extract course_id if provided
         self.course_id = kwargs.pop('course_id', None)
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
+
         # Set default values
         self.fields['status'].initial = 'pending'
         self.fields['source_channel'].initial = 'staff'
-        
+
         # Configure student field for search functionality
         self.fields['student'].required = False  # Disable Django form-level validation
         self.fields['student'].widget.attrs.update({
             'required': False  # Remove HTML5 required attribute
         })
-        
+
         # Handle course pre-selection
         if self.course_id:
             try:
@@ -892,7 +795,7 @@ class StaffEnrollmentForm(forms.ModelForm):
                 # Use Django's disabled attribute instead of HTML widget attribute
                 self.fields['course'].disabled = True
                 self.fields['course'].help_text = f'Pre-selected course: {course.name}'
-                
+
                 # Set registration fee default based on course
                 if hasattr(course, 'has_registration_fee') and course.has_registration_fee():
                     self.fields['charge_registration_fee'].initial = True
@@ -900,21 +803,20 @@ class StaffEnrollmentForm(forms.ModelForm):
                     self.fields['charge_registration_fee'].initial = False
                     self.fields['charge_registration_fee'].widget.attrs['disabled'] = 'disabled'
                     self.fields['charge_registration_fee'].help_text = 'No registration fee for this course'
-                    
+
             except Course.DoesNotExist:
                 pass
-        
+
         # Customize status choices for staff
         self.fields['status'].choices = [
             ('pending', 'Pending - Awaiting payment confirmation'),
             ('confirmed', 'Confirmed - Payment received'),
             ('cancelled', 'Cancelled'),
         ]
-    
     def clean_course(self):
         """Ensure course is not changed if pre-selected"""
         course = self.cleaned_data.get('course')
-        
+
         # If course_id is provided (pre-selected), use that course regardless of form data
         if self.course_id:
             try:
@@ -923,39 +825,25 @@ class StaffEnrollmentForm(forms.ModelForm):
                 return expected_course
             except Course.DoesNotExist:
                 raise forms.ValidationError('Invalid course selection')
-        
+
         # If no course_id provided, validate that a course was selected
         if not course:
             raise forms.ValidationError('Please select a course')
-            
+
         return course
-    
+
     def clean_student(self):
         """Validate student selection"""
         student = self.cleaned_data.get('student')
         if not student:
             raise forms.ValidationError('Please select a student')
         return student
-    
+
     def clean(self):
         cleaned_data = super().clean()
         student = cleaned_data.get('student')
         course = cleaned_data.get('course')
         class_instance = cleaned_data.get('class_instance')
-        student_birth_date = cleaned_data.get('student_birth_date')
-        guardian_name = cleaned_data.get('guardian_name')
-
-        # Age-based validation for guardian requirement
-        if student_birth_date:
-            from datetime import date
-            today = date.today()
-            age = today.year - student_birth_date.year - (
-                (today.month, today.day) < (student_birth_date.month, student_birth_date.day)
-            )
-
-            if age < 18 and not guardian_name:
-                self.add_error('guardian_name',
-                    'Guardian name is required for students under 18 years old')
 
         # Check for duplicate active enrollments (excluding cancelled)
         if student:
@@ -995,57 +883,34 @@ class StaffEnrollmentForm(forms.ModelForm):
                 )
 
         return cleaned_data
-    
+
     def save(self, commit=True):
         enrollment = super().save(commit=False)
-        
+
         # Add staff notes to form_data if provided
         staff_notes = self.cleaned_data.get('staff_notes')
-        if staff_notes:
-            if not enrollment.form_data:
-                enrollment.form_data = {}
-            enrollment.form_data['staff_notes'] = staff_notes
-            enrollment.form_data['created_by_staff'] = True
-            if self.user:
-                enrollment.form_data['created_by'] = {
-                    'username': self.user.username,
-                    'name': f'{self.user.first_name} {self.user.last_name}'.strip()
-                }
-        
-        # Store additional student information in form_data
-        additional_student_info = {}
-
-        # Collect all the new student information fields
-        student_fields = [
-            'student_birth_date', 'student_address', 'student_email', 'student_phone',
-            'guardian_name', 'emergency_contact_name', 'emergency_contact_phone',
-            'medical_conditions', 'special_requirements'
-        ]
-
-        for field_name in student_fields:
-            field_value = self.cleaned_data.get(field_name)
-            if field_value:
-                # Convert date objects to string for JSON serialization
-                if hasattr(field_value, 'isoformat'):
-                    additional_student_info[field_name] = field_value.isoformat()
-                else:
-                    additional_student_info[field_name] = field_value
-
-        # Store email sending preference and registration fee decision
         send_confirmation_email = self.cleaned_data.get('send_confirmation_email', True)
         charge_registration_fee = self.cleaned_data.get('charge_registration_fee', True)
 
         if not enrollment.form_data:
             enrollment.form_data = {}
 
-        # Store all form preferences and additional data
+        # Store form preferences and metadata
         enrollment.form_data.update({
             'send_confirmation_email': send_confirmation_email,
             'charge_registration_fee': charge_registration_fee,
-            'additional_student_info': additional_student_info,
             'created_by_staff': True
         })
-        
+
+        if staff_notes:
+            enrollment.form_data['staff_notes'] = staff_notes
+
+        if self.user:
+            enrollment.form_data['created_by'] = {
+                'username': self.user.username,
+                'name': f'{self.user.first_name} {self.user.last_name}'.strip()
+            }
+
         if commit:
             enrollment.save()
         return enrollment
