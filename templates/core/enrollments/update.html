@@ -3,6 +3,26 @@
 
 {% block title %}Edit Enrollment - {{ block.super }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 0.375rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #dee2e6;
+    }
+    .form-section h6 {
+        color: #495057;
+        margin-bottom: 1rem;
+    }
+    .student-info-alert {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196f3;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-4">
     <div class="row">
@@ -25,143 +45,441 @@
 
             <!-- Form -->
             <div class="row">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Enrollment Information</h5>
-                        </div>
-                        <div class="card-body">
-                            <form method="post" novalidate>
-                                {% csrf_token %}
-                                
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="{{ form.student.id_for_label }}" class="form-label">
-                                                Student <span class="text-danger">*</span>
-                                                <a href="{% url 'students:student_detail' enrollment.student.pk %}" 
-                                                   class="btn btn-sm btn-outline-primary ms-2" 
-                                                   title="View Student Profile">
-                                                    <i class="fas fa-external-link-alt"></i>
-                                                </a>
-                                            </label>
-                                            {{ form.student }}
-                                            {% if form.student.errors %}
-                                                <div class="invalid-feedback d-block">
-                                                    {% for error in form.student.errors %}
-                                                        {{ error }}
-                                                    {% endfor %}
-                                                </div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="{{ form.course.id_for_label }}" class="form-label">
-                                                Course <span class="text-danger">*</span>
-                                            </label>
-                                            {{ form.course }}
-                                            {% if form.course.errors %}
-                                                <div class="invalid-feedback d-block">
-                                                    {% for error in form.course.errors %}
-                                                        {{ error }}
-                                                    {% endfor %}
-                                                </div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
+                <div class="col-lg-8">
+                    <form method="post" novalidate id="enrollmentUpdateForm">
+                        {% csrf_token %}
 
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="{{ form.status.id_for_label }}" class="form-label">
-                                                Status <span class="text-danger">*</span>
-                                            </label>
-                                            {{ form.status }}
-                                            {% if form.status.errors %}
-                                                <div class="invalid-feedback d-block">
-                                                    {% for error in form.status.errors %}
-                                                        {{ error }}
-                                                    {% endfor %}
-                                                </div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="{{ form.source_channel.id_for_label }}" class="form-label">
-                                                Source Channel <span class="text-danger">*</span>
-                                            </label>
-                                            {{ form.source_channel }}
-                                            {% if form.source_channel.errors %}
-                                                <div class="invalid-feedback d-block">
-                                                    {% for error in form.source_channel.errors %}
-                                                        {{ error }}
-                                                    {% endfor %}
-                                                </div>
-                                            {% endif %}
-                                        </div>
+                        <!-- Basic Enrollment Information -->
+                        <div class="form-section">
+                            <h6 class="fw-bold">
+                                <i class="fas fa-edit me-2"></i>Enrollment Information
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.student.id_for_label }}" class="form-label">
+                                            Student <span class="text-danger">*</span>
+                                            <a href="{% url 'students:student_detail' enrollment.student.pk %}"
+                                               class="btn btn-sm btn-outline-primary ms-2"
+                                               title="View Student Profile">
+                                                <i class="fas fa-external-link-alt"></i>
+                                            </a>
+                                        </label>
+                                        {{ form.student }}
+                                        {% if form.student.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.student.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
                                     </div>
                                 </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.course.id_for_label }}" class="form-label">
+                                            Course <span class="text-danger">*</span>
+                                        </label>
+                                        {{ form.course }}
+                                        {% if form.course.help_text %}
+                                            <div class="form-text">{{ form.course.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.course.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.course.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
 
-                                <div class="d-flex justify-content-between">
-                                    <a href="{% url 'enrollment:enrollment_delete' enrollment.pk %}" 
-                                       class="btn btn-danger"
-                                       onclick="return confirm('Are you sure you want to delete this enrollment?')">
-                                        <i class="fas fa-trash me-2"></i>Delete Enrollment
-                                    </a>
-                                    <div class="d-flex gap-2">
-                                        <a href="{% url 'enrollment:enrollment_list' %}" class="btn btn-secondary">Cancel</a>
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-save me-2"></i>Update Enrollment
-                                        </button>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.status.id_for_label }}" class="form-label">
+                                            Status <span class="text-danger">*</span>
+                                        </label>
+                                        {{ form.status }}
+                                        {% if form.status.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.status.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
                                     </div>
                                 </div>
-                            </form>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.registration_status.id_for_label }}" class="form-label">
+                                            Registration Status
+                                        </label>
+                                        {{ form.registration_status }}
+                                        {% if form.registration_status.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.registration_status.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.class_instance.id_for_label }}" class="form-label">
+                                            Class Instance
+                                        </label>
+                                        {{ form.class_instance }}
+                                        {% if form.class_instance.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.class_instance.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+
+                        <!-- Student Basic Information -->
+                        <div class="form-section" id="studentBasicInfo">
+                            <h6 class="fw-bold">
+                                <i class="fas fa-user me-2"></i>Student Basic Information
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.student_birth_date.label_tag }}
+                                        {{ form.student_birth_date }}
+                                        {% if form.student_birth_date.help_text %}
+                                            <div class="form-text">{{ form.student_birth_date.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.student_birth_date.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.student_birth_date.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.student_address.label_tag }}
+                                        {{ form.student_address }}
+                                        {% if form.student_address.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.student_address.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contact Information -->
+                        <div class="form-section" id="contactInfo">
+                            <h6 class="fw-bold">
+                                <i class="fas fa-phone me-2"></i>Contact Information
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.student_email.label_tag }}
+                                        {{ form.student_email }}
+                                        {% if form.student_email.help_text %}
+                                            <div class="form-text">{{ form.student_email.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.student_email.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.student_email.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.student_phone.label_tag }}
+                                        {{ form.student_phone }}
+                                        {% if form.student_phone.help_text %}
+                                            <div class="form-text">{{ form.student_phone.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.student_phone.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.student_phone.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Guardian Information -->
+                        <div class="form-section" id="guardianInfo" style="display: none;">
+                            <h6 class="fw-bold">
+                                <i class="fas fa-user-shield me-2"></i>Guardian Information
+                            </h6>
+                            <div class="alert alert-info mb-3" role="alert">
+                                <small>
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Guardian information is required for students under 18 years of age.
+                                </small>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="mb-3">
+                                        {{ form.guardian_name.label_tag }}
+                                        {{ form.guardian_name }}
+                                        {% if form.guardian_name.help_text %}
+                                            <div class="form-text">{{ form.guardian_name.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.guardian_name.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.guardian_name.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Emergency Contact -->
+                        <div class="form-section" id="emergencyContact">
+                            <h6 class="fw-bold">
+                                <i class="fas fa-phone-square-alt me-2"></i>Emergency Contact
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.emergency_contact_name.label_tag }}
+                                        {{ form.emergency_contact_name }}
+                                        {% if form.emergency_contact_name.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.emergency_contact_name.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.emergency_contact_phone.label_tag }}
+                                        {{ form.emergency_contact_phone }}
+                                        {% if form.emergency_contact_phone.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.emergency_contact_phone.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Medical & Special Requirements -->
+                        <div class="form-section" id="medicalInfo">
+                            <h6 class="fw-bold">
+                                <i class="fas fa-heartbeat me-2"></i>Medical & Special Requirements
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.medical_conditions.label_tag }}
+                                        {{ form.medical_conditions }}
+                                        {% if form.medical_conditions.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.medical_conditions.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.special_requirements.label_tag }}
+                                        {{ form.special_requirements }}
+                                        {% if form.special_requirements.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.special_requirements.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email Notification Options -->
+                        <div class="form-section">
+                            <h6 class="fw-bold">
+                                <i class="fas fa-envelope me-2"></i>Update Notification
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-check">
+                                        {{ form.send_update_notification }}
+                                        {{ form.send_update_notification.label_tag }}
+                                    </div>
+                                    {% if form.send_update_notification.help_text %}
+                                        <div class="form-text">{{ form.send_update_notification.help_text }}</div>
+                                    {% endif %}
+                                    <div class="alert alert-info mt-2" role="alert">
+                                        <small>
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            If enabled and the enrollment status changes, an update notification will be sent to the student/guardian.
+                                        </small>
+                                    </div>
+                                    {% if form.send_update_notification.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.send_update_notification.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden Fields -->
+                        {{ form.source_channel }}
+
+                        <!-- Submit Section -->
+                        <div class="form-section">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>Update Enrollment
+                                </button>
+                                <a href="{% url 'enrollment:enrollment_detail' enrollment.pk %}" class="btn btn-outline-secondary">
+                                    Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
                 </div>
-                
-                <div class="col-md-4">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Enrollment History</h5>
-                        </div>
-                        <div class="card-body">
-                            <small class="text-muted">
-                                <strong>Created:</strong> {{ enrollment.created_at|date:"d M Y g:i A" }}
-                            </small><br>
-                            <small class="text-muted">
-                                <strong>Last Updated:</strong> {{ enrollment.updated_at|date:"d M Y g:i A" }}
-                            </small><br>
-                            <small class="text-muted">
-                                <strong>Source:</strong> {{ enrollment.get_source_channel_display }}
-                            </small>
-                        </div>
-                    </div>
-                    
-                    {% if enrollment.form_data %}
+
+                <!-- Sidebar with helpful information -->
+                <div class="col-lg-4">
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="card-title mb-0">Original Form Data</h5>
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-info-circle me-2"></i>Edit Guidelines
+                            </h6>
                         </div>
                         <div class="card-body">
-                            <p class="text-muted mb-0">
-                                This enrollment was created through a form submission. View the original data for reference.
-                            </p>
-                            <details class="mt-2">
-                                <summary class="btn btn-sm btn-outline-info">View Form Data</summary>
-                                <pre class="mt-2 p-2 bg-light rounded small">{{ enrollment.form_data|pprint }}</pre>
-                            </details>
+                            <ul class="list-unstyled mb-0">
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Course cannot be changed once enrollment is created
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Guardian info appears automatically for students under 18
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Email notifications are sent only when status changes
+                                </li>
+                                <li class="mb-0">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    All changes are logged for audit purposes
+                                </li>
+                            </ul>
                         </div>
                     </div>
-                    {% endif %}
+
+                    <!-- Current Enrollment Status -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-clipboard-list me-2"></i>Current Status
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <strong>Status:</strong>
+                                <span class="badge bg-{{ enrollment.status|default:'secondary' }} ms-1">
+                                    {{ enrollment.get_status_display }}
+                                </span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Registration:</strong> {{ enrollment.get_registration_status_display }}
+                            </div>
+                            {% if enrollment.created %}
+                                <div class="mb-0">
+                                    <strong>Created:</strong> {{ enrollment.created|date:"M d, Y" }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Age detection elements
+    const birthDateField = document.getElementById('id_student_birth_date');
+    const guardianInfo = document.getElementById('guardianInfo');
+    const guardianNameField = document.getElementById('id_guardian_name');
+
+    // Age detection functionality
+    if (birthDateField && guardianInfo && guardianNameField) {
+        birthDateField.addEventListener('change', function() {
+            checkStudentAge();
+        });
+
+        // Initial check if birth date is already filled
+        if (birthDateField.value) {
+            checkStudentAge();
+        }
+    }
+
+    function checkStudentAge() {
+        if (!birthDateField.value) {
+            // Hide guardian info if no birth date
+            guardianInfo.style.display = 'none';
+            guardianNameField.required = false;
+            return;
+        }
+
+        const birthDate = new Date(birthDateField.value);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+
+        if (age < 18) {
+            // Student is under 18 - show guardian info
+            guardianInfo.style.display = 'block';
+            guardianNameField.required = true;
+        } else {
+            // Student is 18 or over - hide guardian info
+            guardianInfo.style.display = 'none';
+            guardianNameField.required = false;
+        }
+    }
+});
+</script>
 {% endblock %}

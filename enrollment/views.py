@@ -278,15 +278,39 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
         if enrollment_form.is_valid():
             try:
                 enrollment = enrollment_form.save()
-                
-                # Send enrollment confirmation email if status is pending
-                if enrollment.status == 'pending':
-                    self._send_enrollment_notification(enrollment)
-                
-                messages.success(
-                    request,
-                    f'Enrollment created successfully for {enrollment.student.get_full_name()} '
-                    f'in {enrollment.course.name}. Status: {enrollment.get_status_display()}'
+
+                # Check if we should send enrollment notification email
+                send_email = enrollment.form_data.get('send_confirmation_email', True)
+
+                # Send enrollment confirmation email if requested and status is pending
+                if send_email and enrollment.status == 'pending':
+                    email_sent = self._send_enrollment_notification(enrollment)
+                    if email_sent:
+                        messages.success(request, 'Enrollment created and confirmation email sent.')
+                    else:
+                        messages.warning(request, 'Enrollment created but email could not be sent.')
+                elif not send_email:
+                    messages.success(request, 'Enrollment created. No email sent as requested.')
+                else:
+                    messages.success(request, 'Enrollment created with confirmed status.')
+
+                # Create student activity record for enrollment creation
+                from students.models import StudentActivity
+                StudentActivity.create_activity(
+                    student=enrollment.student,
+                    activity_type='enrollment_created',
+                    title=f'Enrollment created by staff for {enrollment.course.name}',
+                    description=f'Staff member created enrollment for {enrollment.student.get_full_name()} '
+                               f'in {enrollment.course.name}. Status: {enrollment.get_status_display()}. '
+                               f'Email sent: {"Yes" if send_email and enrollment.status == "pending" else "No"}',
+                    enrollment=enrollment,
+                    course=enrollment.course,
+                    performed_by=request.user if hasattr(request.user, 'staff') else None,
+                    metadata={
+                        'created_by_staff': True,
+                        'email_sent': send_email and enrollment.status == 'pending',
+                        'source_channel': 'staff'
+                    }
                 )
                 
                 # Redirect based on context
@@ -304,28 +328,28 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
         return render(request, self.template_name, context)
     
     def _send_enrollment_notification(self, enrollment):
-        """Send enrollment confirmation email with fee information"""
+        """Send enrollment confirmation email with fee information and return success status"""
         try:
             from core.services import NotificationService
-            
+
             # Calculate total fee
             course_fee = enrollment.course.price
             charge_registration_fee = enrollment.form_data.get('charge_registration_fee', True)
             registration_fee = 0
-            
+
             if charge_registration_fee and enrollment.course.has_registration_fee():
                 registration_fee = enrollment.course.registration_fee
-            
+
             total_fee = course_fee + registration_fee
-            
+
             # Get contact information
             contact_info = enrollment.student.get_contact_email()
             if not contact_info and hasattr(enrollment, 'form_data'):
                 contact_info = enrollment.form_data.get('contact_info', {}).get('primary_email')
-            
+
             if contact_info:
                 # Send notification with fee breakdown
-                NotificationService.send_enrollment_pending_email(
+                notification_sent = NotificationService.send_enrollment_pending_email(
                     enrollment=enrollment,
                     recipient_email=contact_info,
                     fee_breakdown={
@@ -335,12 +359,17 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
                         'charge_registration_fee': charge_registration_fee
                     }
                 )
-                
+                return notification_sent
+            else:
+                # No email address available
+                return False
+
         except Exception as e:
             # Log error but don't fail the enrollment creation
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f'Failed to send enrollment notification: {str(e)}')
+            logger.error(f"Failed to send enrollment notification for enrollment {enrollment.id}: {str(e)}")
+            return False
 
 
 class StudentSearchAPIView(LoginRequiredMixin, View):
@@ -369,19 +398,173 @@ class StudentSearchAPIView(LoginRequiredMixin, View):
 
 
 class EnrollmentUpdateView(LoginRequiredMixin, UpdateView):
-    """Update enrollment (staff use)"""
+    """Enhanced enrollment update view with comprehensive form and email notifications"""
     model = Enrollment
     form_class = EnrollmentUpdateForm
     template_name = 'core/enrollments/update.html'
     success_url = reverse_lazy('enrollment:enrollment_list')
-    
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def get_success_url(self):
         # Redirect to enrollment detail page after successful update
         return reverse_lazy('enrollment:enrollment_detail', kwargs={'pk': self.object.pk})
-    
+
     def form_valid(self, form):
-        messages.success(self.request, 'Enrollment updated successfully.')
+        # Save the enrollment
+        enrollment = form.save()
+
+        # Check if we should send update notification
+        send_notification = enrollment.form_data.get('send_update_notification', False)
+        status_changed = enrollment.form_data.get('status_changed', False)
+        original_status = enrollment.form_data.get('original_status')
+
+        # Send notification if requested and status changed to specific states
+        if send_notification and status_changed:
+            email_sent = self._send_update_notification(enrollment, original_status)
+            if email_sent:
+                messages.success(
+                    self.request,
+                    f'Enrollment updated successfully for {enrollment.student.get_full_name()}. '
+                    f'Status changed from {original_status} to {enrollment.get_status_display()}. '
+                    f'Update notification email sent.'
+                )
+            else:
+                messages.warning(
+                    self.request,
+                    f'Enrollment updated successfully but email notification could not be sent.'
+                )
+        elif send_notification and not status_changed:
+            messages.info(
+                self.request,
+                f'Enrollment updated successfully. No email sent as status did not change.'
+            )
+        else:
+            messages.success(
+                self.request,
+                f'Enrollment updated successfully for {enrollment.student.get_full_name()}.'
+            )
+
+        # Create student activity record for enrollment update
+        from students.models import StudentActivity
+        StudentActivity.create_activity(
+            student=enrollment.student,
+            activity_type='enrollment_updated' if not status_changed else 'enrollment_status_changed',
+            title=f'Enrollment updated by staff for {enrollment.course.name}',
+            description=f'Staff member updated enrollment for {enrollment.student.get_full_name()} '
+                       f'in {enrollment.course.name}. '
+                       f'{"Status changed from " + original_status + " to " + enrollment.get_status_display() + ". " if status_changed else ""}'
+                       f'Email sent: {"Yes" if send_notification and status_changed else "No"}',
+            enrollment=enrollment,
+            course=enrollment.course,
+            performed_by=self.request.user if hasattr(self.request.user, 'staff') else None,
+            metadata={
+                'updated_by_staff': True,
+                'status_changed': status_changed,
+                'original_status': original_status,
+                'new_status': enrollment.status,
+                'email_sent': send_notification and status_changed
+            }
+        )
+
         return super().form_valid(form)
+
+    def _send_update_notification(self, enrollment, original_status):
+        """Send enrollment update notification email and return success status"""
+        try:
+            from core.services import NotificationService
+
+            # Get contact information
+            contact_info = enrollment.student.get_contact_email()
+            if not contact_info and hasattr(enrollment, 'form_data'):
+                additional_info = enrollment.form_data.get('additional_student_info', {})
+                contact_info = additional_info.get('student_email')
+
+            if not contact_info:
+                return False
+
+            # Determine email type based on status change
+            if enrollment.status == 'confirmed' and original_status == 'pending':
+                # Send confirmation email
+                notification_sent = NotificationService.send_enrollment_confirmation(enrollment)
+            elif enrollment.status == 'cancelled':
+                # Send cancellation email (if such method exists)
+                # For now, we'll use a generic update notification
+                notification_sent = self._send_generic_update_email(enrollment, original_status, contact_info)
+            else:
+                # Send generic update notification
+                notification_sent = self._send_generic_update_email(enrollment, original_status, contact_info)
+
+            return notification_sent
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send update notification for enrollment {enrollment.id}: {str(e)}")
+            return False
+
+    def _send_generic_update_email(self, enrollment, original_status, contact_info):
+        """Send a generic enrollment update email"""
+        try:
+            from django.core.mail import EmailMultiAlternatives
+            from django.template.loader import render_to_string
+            from django.contrib.sites.models import Site
+            from core.models import OrganisationSettings
+
+            site = Site.objects.get_current()
+            org_settings = OrganisationSettings.get_instance()
+
+            # Prepare context for email template
+            context = {
+                'enrollment': enrollment,
+                'student': enrollment.student,
+                'course': enrollment.course,
+                'original_status': original_status,
+                'new_status': enrollment.get_status_display(),
+                'recipient_name': enrollment.student.guardian_name or enrollment.student.get_full_name(),
+                'site_domain': org_settings.site_domain,
+                'contact_email': org_settings.contact_email,
+                'contact_phone': org_settings.contact_phone,
+            }
+
+            # Create simple update email
+            subject = f"Enrollment Update - {enrollment.course.name}"
+
+            # Simple text content for now
+            text_content = f"""
+Dear {context['recipient_name']},
+
+Your enrollment in {enrollment.course.name} has been updated.
+
+Status changed from: {original_status.title()}
+Status changed to: {enrollment.get_status_display()}
+
+If you have any questions, please contact us at {org_settings.contact_email} or {org_settings.contact_phone}.
+
+Best regards,
+{org_settings.school_name or 'Perth Art School'}
+            """
+
+            # Create and send email
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[contact_info],
+                reply_to=[org_settings.reply_to_email],
+            )
+
+            email.send()
+            return True
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send generic update email: {str(e)}")
+            return False
 
 
 class EnrollmentDeleteView(LoginRequiredMixin, DeleteView):

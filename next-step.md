@@ -86,6 +86,9 @@ is contact email in enrolment sharing one for either student or guardian, depend
 
 ## test item 
 ### course 
+
+- [] in http://127.0.0.1:20001/academics/courses/add/ course creation form, when select daily, there should be checkbox group to indicate days of week, e.g. Mon, Tue, Wed, Thu, Fri, Sat, Sun. in case that Sat and Sun are not working days. This should only be displayed when repeat pattern is daily. and in edit form, this should be disabled with prefilled with existing data to avoid overcomplicated handling. after submission, the classes should be generated accordingly.
+
 create: 
 - course feature image synchronisation -- need to release on public
 - image show in description 
