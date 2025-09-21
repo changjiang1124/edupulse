@@ -116,6 +116,86 @@ class StudentTag(models.Model):
         return self.name
 
 
+class StudentLevel(models.Model):
+    """
+    Student level model for categorising students by their skill level
+    """
+    name = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name='Level Name',
+        help_text='Name of the level (e.g., Beginner, Intermediate, Advanced)'
+    )
+    order = models.PositiveIntegerField(
+        verbose_name='Display Order',
+        help_text='Order in which levels should be displayed (lower numbers first)'
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name='Description',
+        help_text='Optional description of what this level represents'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='Active Status',
+        help_text='Whether this level is available for selection'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Created At'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Updated At'
+    )
+
+    class Meta:
+        verbose_name = 'Student Level'
+        verbose_name_plural = 'Student Levels'
+        ordering = ['order', 'name']
+        unique_together = ['order']
+
+    def save(self, *args, **kwargs):
+        """Clean name and validate order"""
+        if self.name:
+            self.name = self.name.strip()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        """Validate student level data"""
+        from django.core.exceptions import ValidationError
+
+        if self.name:
+            # Check for empty name after stripping
+            name_clean = self.name.strip()
+            if not name_clean:
+                raise ValidationError('Level name cannot be empty')
+
+            # Check name length
+            if len(name_clean) > 50:
+                raise ValidationError('Level name cannot exceed 50 characters')
+
+            self.name = name_clean
+
+        # Validate order is positive
+        if self.order is not None and self.order < 1:
+            raise ValidationError('Display order must be a positive number')
+
+    @classmethod
+    def get_active_levels(cls):
+        """Get all active levels ordered by display order"""
+        return cls.objects.filter(is_active=True).order_by('order', 'name')
+
+    @classmethod
+    def get_next_order(cls):
+        """Get the next available order number"""
+        max_order = cls.objects.aggregate(models.Max('order'))['order__max']
+        return (max_order or 0) + 1
+
+    def __str__(self):
+        return self.name
+
+
 class Student(models.Model):
     """
     Student model - Enhanced student management
@@ -138,7 +218,17 @@ class Student(models.Model):
         blank=True,
         verbose_name='Address'
     )
-    
+
+    # Student Level Information
+    level = models.ForeignKey(
+        StudentLevel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Student Level',
+        help_text='Current skill level of the student'
+    )
+
     # Contact Information (unified as per enrollment form logic)
     contact_email = models.EmailField(
         blank=True,

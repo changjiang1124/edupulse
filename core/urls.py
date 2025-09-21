@@ -43,7 +43,12 @@ urlpatterns = [
     
     # Organisation settings URLs
     path('settings/organisation/', views.organisation_settings_view, name='organisation_settings'),
-    
+
+    # Student Level Management API URLs
+    path('api/student-levels/', views.student_levels_api, name='student_levels_api'),
+    path('api/student-levels/<int:level_id>/toggle/', views.student_level_toggle, name='student_level_toggle'),
+    path('api/student-levels/<int:level_id>/delete/', views.student_level_delete, name='student_level_delete'),
+
     # Notification system URLs
     path('notifications/send/', views.send_notification_view, name='send_notification'),
     path('notifications/quotas/', views.get_notification_quotas, name='get_notification_quotas'),

@@ -329,12 +329,12 @@
         <div class="card card-filter">
             <div class="card-body">
                 <form method="get" class="row g-3" id="searchForm">
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <label for="search" class="form-label">Search</label>
-                        <input type="text" name="search" id="search" class="form-control" 
+                        <input type="text" name="search" id="search" class="form-control"
                                placeholder="Search students by name, email, or guardian name..." value="{{ request.GET.search }}">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label">Filter by Tags</label>
                         <div class="position-relative">
                             <div class="multi-select-dropdown" id="tagFilterDropdown">
@@ -375,7 +375,19 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
+                    <div class="col-md-3">
+                        <label for="level" class="form-label">Filter by Level</label>
+                        <select name="level" id="level" class="form-select">
+                            <option value="">All levels</option>
+                            <option value="none" {% if selected_level == 'none' %}selected{% endif %}>No level assigned</option>
+                            {% for student_level in student_levels %}
+                                <option value="{{ student_level.id }}" {% if selected_level == student_level.id|stringformat:'s' %}selected{% endif %}>
+                                    {{ student_level.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
                         <button type="submit" class="btn btn-outline-primary w-100">Search</button>
                     </div>
                 </form>
@@ -441,6 +453,11 @@
                                         <strong>{{ student.first_name }} {{ student.last_name }}</strong>
                                         {% if student.birth_date %}
                                             <br><small class="text-muted">Born: {{ student.birth_date|date:"d/m/Y" }}</small>
+                                        {% endif %}
+                                        {% if student.level %}
+                                            <br><span class="badge bg-info text-white">
+                                                <i class="fas fa-layer-group me-1"></i>{{ student.level.name }}
+                                            </span>
                                         {% endif %}
                                     </td>
                                     <td>

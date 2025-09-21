@@ -70,6 +70,20 @@
                         <div class="invalid-feedback d-block">{{ form.address.errors.0 }}</div>
                     {% endif %}
                 </div>
+
+                <!-- Student Level Field -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.level.id_for_label }}" class="form-label">Student Level</label>
+                            {{ form.level }}
+                            {% if form.level.errors %}
+                                <div class="invalid-feedback d-block">{{ form.level.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">{{ form.level.help_text }}</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Section 2: Contact Information -->

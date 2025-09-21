@@ -102,6 +102,11 @@
                 <i class="fas fa-{% if student.is_active %}check-circle{% else %}times-circle{% endif %} me-1"></i>
                 {% if student.is_active %}Active Student{% else %}Inactive Student{% endif %}
             </span>
+            {% if student.level %}
+            <span class="badge bg-info text-white px-3 py-2">
+                <i class="fas fa-layer-group me-1"></i>{{ student.level.name }}
+            </span>
+            {% endif %}
             {% if enrollments.count > 0 %}
             <span class="badge bg-primary text-white px-3 py-2">
                 <i class="fas fa-graduation-cap me-1"></i>{{ enrollments.count }} Enrollment{{ enrollments.count|pluralize }}
@@ -169,7 +174,24 @@
                     <div class="col-sm-8">{{ student.address|linebreaksbr }}</div>
                 </div>
                 {% endif %}
-                
+
+                <!-- Student Level Information -->
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Student Level:</strong></div>
+                    <div class="col-sm-8">
+                        {% if student.level %}
+                            <span class="badge bg-info text-white px-3 py-2">
+                                <i class="fas fa-layer-group me-1"></i>{{ student.level.name }}
+                            </span>
+                            {% if student.level.description %}
+                                <br><small class="text-muted">{{ student.level.description }}</small>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">No level assigned</span>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>Status:</strong></div>
                     <div class="col-sm-8">

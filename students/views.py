@@ -13,7 +13,7 @@ from django.utils.decorators import method_decorator
 from datetime import timedelta
 import logging
 
-from .models import Student, StudentTag
+from .models import Student, StudentTag, StudentLevel
 from .forms import StudentForm, BulkNotificationForm
 from core.models import EmailSettings, SMSSettings, EmailLog, SMSLog, NotificationQuota
 from core.services.notification_service import NotificationService
@@ -28,11 +28,14 @@ class StudentListView(LoginRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        queryset = Student.objects.filter(is_active=True).prefetch_related('tags')
+        queryset = Student.objects.filter(is_active=True).prefetch_related('tags').select_related('level')
         search = self.request.GET.get('search')
 
         # Support multiple tag filtering
         tag_filters = self.request.GET.getlist('tags')  # Changed from 'tag' to 'tags' and getlist
+
+        # Support level filtering
+        level_filter = self.request.GET.get('level')
 
         if search:
             queryset = queryset.filter(
@@ -49,15 +52,31 @@ class StudentListView(LoginRequiredMixin, ListView):
             if tag_ids:
                 queryset = queryset.filter(tags__id__in=tag_ids)
 
+        # Level filtering
+        if level_filter:
+            if level_filter == 'none':
+                # Filter for students with no level assigned
+                queryset = queryset.filter(level__isnull=True)
+            else:
+                try:
+                    level_id = int(level_filter)
+                    queryset = queryset.filter(level_id=level_id)
+                except ValueError:
+                    pass  # Invalid level filter, ignore
+
         return queryset.order_by('-created_at').distinct()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['student_tags'] = StudentTag.objects.filter(is_active=True)
+        context['student_levels'] = StudentLevel.objects.filter(is_active=True).order_by('order', 'name')
 
         # Pass selected tags for maintaining filter state
         selected_tag_ids = self.request.GET.getlist('tags')
         context['selected_tag_ids'] = [int(tag_id) for tag_id in selected_tag_ids if tag_id.strip()]
+
+        # Pass selected level for maintaining filter state
+        context['selected_level'] = self.request.GET.get('level', '')
 
         return context
 

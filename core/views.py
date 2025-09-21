@@ -1349,3 +1349,134 @@ def organisation_settings_view(request):
     }
     
     return render(request, 'core/settings/organisation.html', context)
+
+
+# Student Level Management API Views
+
+@login_required
+def student_levels_api(request):
+    """API endpoint for managing student levels"""
+    # Check if user is admin
+    if not request.user.is_superuser and request.user.role != 'admin':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    if request.method == 'GET':
+        # Return all levels
+        from students.models import StudentLevel
+        levels = StudentLevel.objects.all().order_by('order', 'name')
+        levels_data = []
+
+        for level in levels:
+            levels_data.append({
+                'id': level.id,
+                'name': level.name,
+                'order': level.order,
+                'description': level.description,
+                'is_active': level.is_active,
+                'created_at': level.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            })
+
+        return JsonResponse({
+            'success': True,
+            'levels': levels_data,
+            'next_order': StudentLevel.get_next_order()
+        })
+
+    elif request.method == 'POST':
+        # Create new level
+        import json
+        from students.models import StudentLevel
+        from django.core.exceptions import ValidationError
+
+        try:
+            data = json.loads(request.body)
+
+            # Create new level
+            level = StudentLevel(
+                name=data.get('name', '').strip(),
+                order=int(data.get('order', 1)),
+                description=data.get('description', '').strip(),
+                is_active=data.get('is_active', True)
+            )
+
+            # Validate
+            level.full_clean()
+            level.save()
+
+            return JsonResponse({
+                'success': True,
+                'level': {
+                    'id': level.id,
+                    'name': level.name,
+                    'order': level.order,
+                    'description': level.description,
+                    'is_active': level.is_active,
+                }
+            })
+
+        except ValidationError as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@login_required
+def student_level_toggle(request, level_id):
+    """Toggle student level active status"""
+    # Check if user is admin
+    if not request.user.is_superuser and request.user.role != 'admin':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    if request.method == 'POST':
+        from students.models import StudentLevel
+
+        try:
+            level = get_object_or_404(StudentLevel, id=level_id)
+            level.is_active = not level.is_active
+            level.save()
+
+            return JsonResponse({
+                'success': True,
+                'is_active': level.is_active
+            })
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@login_required
+def student_level_delete(request, level_id):
+    """Delete student level"""
+    # Check if user is admin
+    if not request.user.is_superuser and request.user.role != 'admin':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    if request.method == 'DELETE':
+        from students.models import StudentLevel
+
+        try:
+            level = get_object_or_404(StudentLevel, id=level_id)
+
+            # Check if level is being used by any students
+            if level.student_set.count() > 0:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Cannot delete level "{level.name}" as it is currently assigned to {level.student_set.count()} student(s). Please reassign those students to a different level first.'
+                })
+
+            level_name = level.name
+            level.delete()
+
+            return JsonResponse({
+                'success': True,
+                'message': f'Level "{level_name}" deleted successfully'
+            })
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)

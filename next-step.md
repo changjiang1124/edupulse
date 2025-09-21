@@ -87,7 +87,7 @@ is contact email in enrolment sharing one for either student or guardian, depend
 ## test item 
 ### course 
 
-- [] in http://127.0.0.1:20001/academics/courses/add/ course creation form, when select daily, there should be checkbox group to indicate days of week, e.g. Mon, Tue, Wed, Thu, Fri, Sat, Sun. in case that Sat and Sun are not working days. This should only be displayed when repeat pattern is daily. and in edit form, this should be disabled with prefilled with existing data to avoid overcomplicated handling. after submission, the classes should be generated accordingly.
+- [o] in http://127.0.0.1:20001/academics/courses/add/ course creation form, when select daily, there should be checkbox group to indicate days of week, e.g. Mon, Tue, Wed, Thu, Fri, Sat, Sun. in case that Sat and Sun are not working days. This should only be displayed when repeat pattern is daily. and in edit form, this should be disabled with prefilled with existing data to avoid overcomplicated handling. after submission, the classes should be generated accordingly.
 
 create: 
 - course feature image synchronisation -- need to release on public
@@ -143,6 +143,10 @@ create:
 
 
 ### enrolment
+
+- [] enrolment edit or operator create (they are the same form, different from public enrolment create form), when choose pending / confirmed, they should have different email template to be sent, while pending means the current request payment email, and confirmed means the enrolment has been successfully confirmed (no need to mention payment received to enhance its generality). the confirmed email should have the same style of pending email.
+
+- [x] in the enrolment creating page by operator, http://127.0.0.1:20001/enroll/enrollments/staff/create/53/ since we already have student specify module (either newly create or selected from existing student), the fields related to student should be removed from the form to avoid confusion. please review the student fields, and the current enrolment fields, and remove the fields that are not necessary to be filled in this case.
 
 - [x] what is the url of public access enrolment form? /enroll/public or just /enroll/ ? please confirm.
   - **CONFIRMED**: The public access enrollment form URL is `/enroll/` (just /enroll/)
@@ -205,6 +209,16 @@ create:
 - [x] make the default SMS quota as 200 per month.
 
 ### Student 
+
+- [x] student should have level, and they should be configurable in organisational setting including how many levels there are (use add level, with number to indicate orders), and their labels, e.g. Beginner, Intermediate, Advanced. and the level should be a filter in student list page, and a select field in student create and edit page. and the level should be shown in student detail page as well. the levels are mainly used by teachers to understand the student's level, and help them arrange suitable class for the student. so the level is not linked to course or class. it's just a tag for student to indicate their level. 
+  - [] test organisational setting to add levels, and their labels.
+  - [] test student create and edit page, with level select field.
+  - [] test student detail page, show the level.
+  - [] test student list page, filter by level.
+
+- [] the student detail page has not shown the all fields when created. review the fields (e.g. emergency contact) and show them in the detail page as well. and refine the layout and style of the page to make it more user friendly. 
+
+
 - [x] based on our enrolment form, the contact should only have one email and one phone number, either it's student or guardian, depending on the age of the student. so in the student create and edit page, we should align with this logic. currently it has email address while guardian email address, which is not right. there should be only one contact email. no matter it's for guardian or student. and the same for phone number. in the future if want to use the contact, we detect if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's. 
   - [x] test student create and edit page, align with enrolment form logic, only one contact email and one phone number.
   - [x] test student create and edit page, if guardian name is provided, then the contact email and phone number are guardian's, otherwise, it's student's.
@@ -247,3 +261,6 @@ Please fix it and test it.
 
 ### dashboard 
 - [] think harder to help me review the layout / features and interaction of dashboard page, to make it more user friendly and useful. e.g. the quick actions could be more obvious, and the layout of the panels could be more reasonable. and the chart could be more useful as well. please give me your suggestions and implement them, especially to the administrator. as staff has limited to the pages and functions. should we start from administrator only at this stage?
+
+### notifications 
+- [x] should we add email sending queue in case of email sending in batch, like 80 or 100 emails? should we worry about it?

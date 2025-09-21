@@ -1,5 +1,5 @@
 from django import forms
-from .models import Student, StudentTag
+from .models import Student, StudentTag, StudentLevel
 
 
 class StudentForm(forms.ModelForm):
@@ -22,7 +22,7 @@ class StudentForm(forms.ModelForm):
         model = Student
         fields = [
             # Basic Information
-            'first_name', 'last_name', 'birth_date', 'address',
+            'first_name', 'last_name', 'birth_date', 'address', 'level',
             # Contact Information (unified)
             'contact_email', 'contact_phone',
             # Guardian Information
@@ -51,6 +51,10 @@ class StudentForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Enter full residential address',
                 'rows': 3
+            }),
+            'level': forms.Select(attrs={
+                'class': 'form-select',
+                'placeholder': 'Select student level'
             }),
             
             # Contact Information (unified)
@@ -116,6 +120,7 @@ class StudentForm(forms.ModelForm):
         }
         
         help_texts = {
+            'level': 'Student skill level (optional)',
             'contact_email': 'Primary email address for communications (student or guardian depending on age)',
             'contact_phone': 'Primary phone number for SMS notifications (student or guardian depending on age)',
             'guardian_name': 'Required for students under 18 years of age',
@@ -148,6 +153,11 @@ class StudentForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Configure level field choices
+        self.fields['level'].queryset = StudentLevel.objects.filter(is_active=True).order_by('order', 'name')
+        self.fields['level'].empty_label = "No level assigned"
+
         # Ensure birth_date field has correct initial value and format
         if self.instance and self.instance.pk and self.instance.birth_date:
             self.fields['birth_date'].initial = self.instance.birth_date

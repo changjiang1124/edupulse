@@ -191,9 +191,67 @@
                 </div>
             </div>
         </div>
-        
 
-        
+        <!-- Student Level Management -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card settings-card mb-4">
+                    <div class="settings-header">
+                        <h5 class="mb-0"><i class="bi bi-layers me-2"></i>Student Level Management</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <p class="text-muted mb-4">Manage student skill levels that teachers can use to categorise students by their experience and ability.</p>
+
+                        <!-- Add New Level Form -->
+                        <div class="border rounded p-3 mb-4" style="background-color: #f8f9fa;">
+                            <h6 class="mb-3">Add New Level</h6>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label for="new_level_name" class="form-label">Level Name</label>
+                                    <input type="text" class="form-control" id="new_level_name" placeholder="e.g., Expert">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="new_level_order" class="form-label">Order</label>
+                                    <input type="number" class="form-control" id="new_level_order" min="1" placeholder="4">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="new_level_description" class="form-label">Description</label>
+                                    <input type="text" class="form-control" id="new_level_description" placeholder="Optional description">
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="button" class="btn btn-success w-100" onclick="addStudentLevel()">
+                                        <i class="bi bi-plus-lg"></i> Add
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Existing Levels -->
+                        <div id="student-levels-container">
+                            <h6 class="mb-3">Current Levels</h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th width="10%">Order</th>
+                                            <th width="25%">Level Name</th>
+                                            <th width="40%">Description</th>
+                                            <th width="10%">Status</th>
+                                            <th width="15%">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="levels-tbody">
+                                        <!-- Levels will be loaded here via AJAX -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
         <!-- Save Button -->
         <div class="row">
             <div class="col-12">
@@ -222,6 +280,188 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Organisation settings form submitted');
         });
     }
+
+    // Load student levels when page loads
+    loadStudentLevels();
 });
+
+// Load and display student levels
+function loadStudentLevels() {
+    fetch('{% url "core:student_levels_api" %}')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('levels-tbody');
+            tbody.innerHTML = '';
+
+            if (data.levels && data.levels.length > 0) {
+                data.levels.forEach(level => {
+                    const row = createLevelRow(level);
+                    tbody.appendChild(row);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No levels configured yet</td></tr>';
+            }
+
+            // Set next order number
+            const nextOrder = data.next_order || 1;
+            document.getElementById('new_level_order').value = nextOrder;
+        })
+        .catch(error => {
+            console.error('Error loading student levels:', error);
+            showMessage('Error loading student levels', 'danger');
+        });
+}
+
+// Create table row for a level
+function createLevelRow(level) {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td><span class="badge bg-secondary">${level.order}</span></td>
+        <td><strong>${level.name}</strong></td>
+        <td>${level.description || '<em class="text-muted">No description</em>'}</td>
+        <td>
+            <span class="badge bg-${level.is_active ? 'success' : 'secondary'}">
+                ${level.is_active ? 'Active' : 'Inactive'}
+            </span>
+        </td>
+        <td>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-primary" onclick="editLevel(${level.id})" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button type="button" class="btn btn-outline-${level.is_active ? 'warning' : 'success'}"
+                        onclick="toggleLevelStatus(${level.id})" title="${level.is_active ? 'Deactivate' : 'Activate'}">
+                    <i class="bi bi-${level.is_active ? 'pause' : 'play'}"></i>
+                </button>
+                <button type="button" class="btn btn-outline-danger" onclick="deleteLevel(${level.id})" title="Delete">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </td>
+    `;
+    return row;
+}
+
+// Add new student level
+function addStudentLevel() {
+    const name = document.getElementById('new_level_name').value.trim();
+    const order = document.getElementById('new_level_order').value;
+    const description = document.getElementById('new_level_description').value.trim();
+
+    if (!name) {
+        showMessage('Level name is required', 'danger');
+        return;
+    }
+
+    if (!order || order < 1) {
+        showMessage('Valid order number is required', 'danger');
+        return;
+    }
+
+    const data = {
+        name: name,
+        order: parseInt(order),
+        description: description,
+        is_active: true
+    };
+
+    fetch('{% url "core:student_levels_api" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('Student level added successfully', 'success');
+            // Clear form
+            document.getElementById('new_level_name').value = '';
+            document.getElementById('new_level_description').value = '';
+            // Reload levels
+            loadStudentLevels();
+        } else {
+            showMessage(data.error || 'Error adding student level', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error adding student level:', error);
+        showMessage('Error adding student level', 'danger');
+    });
+}
+
+// Toggle level status (active/inactive)
+function toggleLevelStatus(levelId) {
+    fetch(`{% url "core:student_levels_api" %}${levelId}/toggle/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('Level status updated successfully', 'success');
+            loadStudentLevels();
+        } else {
+            showMessage(data.error || 'Error updating level status', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling level status:', error);
+        showMessage('Error updating level status', 'danger');
+    });
+}
+
+// Delete student level
+function deleteLevel(levelId) {
+    if (!confirm('Are you sure you want to delete this level? This action cannot be undone.')) {
+        return;
+    }
+
+    fetch(`{% url "core:student_levels_api" %}${levelId}/delete/`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('Level deleted successfully', 'success');
+            loadStudentLevels();
+        } else {
+            showMessage(data.error || 'Error deleting level', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting level:', error);
+        showMessage('Error deleting level', 'danger');
+    });
+}
+
+// Show message (using Bootstrap toast or alert)
+function showMessage(message, type) {
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Insert at top of the form
+    const form = document.querySelector('form');
+    form.insertBefore(alertDiv, form.firstChild);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
 </script>
 {% endblock %}
