@@ -1,26 +1,26 @@
-Weekday	Course	Start Time	Duration (mins)
-Wednesday	13~17yr Artisan Studio	4:00PM	120
-Wednesday	18+ Adult Master Studio	4:00PM	120
-Wednesday	5~8yr Protege Studio	4:00PM	120
-Wednesday	9~12yr Apprentice Studio	4:00PM	120
-Thursday	5~8yr Protege Studio	4:00PM	120
-Thursday	9~12yr Apprentice Studio	4:00PM	120
-Thursday	13~17yr Artisan Studio	4:00PM	120
-Friday	5~8yr Protege Studio	4:00PM	120
-Friday	9~12yr Apprentice Studio	4:00PM	120
-Friday	13~17yr Artisan Studio	4:00PM	120
-Saturday	5~8yr Protege Studio	10:00AM	120
-Saturday	9~12yr Apprentice Studio	10:00AM	120
-Saturday	13~17yr Artisan Studio	10:00AM	120
-Saturday	5~8yr Protege Studio	12:30PM	120
-Saturday	9~12yr Apprentice Studio	12:30PM	120
-Saturday	13~17yr Artisan Studio	12:30PM	120
-Saturday	5~8yr Protege Studio	3:00PM	120
-Saturday	9~12yr Apprentice Studio	3:00PM	120
-Saturday	13~17yr Artisan Studio	3:00PM	120
-Sunday	5~8yr Protege Studio	10:00AM	120
-Sunday	9~12yr Apprentice Studio	10:00AM	120
-Sunday	13~17yr Artisan Studio	10:00AM	120
-Sunday	5~8yr Protege Studio	12:30PM	120
-Sunday	9~12yr Apprentice Studio	12:30PM	120
-Sunday	13~17yr Artisan Studio	12:30PM	120
+Weekday	Course	Start Time	Duration (mins)	Original Price	Early Bird Price	New Student Enrolment Fee
+Wednesday	13~17yr Artisan Studio	4:00PM	120	899	799	160
+Wednesday	18+ Adult Master Studio	4:00PM	120	899	799	160
+Wednesday	5~8yr Protege Studio	4:00PM	120	899	799	160
+Wednesday	9~12yr Apprentice Studio	4:00PM	120	899	799	160
+Thursday	5~8yr Protege Studio	4:00PM	120	899	799	160
+Thursday	9~12yr Apprentice Studio	4:00PM	120	899	799	160
+Thursday	13~17yr Artisan Studio	4:00PM	120	899	799	160
+Friday	5~8yr Protege Studio	4:00PM	120	899	799	160
+Friday	9~12yr Apprentice Studio	4:00PM	120	899	799	160
+Friday	13~17yr Artisan Studio	4:00PM	120	899	799	160
+Saturday	5~8yr Protege Studio	10:00AM	120	899	799	160
+Saturday	9~12yr Apprentice Studio	10:00AM	120	899	799	160
+Saturday	13~17yr Artisan Studio	10:00AM	120	899	799	160
+Saturday	5~8yr Protege Studio	12:30PM	120	899	799	160
+Saturday	9~12yr Apprentice Studio	12:30PM	120	899	799	160
+Saturday	13~17yr Artisan Studio	12:30PM	120	899	799	160
+Saturday	5~8yr Protege Studio	3:00PM	120	899	799	160
+Saturday	9~12yr Apprentice Studio	3:00PM	120	899	799	160
+Saturday	13~17yr Artisan Studio	3:00PM	120	899	799	160
+Sunday	5~8yr Protege Studio	10:00AM	120	899	799	160
+Sunday	9~12yr Apprentice Studio	10:00AM	120	899	799	160
+Sunday	13~17yr Artisan Studio	10:00AM	120	899	799	160
+Sunday	5~8yr Protege Studio	12:30PM	120	899	799	160
+Sunday	9~12yr Apprentice Studio	12:30PM	120	899	799	160
+Sunday	13~17yr Artisan Studio	12:30PM	120	899	799	160

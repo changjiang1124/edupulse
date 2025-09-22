@@ -239,6 +239,29 @@
                             <a href="{% url 'enrollment:enrollment_update' enrollment.pk %}" class="btn btn-primary w-100 mb-3">
                                 <i class="fas fa-edit me-2"></i>Edit Enrollment
                             </a>
+
+                            <!-- Email Actions -->
+                            {% if enrollment.student.contact_email %}
+                                {% if enrollment.status == 'pending' %}
+                                <!-- Pending enrollment email actions -->
+                                <button type="button" class="btn btn-info w-100 mb-2" onclick="sendEnrollmentEmail('pending')" id="sendPendingEmailBtn">
+                                    <i class="fas fa-envelope me-2"></i>Send Payment Instructions
+                                </button>
+                                {% elif enrollment.status == 'confirmed' %}
+                                <!-- Confirmed enrollment email actions -->
+                                <button type="button" class="btn btn-success w-100 mb-2" onclick="sendEnrollmentEmail('confirmation')" id="sendConfirmationEmailBtn">
+                                    <i class="fas fa-paper-plane me-2"></i>Send Welcome Email
+                                </button>
+                                {% endif %}
+                                <div class="small text-muted mb-3">
+                                    <i class="fas fa-info-circle me-1"></i>Email will be sent to: {{ enrollment.student.contact_email }}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning py-2 mb-3">
+                                    <small><i class="fas fa-exclamation-triangle me-1"></i>No email address available for this student</small>
+                                </div>
+                            {% endif %}
+
                             {% if enrollment.status == 'pending' %}
                             <form method="post" class="d-inline w-100">
                                 {% csrf_token %}
@@ -316,4 +339,94 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+function sendEnrollmentEmail(emailType) {
+    const btnId = emailType === 'pending' ? 'sendPendingEmailBtn' : 'sendConfirmationEmailBtn';
+    const btn = document.getElementById(btnId);
+
+    if (!btn) return;
+
+    // Show loading state
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('email_type', emailType);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+    // Send request
+    fetch('{% url "enrollment:send_enrollment_email" enrollment.pk %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message);
+        } else {
+            showToast('error', data.error || 'Failed to send email');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'An error occurred while sending the email');
+    })
+    .finally(() => {
+        // Restore button state
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+function showToast(type, message) {
+    // Create toast element
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+
+    const toastId = 'toast-' + Date.now();
+    const toastHtml = `
+        <div class="toast" id="${toastId}" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header ${type === 'success' ? 'bg-success text-white' : 'bg-danger text-white'}">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+                <strong class="me-auto">${type === 'success' ? 'Success' : 'Error'}</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+    // Show toast
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, {
+        autohide: true,
+        delay: 5000
+    });
+    toast.show();
+
+    // Remove toast element after it's hidden
+    toastElement.addEventListener('hidden.bs.toast', function() {
+        toastElement.remove();
+    });
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '1055';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+{% endblock %}
 {% endblock %}

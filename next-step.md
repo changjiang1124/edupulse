@@ -97,6 +97,8 @@ create:
 - vacancy update as confirmed enrolment (manually changed by operator after confirming the information and bank transfer received, not submission)
 - enrolment deadline should be included as part of the description of the course when sync to woocommerce. 
 
+- [x] in course create / edit, please add a Early Bird price and deadline field as well. e.g. the current user story is if the course is 899, then if you enrol 2 weeks ahead of the course start date, then you can enjoy 799 price. so the operator should be able to set this up in the course create / edit page. and in the enrolment submission confirmation email, we should indicate the price is early bird price or normal price. and in the woocommerce product page, we should show both prices as well, with early bird price highlighted. and if there is no early bird price, then only show normal price. think hard about if any other places should be affected by this, but not over complicate the logic.
+
 - [x] if the course status has been changed especially from published to unpublished or any non-published the status, the correlate post on WooCommerce should be marked as draft as well and in the description of  Wordpress all the fields that are essential to the users should be included as well. for example vacancy, enrolment deadline, fees, dates, facility (location). dont indicate the teachers and classroom as they might be changed. and when Edit course, all the existing values of fields should be prefilled, i noticed that enrolment deadline is empty for example. please check that as well. 
 
 - [x] when course changed from published -> draft, the woocommerce item is deleted. this is wrong, you should never delete item from woocommernce, instead, you should make it draft as well, so as published -> expired. and you dont have to change bookable status, as they should only be used when published. if draft or expired, the course should be unexisting in the option of enrolment, making it impossible to access, so the bookable is not effective (check the current code implementaion, if not like this, should be fixed.) and not all fields are prefilled when edit, e.g. deadline, and start date and end date (although they are disabled from editing, they still should show the current value)
@@ -264,3 +266,13 @@ Please fix it and test it.
 
 ### notifications 
 - [x] should we add email sending queue in case of email sending in batch, like 80 or 100 emails? should we worry about it?
+
+
+### term 4 courses
+- [x] term 4 starts from Tuesday, 14 October to Sunday, 21 December 2025. 
+help me generate a command to generate courses for term 4 2025, the course infomration is in @term4_enroll_2025/courses_term4_2025.tsv with header "Weekday	Course	Start Time	Duration (mins)	Original Price	Early Bird Price	New Student Enrolment Fee", and term 4 starts from Tuesday, 14 October to Sunday, 21 December 2025. since this script could be usable, you can make the start date and end date of term as parameters or variables in the script. reference the course model. 
+
+
+- [x] in the enrolment create / edit by operator, for create & pending, there should be a checkbox to indicate whether to send the enrolment submission confirmation email to the contact email with the existing email template when submit. and for edit & pending, there should be a button to manually trigger the email sending to the contact email with the existing email template. and for confirmed status, there should be a button to manually trigger the enrolment confirmed email to the contact email with the existing email template. thru this, i can first add enrolment, then check the information, and decide which should be sent with what email. please implement this logic and test it.
+
+- [] 1. review enrolment submission email content, and style alignment for enrolment success email and enrolment confirmed email.

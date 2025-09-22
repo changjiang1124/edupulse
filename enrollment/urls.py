@@ -12,6 +12,7 @@ urlpatterns = [
     path('enrollments/<int:pk>/', views.EnrollmentDetailView.as_view(), name='enrollment_detail'),
     path('enrollments/<int:pk>/edit/', views.EnrollmentUpdateView.as_view(), name='enrollment_update'),
     path('enrollments/<int:pk>/delete/', views.EnrollmentDeleteView.as_view(), name='enrollment_delete'),
+    path('enrollments/<int:pk>/send-email/', views.SendEnrollmentEmailView.as_view(), name='send_enrollment_email'),
     
     # Student Search API for staff
     path('api/students/search/', views.StudentSearchAPIView.as_view(), name='student_search_api'),

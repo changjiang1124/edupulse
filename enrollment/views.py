@@ -944,12 +944,117 @@ class AttendanceUpdateView(LoginRequiredMixin, UpdateView):
     model = Attendance
     template_name = 'core/attendance/update.html'
     fields = ['status', 'attendance_time']
-    
+
     def get_success_url(self):
-        return reverse('enrollment:attendance_mark', 
+        return reverse('enrollment:attendance_mark',
                       kwargs={'class_id': self.object.class_instance.id})
-    
+
     def form_valid(self, form):
-        messages.success(self.request, 
+        messages.success(self.request,
                         f'Attendance updated for {self.object.student.get_full_name()}')
         return super().form_valid(form)
+
+
+class SendEnrollmentEmailView(LoginRequiredMixin, View):
+    """AJAX endpoint to manually send enrollment emails"""
+
+    def post(self, request, pk):
+        """Handle email sending requests"""
+        if not request.user.is_staff:
+            return JsonResponse({'success': False, 'error': 'Access denied'}, status=403)
+
+        try:
+            enrollment = get_object_or_404(Enrollment, pk=pk)
+            email_type = request.POST.get('email_type')
+
+            if email_type not in ['pending', 'confirmation']:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid email type. Must be "pending" or "confirmation".'
+                }, status=400)
+
+            # Get recipient email
+            recipient_email = enrollment.student.get_contact_email()
+            if not recipient_email:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'No email address found for this student.'
+                }, status=400)
+
+            from core.services import NotificationService
+            from students.models import StudentActivity
+
+            if email_type == 'pending':
+                # Send enrollment pending email (for pending status)
+                if enrollment.status != 'pending':
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Enrollment pending email can only be sent for pending enrollments.'
+                    }, status=400)
+
+                # Calculate fees for email
+                fee_breakdown = {
+                    'course_fee': enrollment.course_fee or enrollment.course.price,
+                    'registration_fee': enrollment.registration_fee or 0,
+                    'total_fee': enrollment.get_total_fee(),
+                    'charge_registration_fee': True,
+                    'has_registration_fee': enrollment.registration_fee > 0
+                }
+
+                email_sent = NotificationService.send_enrollment_pending_email(
+                    enrollment=enrollment,
+                    recipient_email=recipient_email,
+                    fee_breakdown=fee_breakdown
+                )
+
+                email_description = 'enrollment pending'
+
+            elif email_type == 'confirmation':
+                # Send enrollment confirmation/welcome email (for confirmed status)
+                if enrollment.status != 'confirmed':
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Enrollment confirmation email can only be sent for confirmed enrollments.'
+                    }, status=400)
+
+                email_sent = NotificationService.send_welcome_email(enrollment)
+                email_description = 'welcome'
+
+            if email_sent:
+                # Record activity
+                StudentActivity.create_activity(
+                    student=enrollment.student,
+                    activity_type='email_sent',
+                    title=f'Manual {email_description} email sent',
+                    description=f'{email_description.title()} email manually sent to {recipient_email} by staff member',
+                    enrollment=enrollment,
+                    course=enrollment.course,
+                    performed_by=request.user if hasattr(request.user, 'staff') else None,
+                    metadata={
+                        'email_type': email_description,
+                        'recipient': recipient_email,
+                        'triggered_by': 'manual_staff_action',
+                        'staff_user': request.user.username
+                    }
+                )
+
+                return JsonResponse({
+                    'success': True,
+                    'message': f'{email_description.title()} email sent successfully to {recipient_email}.'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to send {email_description} email. Please check email configuration.'
+                }, status=500)
+
+        except Enrollment.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Enrollment not found'}, status=404)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error sending enrollment email: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'error': 'An unexpected error occurred while sending the email.'
+            }, status=500)
