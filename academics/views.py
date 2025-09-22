@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
+from django.views import View
 from django.urls import reverse_lazy, reverse
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -77,6 +78,30 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
         except ImportError:
             context['enrollments'] = []
         return context
+
+
+class CourseRegenerateClassesView(LoginRequiredMixin, View):
+    """Append course-scheduled classes without removing existing ones."""
+
+    def post(self, request, pk):
+        course = get_object_or_404(Course, pk=pk)
+        created_count = course.generate_classes(replace_existing=False)
+
+        if created_count:
+            messages.success(
+                request,
+                f"Added {created_count} new class{'es' if created_count != 1 else ''} from the course schedule."
+            )
+        else:
+            messages.info(
+                request,
+                'No new classes were generated because the schedule already matches existing sessions.'
+            )
+
+        return redirect('academics:course_detail', pk=course.pk)
+
+    def get(self, request, pk):  # pragma: no cover - convenience redirect
+        return redirect('academics:course_detail', pk=pk)
 
 
 class CourseUpdateView(LoginRequiredMixin, UpdateView):

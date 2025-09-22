@@ -465,126 +465,112 @@ class Course(models.Model):
         
         super().save(*args, **kwargs)
     
-    def generate_classes(self):
-        """
-        Generate Class instances based on course schedule
-        Returns the number of classes created
-        """
-        from datetime import timedelta
+    def _iter_schedule_dates(self):
+        """Yield scheduled class dates based on course configuration."""
+        from datetime import timedelta, date as date_cls
         import calendar
-        
-        if not self.pk:
-            return 0
-        
-        # Clear existing classes for this course to regenerate
-        self.classes.all().delete()
-        
-        classes_created = 0
+
+        if not self.start_date:
+            return
+
         current_date = self.start_date
         end_date = self.end_date or self.start_date
-        
+
+        if end_date < current_date:
+            end_date = current_date
+
         if self.repeat_pattern == 'once':
-            # Single session
+            yield current_date
+            return
+
+        if self.repeat_pattern == 'daily':
+            allowed_weekdays = self.daily_weekdays or [0, 1, 2, 3, 4, 5, 6]
+            while current_date <= end_date:
+                if current_date.weekday() in allowed_weekdays:
+                    yield current_date
+                current_date += timedelta(days=1)
+            return
+
+        if self.repeat_pattern == 'weekly':
+            target_weekday = self.repeat_weekday if self.repeat_weekday is not None else current_date.weekday()
+            days_ahead = target_weekday - current_date.weekday()
+            if days_ahead < 0:
+                days_ahead += 7
+            current_date += timedelta(days=days_ahead)
+            while current_date <= end_date:
+                yield current_date
+                current_date += timedelta(days=7)
+            return
+
+        if self.repeat_pattern == 'monthly':
+            target_day = self.repeat_day_of_month or current_date.day
+
+            def clamp_day(year, month):
+                return min(target_day, calendar.monthrange(year, month)[1])
+
+            year = current_date.year
+            month = current_date.month
+            day = clamp_day(year, month)
+            candidate = date_cls(year, month, day)
+
+            if candidate < current_date:
+                # move to next month if the initial candidate is before the start
+                if month == 12:
+                    year += 1
+                    month = 1
+                else:
+                    month += 1
+                day = clamp_day(year, month)
+                candidate = date_cls(year, month, day)
+
+            while candidate <= end_date:
+                yield candidate
+                if month == 12:
+                    year += 1
+                    month = 1
+                else:
+                    month += 1
+                day = clamp_day(year, month)
+                candidate = date_cls(year, month, day)
+
+    def generate_classes(self, replace_existing=True):
+        """Generate Class instances based on course schedule.
+
+        When ``replace_existing`` is True (default), existing classes are deleted before
+        regeneration (behaviour used when creating a course). When False, the schedule
+        is applied non-destructively and new classes are appended without touching
+        existing ones.
+        """
+        if not self.pk or not self.start_date or not self.start_time:
+            return 0
+
+        schedule_dates = list(self._iter_schedule_dates() or [])
+
+        if replace_existing:
+            self.classes.all().delete()
+            existing_keys = set()
+        else:
+            existing_keys = set(self.classes.values_list('date', 'start_time'))
+
+        classes_created = 0
+
+        for class_date in schedule_dates:
+            key = (class_date, self.start_time)
+            if key in existing_keys:
+                continue
+
             Class.objects.create(
                 course=self,
-                date=current_date,
+                date=class_date,
                 start_time=self.start_time,
                 duration_minutes=self.duration_minutes,
                 teacher=self.teacher,
                 facility=self.facility,
                 classroom=self.classroom
             )
-            classes_created = 1
-        elif self.repeat_pattern == 'daily':
-            # Daily classes with weekday filtering
-            allowed_weekdays = self.daily_weekdays or [0, 1, 2, 3, 4, 5, 6]  # Default to all days if not set
+            classes_created += 1
+            existing_keys.add(key)
 
-            while current_date <= end_date:
-                # Check if current date's weekday is in allowed weekdays
-                current_weekday = current_date.weekday()
-                if current_weekday in allowed_weekdays:
-                    Class.objects.create(
-                        course=self,
-                        date=current_date,
-                        start_time=self.start_time,
-                        duration_minutes=self.duration_minutes,
-                        teacher=self.teacher,
-                        facility=self.facility,
-                        classroom=self.classroom
-                    )
-                    classes_created += 1
-                current_date += timedelta(days=1)
-        elif self.repeat_pattern == 'weekly':
-            # Weekly classes - use specific weekday
-            if self.repeat_weekday is not None:
-                # Find the first occurrence of the specified weekday on or after start_date
-                days_ahead = self.repeat_weekday - current_date.weekday()
-                if days_ahead < 0:  # Target day already happened this week
-                    days_ahead += 7
-                current_date += timedelta(days_ahead)
-                
-                # Generate classes weekly on the specified day
-                while current_date <= end_date:
-                    Class.objects.create(
-                        course=self,
-                        date=current_date,
-                        start_time=self.start_time,
-                        duration_minutes=self.duration_minutes,
-                        teacher=self.teacher,
-                        facility=self.facility,
-                        classroom=self.classroom
-                    )
-                    classes_created += 1
-                    current_date += timedelta(days=7)
-        elif self.repeat_pattern == 'monthly':
-            # Monthly classes - use specific day of month
-            if self.repeat_day_of_month is not None:
-                # Start from the specified day of the start month
-                if current_date.day <= self.repeat_day_of_month:
-                    # This month, on the specified day
-                    try:
-                        current_date = current_date.replace(day=self.repeat_day_of_month)
-                    except ValueError:
-                        # Day doesn't exist in this month (e.g., Feb 31), skip to next month
-                        next_month = current_date.replace(day=1) + timedelta(days=32)
-                        try:
-                            current_date = next_month.replace(day=self.repeat_day_of_month, month=next_month.month, year=next_month.year)
-                        except ValueError:
-                            current_date = next_month.replace(day=1) + timedelta(days=32)
-                            current_date = current_date.replace(day=min(self.repeat_day_of_month, calendar.monthrange(current_date.year, current_date.month)[1]))
-                else:
-                    # Next month, on the specified day
-                    next_month = current_date.replace(day=1) + timedelta(days=32)
-                    try:
-                        current_date = next_month.replace(day=self.repeat_day_of_month, month=next_month.month, year=next_month.year)
-                    except ValueError:
-                        current_date = next_month.replace(day=min(self.repeat_day_of_month, calendar.monthrange(next_month.year, next_month.month)[1]))
-                
-                # Generate monthly classes
-                while current_date <= end_date:
-                    Class.objects.create(
-                        course=self,
-                        date=current_date,
-                        start_time=self.start_time,
-                        duration_minutes=self.duration_minutes,
-                        teacher=self.teacher,
-                        facility=self.facility,
-                        classroom=self.classroom
-                    )
-                    classes_created += 1
-                    
-                    # Move to next month
-                    if current_date.month == 12:
-                        next_month = current_date.replace(year=current_date.year + 1, month=1, day=1)
-                    else:
-                        next_month = current_date.replace(month=current_date.month + 1, day=1)
-                    
-                    try:
-                        current_date = next_month.replace(day=self.repeat_day_of_month)
-                    except ValueError:
-                        # Day doesn't exist in next month
-                        current_date = next_month.replace(day=min(self.repeat_day_of_month, calendar.monthrange(next_month.year, next_month.month)[1]))
-        
         return classes_created
     
     def get_repeat_config_display(self):

@@ -265,16 +265,21 @@
 
         <!-- Classes Section -->
         <div class="card course-meta-card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-chalkboard-teacher me-2 text-primary"></i>
-                    {% if course.repeat_pattern == 'once' %}Workshop Session{% else %}Scheduled Classes{% endif %} <span class="badge bg-primary ms-2">{{ classes.count }}</span>
-                </h5>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-chalkboard-teacher me-2 text-primary"></i>
+                {% if course.repeat_pattern == 'once' %}Workshop Session{% else %}Scheduled Classes{% endif %} <span class="badge bg-primary ms-2">{{ classes.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#regenerateClassesModal">
+                    <i class="fas fa-sync-alt me-1"></i>Re-generate Classes
+                </button>
                 <a href="{% url 'academics:class_add' %}?course={{ course.pk }}" class="btn btn-sm btn-primary">
                     <i class="fas fa-plus me-1"></i>
                     {% if course.repeat_pattern == 'once' %}Schedule Session{% else %}Add Class{% endif %}
                 </a>
             </div>
+        </div>
             <div class="card-body">
                 {% if classes %}
                     <div class="table-responsive">
@@ -345,8 +350,31 @@
                         {% endif %}
                     </div>
                 {% endif %}
+        </div>
+    </div>
+
+    <!-- Re-generate Classes Modal -->
+    <div class="modal fade" id="regenerateClassesModal" tabindex="-1" aria-labelledby="regenerateClassesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" action="{% url 'academics:course_regenerate_classes' course.pk %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="regenerateClassesModalLabel">Re-generate Classes</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-2">This will add classes to match the course schedule (repeat rule, date range, and time).</p>
+                        <p class="mb-0 text-muted">Existing classes will remain unchanged and any overlapping sessions will be skipped.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Generate Classes</button>
+                    </div>
+                </form>
             </div>
         </div>
+    </div>
 
         <!-- Recent Enrolments -->
         <div class="card course-meta-card">

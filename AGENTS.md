@@ -32,3 +32,8 @@
 - Load secrets from `.env` only; never commit credentials or generated keys.
 - Sanity-check outbound integrations (WooCommerce, SES, Twilio) in the restricted staging environment before enabling them in production.
 - Document operational handover steps privately and align with the repository’s access controls.
+
+
+# Response rules
+reply me in simplified Chinese by defaualt, unless I specifically ask you to reply in English.
+code and comments and interfaces should remain in English (Australian English).
