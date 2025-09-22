@@ -3,19 +3,43 @@
 <div class="enrollment-fee-breakdown">
     <div class="course-fee-section">
         <h6 class="mb-2">Course Fee</h6>
-        <div class="fee-item d-flex justify-content-between">
-            <span>{{ enrollment.course.name }}</span>
-            <span>{{ course_breakdown.price_inc_gst|currency }}
-                <small class="text-muted">
-                    {% if course_breakdown.includes_gst %}
-                        (inc {{ course_breakdown.gst_label }})
-                    {% else %}
-                        (ex {{ course_breakdown.gst_label }})
-                    {% endif %}
+        {% if enrollment.is_early_bird %}
+            <div class="early-bird-notice mb-2 p-2" style="background-color: #ecfdf5; border: 1px solid #10b981; border-radius: 4px;">
+                <small class="text-success fw-bold">
+                    <i class="bi bi-star-fill"></i> Early Bird Special - You saved ${{ enrollment.early_bird_savings }}!
                 </small>
-            </span>
-        </div>
-        
+            </div>
+            <div class="fee-item d-flex justify-content-between">
+                <span>{{ enrollment.course.name }} (Early Bird)</span>
+                <span class="text-success fw-bold">{{ enrollment.course_fee|currency }}
+                    <small class="text-muted">
+                        {% if course_breakdown.includes_gst %}
+                            (inc {{ course_breakdown.gst_label }})
+                        {% else %}
+                            (ex {{ course_breakdown.gst_label }})
+                        {% endif %}
+                    </small>
+                </span>
+            </div>
+            <div class="fee-item d-flex justify-content-between mt-1">
+                <span class="text-muted"><small>Regular price: <del>${{ enrollment.original_price }}</del></small></span>
+                <span class="text-success"><small>Savings: ${{ enrollment.early_bird_savings }}</small></span>
+            </div>
+        {% else %}
+            <div class="fee-item d-flex justify-content-between">
+                <span>{{ enrollment.course.name }}</span>
+                <span>{{ course_breakdown.price_inc_gst|currency }}
+                    <small class="text-muted">
+                        {% if course_breakdown.includes_gst %}
+                            (inc {{ course_breakdown.gst_label }})
+                        {% else %}
+                            (ex {{ course_breakdown.gst_label }})
+                        {% endif %}
+                    </small>
+                </span>
+            </div>
+        {% endif %}
+
         {% if show_details %}
             <div class="fee-details mt-2">
                 <small class="text-muted">

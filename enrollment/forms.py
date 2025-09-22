@@ -470,12 +470,21 @@ class PublicEnrollmentForm(forms.Form):
         course_choices = [('', 'Select a course...')]
         
         for course in courses:
-            course_fee = f"${course.price}"
+            # Get current applicable price (early bird or regular)
+            applicable_price = course.get_applicable_price()
+            is_early_bird = course.is_early_bird_available()
+
+            if is_early_bird:
+                savings = course.get_early_bird_savings()
+                course_fee = f"${applicable_price} Early Bird (Save ${savings}!)"
+            else:
+                course_fee = f"${applicable_price}"
+
             if course.has_registration_fee():
                 reg_fee_info = f" (+${course.registration_fee} registration fee for new students)"
             else:
                 reg_fee_info = ""
-            
+
             choice_label = f"{course.name} - {course_fee}{reg_fee_info}"
             course_choices.append((course.pk, choice_label))
         

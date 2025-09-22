@@ -212,11 +212,17 @@ class EnrollmentFeeCalculator:
     """Calculate enrollment fees based on course and student status"""
     
     @staticmethod
-    def calculate_total_fees(course, registration_status='new'):
-        """Calculate total fees including registration fee if applicable"""
-        # Base course fee
-        course_fee = course.price or 0
-        
+    def calculate_total_fees(course, registration_status='new', enrollment_date=None):
+        """Calculate total fees including early bird and registration fees"""
+        from django.utils import timezone
+
+        # Use enrollment date for early bird calculation, default to now
+        check_date = enrollment_date or timezone.now().date()
+
+        # Get applicable course fee (early bird or regular)
+        course_fee = course.get_applicable_price(check_date)
+        is_early_bird = course.is_early_bird_available(check_date)
+
         # Registration fee if new student and course has registration fee
         registration_fee = 0
         try:
@@ -224,36 +230,61 @@ class EnrollmentFeeCalculator:
                 registration_fee = course.registration_fee or 0
         except Exception:
             registration_fee = 0
-        
+
         total_fee = (course_fee or 0) + (registration_fee or 0)
-        
-        return {
+
+        fee_info = {
             'course_fee': course_fee,
             'registration_fee': registration_fee,
             'total_fee': total_fee,
             'has_registration_fee': (registration_fee or 0) > 0,
+            'is_early_bird': is_early_bird,
+            'price_type': 'early_bird' if is_early_bird else 'regular'
         }
+
+        # Add early bird specific information
+        if is_early_bird:
+            fee_info.update({
+                'original_price': course.price,
+                'early_bird_savings': course.get_early_bird_savings(),
+                'early_bird_deadline': course.early_bird_deadline
+            })
+
+        return fee_info
     
     @staticmethod
-    def update_enrollment_fees(enrollment, course, is_new_student=None):
-        """Update the enrollment with calculated fees"""
+    def update_enrollment_fees(enrollment, course, is_new_student=None, enrollment_date=None):
+        """Update the enrollment with calculated fees including early bird pricing"""
         # Use enrollment.registration_status if available, otherwise fall back to is_new_student
         registration_status = getattr(enrollment, 'registration_status', 'new')
         if registration_status is None and is_new_student is not None:
             registration_status = 'new' if is_new_student else 'returning'
-        
-        fees = EnrollmentFeeCalculator.calculate_total_fees(course, registration_status)
-        
-        # Store calculated fees in enrollment (use existing fields)
+
+        # Use enrollment creation date for early bird calculation
+        check_date = enrollment_date or enrollment.created_at.date()
+        fees = EnrollmentFeeCalculator.calculate_total_fees(course, registration_status, check_date)
+
+        # Store calculated fees in enrollment
         try:
             enrollment.course_fee = fees.get('course_fee', 0)
             enrollment.registration_fee = fees.get('registration_fee', 0)
+            enrollment.is_early_bird = fees.get('is_early_bird', False)
+
+            # Store early bird information if applicable
+            if fees.get('is_early_bird'):
+                enrollment.original_price = fees.get('original_price')
+                enrollment.early_bird_savings = fees.get('early_bird_savings')
+            else:
+                enrollment.original_price = None
+                enrollment.early_bird_savings = None
+
             # Keep is_new_student for backward compatibility if provided
             if is_new_student is not None:
                 enrollment.is_new_student = is_new_student
+
             enrollment.save()
         except Exception:
             # Fail silently to avoid blocking enrollment creation
             pass
-        
+
         return fees

@@ -82,6 +82,27 @@ class Enrollment(models.Model):
         verbose_name='Course Fee',
         help_text='Fee for the course at time of enrollment'
     )
+    is_early_bird = models.BooleanField(
+        default=False,
+        verbose_name='Early Bird Enrollment',
+        help_text='Whether this enrollment received early bird pricing'
+    )
+    original_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Original Course Price',
+        help_text='Regular course price before early bird discount'
+    )
+    early_bird_savings = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Early Bird Savings',
+        help_text='Amount saved through early bird pricing'
+    )
     registration_fee = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -165,12 +186,48 @@ class Enrollment(models.Model):
     def get_reference_id(self):
         """
         Generate professional reference ID in format PAS-[courseID:3digits]-[enrollmentID:3digits]
-        
+
         Examples:
         - PAS-001-023 (Course ID 1, Enrollment ID 23)
         - PAS-042-156 (Course ID 42, Enrollment ID 156)
         """
         return f"PAS-{self.course.id:03d}-{self.id:03d}"
+
+    def get_price_summary(self):
+        """Get a summary of pricing for this enrollment"""
+        summary = {
+            'course_fee': self.course_fee,
+            'registration_fee': self.registration_fee,
+            'total_fee': self.get_total_fee(),
+            'is_early_bird': self.is_early_bird,
+            'price_type': 'Early Bird' if self.is_early_bird else 'Regular'
+        }
+
+        if self.is_early_bird:
+            summary.update({
+                'original_price': self.original_price,
+                'early_bird_savings': self.early_bird_savings,
+                'savings_amount': self.early_bird_savings or 0
+            })
+
+        return summary
+
+    def update_pricing_from_course(self, enrollment_date=None):
+        """Update enrollment pricing based on course pricing at enrollment time"""
+        applicable_price = self.course.get_applicable_price(enrollment_date)
+        is_early_bird = self.course.is_early_bird_available(enrollment_date)
+
+        self.course_fee = applicable_price
+        self.is_early_bird = is_early_bird
+
+        if is_early_bird:
+            self.original_price = self.course.price
+            self.early_bird_savings = self.course.get_early_bird_savings()
+        else:
+            self.original_price = None
+            self.early_bird_savings = None
+
+        return self
 
 
 class Attendance(models.Model):

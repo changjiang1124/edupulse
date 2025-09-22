@@ -134,10 +134,12 @@ class WooCommerceAPI:
         # Course details section
         course_details = []
         
-        # Price information with GST details
+        # Price information with GST details and early bird information
         price = course_data.get('price', 0)
+        early_bird_price = course_data.get('early_bird_price')
+        early_bird_deadline = course_data.get('early_bird_deadline')
         registration_fee = course_data.get('registration_fee')
-        
+
         # Use price_display if available (includes GST label)
         if course_data.get('price_display'):
             price_display = course_data['price_display']
@@ -147,6 +149,32 @@ class WooCommerceAPI:
                 price_display += " (inc GST)"
             else:
                 price_display += " (ex GST)"
+
+        # Handle early bird pricing display
+        if early_bird_price and early_bird_deadline:
+            early_bird_display = f"${early_bird_price}"
+            if course_data.get('gst_info', {}).get('includes_gst'):
+                early_bird_display += " (inc GST)"
+            else:
+                early_bird_display += " (ex GST)"
+
+            savings = float(price) - float(early_bird_price)
+            early_bird_info = f"<strong>Early Bird Special:</strong> {early_bird_display} (Save ${savings:,.2f}!)"
+
+            try:
+                if isinstance(early_bird_deadline, str):
+                    deadline_date = datetime.fromisoformat(early_bird_deadline.replace('Z', '+00:00'))
+                else:
+                    deadline_date = early_bird_deadline
+                formatted_deadline = deadline_date.strftime('%d %B %Y')
+                early_bird_info += f" - Valid until {formatted_deadline}"
+            except:
+                early_bird_info += f" - Valid until {early_bird_deadline}"
+
+            course_details.append(early_bird_info)
+            course_details.append(f"<strong>Regular Price:</strong> {price_display}")
+        else:
+            course_details.append(f"<strong>Course Fee:</strong> {price_display}")
         
         if registration_fee and registration_fee > 0:
             reg_fee_display = f"${registration_fee}"
@@ -154,20 +182,27 @@ class WooCommerceAPI:
                 reg_fee_display += " (inc GST)"
             else:
                 reg_fee_display += " (ex GST)"
-            
-            total_fee = float(price) + float(registration_fee)
-            total_display = f"${total_fee}"
-            if course_data.get('gst_info', {}).get('includes_gst'):
-                total_display += " (inc GST)"
-            else:
-                total_display += " (ex GST)"
-            
-            course_details.append(f"<strong>Course Fee:</strong> {price_display}")
+
             course_details.append(f"<strong>Registration Fee:</strong> {reg_fee_display} (for new students)")
-            course_details.append(f"<strong>Total for New Students:</strong> {total_display}")
-        else:
-            course_details.append(f"<strong>Course Fee:</strong> {price_display}")
-        
+
+            # Calculate total for new students
+            if early_bird_price and early_bird_deadline:
+                early_bird_total = float(early_bird_price) + float(registration_fee)
+                early_bird_total_display = f"${early_bird_total}"
+                if course_data.get('gst_info', {}).get('includes_gst'):
+                    early_bird_total_display += " (inc GST)"
+                else:
+                    early_bird_total_display += " (ex GST)"
+                course_details.append(f"<strong>Early Bird Total for New Students:</strong> {early_bird_total_display}")
+
+            regular_total = float(price) + float(registration_fee)
+            regular_total_display = f"${regular_total}"
+            if course_data.get('gst_info', {}).get('includes_gst'):
+                regular_total_display += " (inc GST)"
+            else:
+                regular_total_display += " (ex GST)"
+            course_details.append(f"<strong>Regular Total for New Students:</strong> {regular_total_display}")
+
         # GST information note removed since it's already shown in price display
         
         # Vacancy information
@@ -596,6 +631,8 @@ class WooCommerceSyncService:
                 'description': course.description or '',
                 'short_description': course.short_description or '',
                 'price': float(course.price),
+                'early_bird_price': float(course.early_bird_price) if course.early_bird_price else None,
+                'early_bird_deadline': course.early_bird_deadline.isoformat() if course.early_bird_deadline else None,
                 'price_display': price_display,
                 'gst_info': {
                     'includes_gst': gst_config['includes_gst'],
@@ -607,7 +644,7 @@ class WooCommerceSyncService:
                 'enrollment_deadline': course.enrollment_deadline.isoformat() if course.enrollment_deadline else None,
                 'start_date': course.start_date.isoformat() if course.start_date else None,
                 'end_date': course.end_date.isoformat() if course.end_date else None,
-                'start_time': course.start_time.strftime('%H:%M:%S') if course.start_time else None,
+                'start_time': course.start_time.strftime('%H:%M:%S') if course.start_time and hasattr(course.start_time, 'strftime') else str(course.start_time) if course.start_time else None,
                 'duration_minutes': course.duration_minutes,
                 'facility_name': course.facility.name if course.facility else None,
                 'facility_address': course.facility.address if course.facility else None,

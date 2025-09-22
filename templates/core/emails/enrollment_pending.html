@@ -197,10 +197,25 @@
                 <div class="card">
                     <div class="section-title">Fee Summary</div>
                     <table class="detail-table" role="presentation">
+                        {% if enrollment.is_early_bird %}
+                        <tr>
+                            <td>Course fee</td>
+                            <td>{{ course_fee|currency }} <span style="color: #10b981; font-weight: 600;">(Early Bird)</span></td>
+                        </tr>
+                        <tr style="color: #9ca3af;">
+                            <td>Regular price</td>
+                            <td><del>${{ enrollment.original_price }}</del></td>
+                        </tr>
+                        <tr style="color: #10b981; font-weight: 600;">
+                            <td>You saved</td>
+                            <td>${{ enrollment.early_bird_savings }}</td>
+                        </tr>
+                        {% else %}
                         <tr>
                             <td>Course fee</td>
                             <td>{{ course_fee|currency }}</td>
                         </tr>
+                        {% endif %}
                         {% if has_registration_fee %}
                         <tr>
                             <td>Registration</td>
@@ -213,6 +228,11 @@
                         </tr>
                     </table>
                     <div class="total-amount">Total due: {{ total_fee|currency }}</div>
+                    {% if enrollment.is_early_bird %}
+                    <p style="color: #10b981; font-weight: 600; margin: 12px 0 0; font-size: 14px;">
+                        🎉 Congratulations! You secured the early bird discount by enrolling before {{ enrollment.course.early_bird_deadline|date:"d M Y" }}.
+                    </p>
+                    {% endif %}
                 </div>
 
                 <div class="card">

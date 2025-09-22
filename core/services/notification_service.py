@@ -114,11 +114,17 @@ class NotificationService:
                 'fee_breakdown': fee_breakdown or {}
             }
             
-            # Calculate total fees
+            # Calculate total fees - use fee_breakdown if provided (includes early bird pricing)
             from decimal import Decimal
-            course_fee = enrollment.course.price or Decimal('0')
-            registration_fee = Decimal(str(fee_breakdown.get('registration_fee', 0))) if fee_breakdown else Decimal('0')
-            total_fee = Decimal(str(fee_breakdown.get('total_fee', 0))) if fee_breakdown else course_fee + registration_fee
+            if fee_breakdown:
+                course_fee = Decimal(str(fee_breakdown.get('course_fee', 0)))
+                registration_fee = Decimal(str(fee_breakdown.get('registration_fee', 0)))
+                total_fee = Decimal(str(fee_breakdown.get('total_fee', 0)))
+            else:
+                # Fallback to enrollment stored values if no breakdown provided
+                course_fee = enrollment.course_fee or Decimal('0')
+                registration_fee = enrollment.registration_fee or Decimal('0')
+                total_fee = course_fee + registration_fee
             
             context.update({
                 'course_fee': course_fee,

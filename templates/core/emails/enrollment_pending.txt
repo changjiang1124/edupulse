@@ -21,10 +21,15 @@ Duration: {{ course.get_duration_display }}
 
 PAYMENT REQUIRED:
 ----------------
-Course Fee: {% price_with_gst_label course.price %}
+{% if enrollment.is_early_bird %}Course Fee: {{ course_fee|currency }} (Early Bird - You saved ${{ enrollment.early_bird_savings }}!)
+Regular Price: ${{ enrollment.original_price }}{% else %}Course Fee: {{ course_fee|currency }}{% endif %}
 {% if has_registration_fee %}Registration Fee: {{ registration_fee|currency }}{% endif %}
 
 TOTAL AMOUNT DUE: {{ total_fee|currency }}{% gst_config as gst_settings %}{% if gst_settings.includes_gst %} (inc {{ gst_settings.label }}){% else %} (ex {{ gst_settings.label }}){% endif %}
+{% if enrollment.is_early_bird %}
+
+🎉 EARLY BIRD DISCOUNT APPLIED!
+You secured the early bird discount by enrolling before {{ enrollment.course.early_bird_deadline|date:"d F Y" }}.{% endif %}
 
 PAYMENT INSTRUCTIONS:
 --------------------

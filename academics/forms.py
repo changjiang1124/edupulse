@@ -10,7 +10,7 @@ class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
         fields = [
-            'name', 'short_description', 'description', 'featured_image', 'price', 'registration_fee', 'course_type', 'category', 'status', 'teacher',
+            'name', 'short_description', 'description', 'featured_image', 'price', 'early_bird_price', 'early_bird_deadline', 'registration_fee', 'course_type', 'category', 'status', 'teacher',
             'start_date', 'end_date', 'repeat_pattern', 'repeat_weekday', 'repeat_day_of_month', 'daily_weekdays',
             'start_time', 'duration_minutes', 'vacancy', 'facility', 'classroom', 'is_online_bookable',
             'enrollment_deadline'
@@ -35,6 +35,16 @@ class CourseForm(forms.ModelForm):
                 'class': 'form-control',
                 'step': '0.01',
                 'min': '0'
+            }),
+            'early_bird_price': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Early bird price (optional)'
+            }),
+            'early_bird_deadline': forms.DateInput(format='%Y-%m-%d', attrs={
+                'class': 'form-control',
+                'type': 'date'
             }),
             'registration_fee': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -111,9 +121,15 @@ class CourseForm(forms.ModelForm):
             # Use form.initial to guarantee the widget receives the value even for disabled fields
             if self.instance.enrollment_deadline:
                 self.initial['enrollment_deadline'] = self.instance.enrollment_deadline
-            
+
             if self.instance.registration_fee is not None:
                 self.initial['registration_fee'] = self.instance.registration_fee
+
+            if self.instance.early_bird_price is not None:
+                self.initial['early_bird_price'] = self.instance.early_bird_price
+
+            if self.instance.early_bird_deadline:
+                self.initial['early_bird_deadline'] = self.instance.early_bird_deadline
                 
             if self.instance.end_date:
                 self.initial['end_date'] = self.instance.end_date
@@ -207,11 +223,15 @@ class CourseForm(forms.ModelForm):
         return value
     
     def clean(self):
-        """Validate facility-classroom matching"""
+        """Validate facility-classroom matching and early bird pricing"""
         cleaned_data = super().clean()
         facility = cleaned_data.get('facility')
         classroom = cleaned_data.get('classroom')
-        
+        price = cleaned_data.get('price')
+        early_bird_price = cleaned_data.get('early_bird_price')
+        early_bird_deadline = cleaned_data.get('early_bird_deadline')
+        start_date = cleaned_data.get('start_date')
+
         # Validate facility-classroom matching
         if facility and classroom:
             if classroom.facility != facility:
@@ -221,11 +241,34 @@ class CourseForm(forms.ModelForm):
                     f'Please select a classroom that belongs to the chosen facility, '
                     f'or change the facility to match the classroom.'
                 )
-        
+
         # Auto-assign facility if only classroom is provided
         elif classroom and not facility:
             cleaned_data['facility'] = classroom.facility
-        
+
+        # Validate early bird pricing
+        if early_bird_price is not None:
+            if price and early_bird_price >= price:
+                raise forms.ValidationError({
+                    'early_bird_price': 'Early bird price must be lower than the regular course fee.'
+                })
+
+            if not early_bird_deadline:
+                raise forms.ValidationError({
+                    'early_bird_deadline': 'Early bird deadline is required when early bird price is set.'
+                })
+
+        if early_bird_deadline:
+            if not early_bird_price:
+                raise forms.ValidationError({
+                    'early_bird_price': 'Early bird price is required when early bird deadline is set.'
+                })
+
+            if start_date and early_bird_deadline >= start_date:
+                raise forms.ValidationError({
+                    'early_bird_deadline': 'Early bird deadline must be before the course start date.'
+                })
+
         return cleaned_data
 
 
@@ -261,9 +304,15 @@ class CourseUpdateForm(CourseForm):
         if self.instance and self.instance.pk:
             if self.instance.enrollment_deadline:
                 self.initial['enrollment_deadline'] = self.instance.enrollment_deadline
-            
+
             if self.instance.registration_fee is not None:
                 self.initial['registration_fee'] = self.instance.registration_fee
+
+            if self.instance.early_bird_price is not None:
+                self.initial['early_bird_price'] = self.instance.early_bird_price
+
+            if self.instance.early_bird_deadline:
+                self.initial['early_bird_deadline'] = self.instance.early_bird_deadline
                 
             if self.instance.repeat_weekday is not None:
                 self.initial['repeat_weekday'] = self.instance.repeat_weekday

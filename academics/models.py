@@ -69,6 +69,20 @@ class Course(models.Model):
         decimal_places=2,
         verbose_name='Course Fee'
     )
+    early_bird_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Early Bird Price',
+        help_text='Special price for early enrollments. Must be lower than regular course fee.'
+    )
+    early_bird_deadline = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Early Bird Deadline',
+        help_text='Last date to enjoy early bird pricing. Must be before course start date.'
+    )
     registration_fee = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -300,17 +314,49 @@ class Course(models.Model):
             end_date = self.end_date or self.start_date
             return f"Term: {self.start_date.strftime('%d %b')} - {end_date.strftime('%d %b %Y')}"
     
-    def get_total_cost_for_new_student(self):
+    def get_total_cost_for_new_student(self, enrollment_date=None):
         """Calculate total cost including registration fee for new students"""
-        return self.price + (self.registration_fee or 0)
-    
-    def get_total_cost_for_existing_student(self):
+        applicable_price = self.get_applicable_price(enrollment_date)
+        return applicable_price + (self.registration_fee or 0)
+
+    def get_total_cost_for_existing_student(self, enrollment_date=None):
         """Calculate total cost excluding registration fee for existing students"""
-        return self.price
+        return self.get_applicable_price(enrollment_date)
     
     def has_registration_fee(self):
         """Check if course has a registration fee"""
         return self.registration_fee and self.registration_fee > 0
+
+    def has_early_bird_pricing(self):
+        """Check if course has early bird pricing configured"""
+        return self.early_bird_price is not None and self.early_bird_deadline is not None
+
+    def is_early_bird_available(self, enrollment_date=None):
+        """Check if early bird pricing is currently available"""
+        if not self.has_early_bird_pricing():
+            return False
+
+        from django.utils import timezone
+        check_date = enrollment_date or timezone.now().date()
+        return check_date <= self.early_bird_deadline
+
+    def get_applicable_price(self, enrollment_date=None):
+        """Get the applicable price for enrollment on a given date"""
+        if self.is_early_bird_available(enrollment_date):
+            return self.early_bird_price
+        return self.price
+
+    def get_price_type(self, enrollment_date=None):
+        """Get the type of price applicable for enrollment"""
+        if self.is_early_bird_available(enrollment_date):
+            return 'early_bird'
+        return 'regular'
+
+    def get_early_bird_savings(self):
+        """Calculate savings from early bird pricing"""
+        if not self.has_early_bird_pricing():
+            return 0
+        return self.price - self.early_bird_price
     
     def schedule_display(self):
         """Return formatted schedule information for display"""
@@ -358,7 +404,7 @@ class Course(models.Model):
     def clean(self):
         """Validate Course model data"""
         from django.core.exceptions import ValidationError
-        
+
         # Validate facility-classroom matching
         if self.facility and self.classroom:
             if self.classroom.facility != self.facility:
@@ -367,10 +413,33 @@ class Course(models.Model):
                                f'but course is assigned to facility "{self.facility.name}". '
                                f'Please ensure classroom and facility match.'
                 })
-        
+
         # Auto-assign facility if only classroom is provided
         elif self.classroom and not self.facility:
             self.facility = self.classroom.facility
+
+        # Validate early bird pricing
+        if self.early_bird_price is not None:
+            if self.early_bird_price >= self.price:
+                raise ValidationError({
+                    'early_bird_price': 'Early bird price must be lower than the regular course fee.'
+                })
+
+            if not self.early_bird_deadline:
+                raise ValidationError({
+                    'early_bird_deadline': 'Early bird deadline is required when early bird price is set.'
+                })
+
+        if self.early_bird_deadline:
+            if not self.early_bird_price:
+                raise ValidationError({
+                    'early_bird_price': 'Early bird price is required when early bird deadline is set.'
+                })
+
+            if self.start_date and self.early_bird_deadline >= self.start_date:
+                raise ValidationError({
+                    'early_bird_deadline': 'Early bird deadline must be before the course start date.'
+                })
     
     def save(self, *args, **kwargs):
         """Enhanced save method with automatic status management"""
@@ -549,38 +618,43 @@ class Course(models.Model):
         return self.get_repeat_pattern_display()
     
     
-    def get_price_breakdown(self):
-        """Get price breakdown with GST calculations"""
+    def get_price_breakdown(self, enrollment_date=None):
+        """Get price breakdown with GST calculations using applicable price"""
         from core.models import OrganisationSettings
         from decimal import Decimal, ROUND_HALF_UP
-        
+
         settings = OrganisationSettings.get_instance()
-        
+        applicable_price = self.get_applicable_price(enrollment_date)
+
         if settings.prices_include_gst:
             # Database price is inclusive of GST
-            price_inc_gst = self.price
+            price_inc_gst = applicable_price
             gst_amount = price_inc_gst / (1 + settings.gst_rate) * settings.gst_rate
             price_ex_gst = price_inc_gst - gst_amount
         else:
             # Database price is exclusive of GST
-            price_ex_gst = self.price
+            price_ex_gst = applicable_price
             gst_amount = price_ex_gst * settings.gst_rate
             price_inc_gst = price_ex_gst + gst_amount
-        
+
         # Round to 2 decimal places
         price_ex_gst = price_ex_gst.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         gst_amount = gst_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         price_inc_gst = price_inc_gst.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        
+
         return {
-            'stored_price': self.price,
+            'stored_price': self.price,  # Original price
+            'applicable_price': applicable_price,  # Current applicable price
             'price_ex_gst': price_ex_gst,
             'gst_amount': gst_amount,
             'price_inc_gst': price_inc_gst,
-            'display_price': self.price,
+            'display_price': applicable_price,
             'includes_gst': settings.prices_include_gst,
             'gst_rate': settings.gst_rate,
-            'gst_label': settings.gst_label
+            'gst_label': settings.gst_label,
+            'is_early_bird': self.is_early_bird_available(enrollment_date),
+            'price_type': self.get_price_type(enrollment_date),
+            'early_bird_savings': self.get_early_bird_savings() if self.is_early_bird_available(enrollment_date) else None
         }
     
     def get_registration_fee_breakdown(self):
@@ -620,39 +694,70 @@ class Course(models.Model):
             'gst_label': settings.gst_label
         }
     
-    def get_price_display(self, show_gst_label=True):
-        """Get formatted price display with GST label"""
+    def get_price_display(self, show_gst_label=True, enrollment_date=None, show_early_bird_info=True):
+        """Get formatted price display with GST label and early bird information"""
         from core.models import OrganisationSettings
-        
+
         settings = OrganisationSettings.get_instance()
-        formatted_price = f"${self.price:,.2f}"
-        
+        applicable_price = self.get_applicable_price(enrollment_date)
+        is_early_bird = self.is_early_bird_available(enrollment_date)
+
+        formatted_price = f"${applicable_price:,.2f}"
+
         if show_gst_label:
             gst_label = " (inc GST)" if settings.prices_include_gst else " (ex GST)"
             formatted_price += gst_label
-        
+
+        # Add early bird information if applicable and requested
+        if show_early_bird_info and is_early_bird:
+            savings = self.get_early_bird_savings()
+            formatted_price += f" Early Bird (Save ${savings:,.2f}!)"
+
         return formatted_price
+
+    def get_price_comparison_display(self):
+        """Get price comparison display showing both regular and early bird prices"""
+        if not self.has_early_bird_pricing():
+            return self.get_price_display()
+
+        from core.models import OrganisationSettings
+        settings = OrganisationSettings.get_instance()
+        gst_label = " (inc GST)" if settings.prices_include_gst else " (ex GST)"
+
+        early_bird_price = f"${self.early_bird_price:,.2f}{gst_label}"
+        regular_price = f"${self.price:,.2f}{gst_label}"
+        savings = self.get_early_bird_savings()
+
+        return {
+            'early_bird_price': early_bird_price,
+            'regular_price': regular_price,
+            'savings': f"${savings:,.2f}",
+            'deadline': self.early_bird_deadline
+        }
     
-    def get_total_course_fee_breakdown(self):
+    def get_total_course_fee_breakdown(self, enrollment_date=None):
         """Get total course fee including registration fee with GST breakdown"""
         from decimal import Decimal
-        
-        course_breakdown = self.get_price_breakdown()
+
+        course_breakdown = self.get_price_breakdown(enrollment_date)
         total_breakdown = {
             'course_fee_ex_gst': course_breakdown['price_ex_gst'],
             'course_fee_gst': course_breakdown['gst_amount'],
             'course_fee_inc_gst': course_breakdown['price_inc_gst'],
             'registration_fee_ex_gst': Decimal('0.00'),
-            'registration_fee_gst': Decimal('0.00'),  
+            'registration_fee_gst': Decimal('0.00'),
             'registration_fee_inc_gst': Decimal('0.00'),
             'total_ex_gst': course_breakdown['price_ex_gst'],
             'total_gst': course_breakdown['gst_amount'],
             'total_inc_gst': course_breakdown['price_inc_gst'],
             'includes_gst': course_breakdown['includes_gst'],
             'gst_rate': course_breakdown['gst_rate'],
-            'gst_label': course_breakdown['gst_label']
+            'gst_label': course_breakdown['gst_label'],
+            'is_early_bird': course_breakdown.get('is_early_bird', False),
+            'price_type': course_breakdown.get('price_type', 'regular'),
+            'early_bird_savings': course_breakdown.get('early_bird_savings')
         }
-        
+
         # Add registration fee if exists
         if self.registration_fee:
             reg_breakdown = self.get_registration_fee_breakdown()
@@ -664,7 +769,7 @@ class Course(models.Model):
                 'total_gst': course_breakdown['gst_amount'] + reg_breakdown['gst_amount'],
                 'total_inc_gst': course_breakdown['price_inc_gst'] + reg_breakdown['price_inc_gst']
             })
-        
+
         return total_breakdown
 
 

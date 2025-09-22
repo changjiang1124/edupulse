@@ -771,11 +771,19 @@ class PublicEnrollmentView(TemplateView):
                     success_message += ' New student profile created.'
                 else:
                     success_message += ' Existing student record updated.'
-                
-                if fees['has_registration_fee']:
-                    success_message += f' Total fee: ${fees["total_fee"]} (includes ${fees["registration_fee"]} registration fee).'
+
+                # Add pricing information with early bird details
+                if fees.get('is_early_bird'):
+                    success_message += f' Early Bird price: ${fees["course_fee"]} (Save ${fees["early_bird_savings"]})!'
+                    if fees['has_registration_fee']:
+                        success_message += f' Total fee: ${fees["total_fee"]} (includes ${fees["registration_fee"]} registration fee).'
+                    else:
+                        success_message += f' Course fee: ${fees["course_fee"]}.'
                 else:
-                    success_message += f' Course fee: ${fees["course_fee"]}.'
+                    if fees['has_registration_fee']:
+                        success_message += f' Total fee: ${fees["total_fee"]} (includes ${fees["registration_fee"]} registration fee).'
+                    else:
+                        success_message += f' Course fee: ${fees["course_fee"]}.'
                 
                 messages.success(request, success_message)
                 return redirect('enrollment:enrollment_success', enrollment_id=enrollment.pk)

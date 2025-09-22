@@ -225,6 +225,35 @@
                     <span class="detail-label">Course Type:</span>
                     <span class="detail-value">{{ course.get_course_type_display }}</span>
                 </div>
+                {% if enrollment.is_early_bird %}
+                <div class="detail-row">
+                    <span class="detail-label">Price Type:</span>
+                    <span class="detail-value" style="color: #10b981; font-weight: bold;">Early Bird Special!</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Course Fee:</span>
+                    <span class="detail-value">${{ enrollment.course_fee }} (Early Bird - Save ${{ enrollment.early_bird_savings }}!)</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Regular Price:</span>
+                    <span class="detail-value" style="text-decoration: line-through; color: #9ca3af;">${{ enrollment.original_price }}</span>
+                </div>
+                {% else %}
+                <div class="detail-row">
+                    <span class="detail-label">Course Fee:</span>
+                    <span class="detail-value">${{ enrollment.course_fee }}</span>
+                </div>
+                {% endif %}
+                {% if enrollment.registration_fee and enrollment.registration_fee > 0 %}
+                <div class="detail-row">
+                    <span class="detail-label">Registration Fee:</span>
+                    <span class="detail-value">${{ enrollment.registration_fee }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Total Fee:</span>
+                    <span class="detail-value" style="font-weight: bold;">${{ enrollment.get_total_fee }}</span>
+                </div>
+                {% endif %}
                 <div class="detail-row">
                     <span class="detail-label">Duration:</span>
                     <span class="detail-value">{{ course.get_duration_display }}</span>
