@@ -1,20 +1,21 @@
-Perth Art School
+Perth Art School Update
 
-Dear {{ recipient_name }},
+Hi {{ recipient_name }},
 
 {{ message }}
 
-{% if student %}
-Student: {{ student.get_full_name }}
-{% if student.student_id %}Student ID: {{ student.student_id }}{% endif %}
+{% if student %}Student: {{ student.get_full_name }}{% if student.student_id %}
+Student ID: {{ student.student_id }}{% endif %}
 {% endif %}
 
----
+For follow-up please contact our team directly:
+{% if contact_email %}Email: {{ contact_email }}
+{% endif %}{% if contact_phone %}Phone: {{ contact_phone }}
+{% endif %}
 
-Perth Art School
-{{ site_domain }}
-{% if contact_email %}Email: {{ contact_email }}{% endif %}
-{% if contact_phone %}Phone: {{ contact_phone }}{% endif %}
+Warm regards,
+Perth Art School Team
 
-This is an automated message from Perth Art School.
-Please do not reply to this email.
+--
+Sent by Perth Art School · © {{ current_year }} Perth Art School
+https://{{ site_domain }}

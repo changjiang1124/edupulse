@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enrolment Received - {{ course.name }}</title>
+    <title>Enrolment Submission Received - {{ course.name }}</title>
     <style>
         body {
             margin: 0;
@@ -155,17 +155,17 @@
     <div style="padding: 32px 16px; background-color: #f8f9fa;">
         <div class="email-wrapper">
             <div class="email-header">
-                <h1>Enrolment Pending</h1>
-                <p>Thanks for starting your journey with Perth Art School.</p>
+                <h1>Enrolment Submission Received</h1>
+                <p>Thanks for beginning your Perth Art School journey.</p>
             </div>
             <div class="email-body">
                 <p class="intro-text">Hi {{ student.first_name }},<br>
-                Thanks for submitting your enrolment for <strong>{{ course.name }}</strong>. Our team is finalising the last checks and will be in touch shortly.</p>
+                Thanks for submitting your enrolment for <strong>{{ course.name }}</strong>. This note confirms we have your submission. Your place remains pending and will only be locked in once payment reaches Perth Art School and we confirm it.</p>
 
                 <div class="card">
                     <div class="section-title">Status</div>
-                    <span class="status-pill">Pending review</span>
-                    <p class="muted-copy">We are confirming availability and details. A confirmation email will follow once everything is locked in.</p>
+                    <span class="status-pill">Submission received</span>
+                    <p class="muted-copy">We are confirming availability and verifying payment. A separate confirmation email will follow once your place is secured.</p>
                 </div>
 
                 <div class="card">
@@ -237,7 +237,7 @@
 
                 <div class="card">
                     <div class="section-title">Payment Details</div>
-                    <p class="muted-copy">Organise payment once you receive the confirmation email from our team.</p>
+                    <p class="muted-copy">Please arrange payment now so we can confirm your enrolment. We will send a confirmation email once funds are received and matched to your submission.</p>
                     <table class="detail-table" role="presentation">
                         <tr>
                             <td>Account name</td>
@@ -257,15 +257,16 @@
                         </tr>
                     </table>
                     <div class="highlight-strip">Reference: {{ enrollment.get_reference_id }}</div>
+                    <p class="muted-copy" style="margin-top: 16px;">Prefer to pay in person? You can pay the same amount in cash at Perth Art School reception; bring this reference so we can allocate the payment.</p>
                     <p class="muted-copy" style="margin-top: 16px;">Already paid? Please forward your receipt to <a href="mailto:{{ contact_email }}" style="color:#212529; font-weight:600; text-decoration:none;">{{ contact_email }}</a>.</p>
                 </div>
 
                 <div class="card">
                     <div class="section-title">Next Steps</div>
                     <ol class="list-reset">
-                        <li>Our team reviews your enrolment and confirms a place.</li>
-                        <li>We send confirmation together with your invoice.</li>
-                        <li>Process payment using the bank details above once confirmed.</li>
+                        <li>Our team reviews your enrolment and availability.</li>
+                        <li>You complete payment via bank transfer or cash at reception using the reference above.</li>
+                        <li>We verify the funds and send a confirmation email once your place is locked in.</li>
                         <li>Closer to commencement, you will receive a welcome pack with class information.</li>
                     </ol>
                 </div>

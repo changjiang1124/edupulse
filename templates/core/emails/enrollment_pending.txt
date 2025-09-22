@@ -3,7 +3,7 @@ PERTH ART SCHOOL - ENROLMENT APPLICATION RECEIVED
 
 Dear {{ student.first_name }},
 
-Thank you for your enrolment application with Perth Art School! We have successfully received your application for the following course:
+Thank you for your enrolment application with Perth Art School! We have successfully received your submission for the following course. Your place will be locked once payment reaches Perth Art School and we confirm it:
 
 ================================
 APPLICATION STATUS: PENDING PAYMENT
@@ -33,7 +33,7 @@ You secured the early bird discount by enrolling before {{ enrollment.course.ear
 
 PAYMENT INSTRUCTIONS:
 --------------------
-Please complete payment within 7 days to secure your place in the course.
+Please complete payment within 7 days so we can confirm and secure your place in the course.
 
 Bank Transfer Details:
 Account Name: {{ bank_account_name }}
@@ -44,14 +44,16 @@ Amount: {{ total_fee|currency }}
 
 ⚠️ IMPORTANT: Please include the payment reference "{{ enrollment.get_reference_id }}" exactly as shown above to ensure your payment is processed correctly.
 
+Prefer to pay in person? Bring cash to Perth Art School reception with this reference so we can allocate the payment to your enrolment.
+
 NEXT STEPS:
 ----------
-1. Make Payment: Transfer the full amount using the bank details above within 7 days
-2. Payment Processing: Allow 1-2 business days for payment confirmation
-3. Enrolment Confirmation: Once payment is received, we'll send you a welcome email with course details
+1. Make Payment: Transfer the full amount using the bank details above within 7 days or pay cash onsite with your reference number
+2. Payment Processing: Allow 1-2 business days for Perth Art School to confirm funds
+3. Enrolment Confirmation: Once payment is received and verified, we'll send you a welcome email with course details
 4. Course Materials: Detailed class information and preparation instructions will follow
 
-IMPORTANT: Your place in the course is not guaranteed until payment is received. Course spaces are limited and filled on a first-come, first-served basis upon payment confirmation.
+IMPORTANT: Your place in the course is not guaranteed until payment is received and confirmed by Perth Art School. Course spaces are limited and filled on a first-come, first-served basis upon payment confirmation.
 
 If you have any questions about your enrolment or need assistance with payment, please don't hesitate to contact our friendly team:
 

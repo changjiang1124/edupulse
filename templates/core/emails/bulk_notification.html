@@ -1,124 +1,171 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ subject }}</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            font-family: 'Montserrat', Arial, sans-serif;
+            color: #212529;
             line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f9f9f9;
         }
-        .container {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .email-wrapper {
+            max-width: 640px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
             overflow: hidden;
         }
-        .header {
-            background-color: #0d6efd;
-            color: white;
-            padding: 30px 20px;
-            text-align: center;
+        .email-header {
+            background-color: #ffffff;
+            padding: 32px 40px;
+            border-bottom: 1px solid #dee2e6;
+            text-align: left;
         }
-        .header h1 {
+        .email-header h1 {
             margin: 0;
             font-size: 24px;
             font-weight: 600;
+            letter-spacing: -0.02em;
+            color: #212529;
         }
-        .content {
-            padding: 30px 20px;
-        }
-        .greeting {
-            font-size: 16px;
-            margin-bottom: 20px;
-        }
-        .message {
-            background-color: #f8f9fa;
-            border-left: 4px solid #0d6efd;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-        .message p {
-            margin: 0 0 10px 0;
-        }
-        .message p:last-child {
-            margin-bottom: 0;
-        }
-        .footer {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-top: 1px solid #dee2e6;
-            text-align: center;
-            font-size: 14px;
+        .email-header p {
+            margin: 10px 0 0;
+            font-size: 15px;
             color: #6c757d;
         }
-        .footer p {
-            margin: 0 0 10px 0;
+        .email-body {
+            padding: 40px;
         }
-        .footer p:last-child {
+        .intro-text {
+            font-size: 16px;
+            margin-bottom: 24px;
+        }
+        .card {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 24px;
+            margin-bottom: 24px;
+            background-color: #ffffff;
+        }
+        .message-card {
+            background-color: #f8f9fa;
+        }
+        .message-card p {
+            margin: 0 0 12px;
+        }
+        .message-card p:last-child {
             margin-bottom: 0;
         }
-        .contact-info {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #dee2e6;
+        .section-title {
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 12px;
         }
-        .contact-info strong {
-            color: #0d6efd;
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .detail-table td {
+            padding: 8px 0;
+            font-size: 15px;
+        }
+        .detail-table td:first-child {
+            font-weight: 600;
+            color: #343a40;
+            width: 40%;
+        }
+        .email-footer {
+            text-align: center;
+            padding: 24px;
+            font-size: 13px;
+            color: #868e96;
+        }
+        .email-footer a {
+            color: #212529;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        @media (max-width: 640px) {
+            .email-header,
+            .email-body {
+                padding: 24px;
+            }
+            .card {
+                padding: 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Perth Art School</h1>
-        </div>
-
-        <div class="content">
-            <div class="greeting">
-                Dear {{ recipient_name }},
+    <div style="padding: 32px 16px; background-color: #f8f9fa;">
+        <div class="email-wrapper">
+            <div class="email-header">
+                <h1>Perth Art School Update</h1>
+                <p>Shared with you by the Perth Art School team.</p>
             </div>
+            <div class="email-body">
+                <p class="intro-text">Hi {{ recipient_name }},<br>
+                We wanted to pass along the following update.</p>
 
-            <div class="message">
-                {{ message|linebreaks }}
-            </div>
+                <div class="card message-card">
+                    {{ message|linebreaks }}
+                </div>
 
-            {% if student %}
-            <div class="contact-info">
-                <p><strong>Student:</strong> {{ student.get_full_name }}</p>
-                {% if student.student_id %}
-                <p><strong>Student ID:</strong> {{ student.student_id }}</p>
+                {% if student %}
+                <div class="card">
+                    <div class="section-title">Student</div>
+                    <table class="detail-table" role="presentation">
+                        <tr>
+                            <td>Name</td>
+                            <td>{{ student.get_full_name }}</td>
+                        </tr>
+                        {% if student.student_id %}
+                        <tr>
+                            <td>Student ID</td>
+                            <td>{{ student.student_id }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
                 {% endif %}
-            </div>
-            {% endif %}
-        </div>
 
-        <div class="footer">
-            <p><strong>Perth Art School</strong></p>
-            <p>{{ site_domain }}</p>
-
-            {% if contact_email or contact_phone %}
-            <div style="margin-top: 15px;">
-                {% if contact_email %}
-                <p>Email: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>
+                {% if contact_email or contact_phone %}
+                <div class="card">
+                    <div class="section-title">Questions?</div>
+                    <p style="margin:0; color:#6c757d;">Replying to this message won't reach us directly. Instead, contact the team using the details below.</p>
+                    <table class="detail-table" role="presentation" style="margin-top:12px;">
+                        {% if contact_email %}
+                        <tr>
+                            <td>Email</td>
+                            <td><a href="mailto:{{ contact_email }}" style="color:#212529; font-weight:600; text-decoration:none;">{{ contact_email }}</a></td>
+                        </tr>
+                        {% endif %}
+                        {% if contact_phone %}
+                        <tr>
+                            <td>Phone</td>
+                            <td>{{ contact_phone }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
                 {% endif %}
-                {% if contact_phone %}
-                <p>Phone: {{ contact_phone }}</p>
-                {% endif %}
-            </div>
-            {% endif %}
 
-            <p style="margin-top: 15px; font-size: 12px; color: #999;">
-                This is an automated message from Perth Art School.
-                Please do not reply to this email.
-            </p>
+                <p style="margin-top: 24px;">Warm regards,<br>The Perth Art School Team</p>
+            </div>
+            <div class="email-footer">
+                <p style="margin:4px 0;">This update was prepared by Perth Art School.</p>
+                <p style="margin:4px 0;">&copy; {{ current_year }} Perth Art School</p>
+                <p style="margin:4px 0;"><a href="https://{{ site_domain }}">perthartschool.com.au</a></p>
+            </div>
         </div>
     </div>
 </body>

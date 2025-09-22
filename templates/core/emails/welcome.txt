@@ -1,58 +1,40 @@
-WELCOME TO PERTH ART SCHOOL! 🎨
+Welcome to Perth Art School
 
 Dear {{ recipient_name }},
 
-We're thrilled to have you join our creative community!
+We're excited to welcome {{ student.first_name }} to {{ course.name }} at Perth Art School.
 
-Congratulations! {{ student.first_name }} is now officially enrolled at Perth Art School. We're excited to be part of their creative journey and can't wait to see the amazing artwork they'll create.
-
-Our experienced instructors and supportive environment will help nurture their artistic talents and inspire new levels of creativity.
-
-COURSE INFORMATION
-==================
+COURSE OVERVIEW
 Course: {{ course.name }}
-Description: {{ course.short_description }}
 Type: {{ course.get_course_type_display }}
-Duration: {{ course.get_duration_display }}
-{% if course.facility %}Location: {{ course.facility.name }}
-Address: {{ facility_address }}{% endif %}
+Duration: {{ course.get_duration_display }}{% if course.start_date %}
+Start date: {{ course.start_date|date:"l, d F Y" }}{% endif %}{% if course.facility %}
+Location: {{ course.facility.name }}
+Address: {{ facility_address }}{% endif %}{% if course.teacher %}
+Instructor: {{ course.teacher.get_full_name }}{% endif %}
 
 WHAT TO EXPECT
-==============
-* Creative Environment: A supportive space designed to inspire artistic expression
-* Expert Instruction: Learn from experienced artists and educators
-* Individual Attention: Personalised guidance to help develop artistic skills
-* Quality Materials: Access to professional-grade art supplies and equipment
-* Community: Connect with fellow artists and build lasting friendships
+* A supportive studio that encourages creativity.
+* Guidance from experienced artists and educators.
+* Personalised feedback to keep {{ student.first_name }} progressing.
+* Access to quality materials and equipment.
 
-BEFORE YOUR FIRST CLASS
-========================
-* We'll send detailed class information and material lists 1 week before your start date
-* Please arrive 15 minutes early for your first class for a brief orientation
-* Bring comfortable clothes that you don't mind getting a bit messy
-* All art materials and supplies are provided unless otherwise specified
-* Don't forget to bring your creativity and enthusiasm!
+BEFORE THE FIRST CLASS
+* Look for a welcome pack about a week before the start date.
+* Arrive 15 minutes early on day one for orientation and setup.
+* Wear clothes that can handle a bit of paint or clay.
+* All core materials are provided unless we advise otherwise.
 
-We believe that art has the power to transform lives, and we're committed to providing the best possible learning experience for {{ student.first_name }}.
+{% if parent_portal_url %}PARENT PORTAL
+Stay up to date at: {{ parent_portal_url }}
 
-ACCESS YOUR PARENT PORTAL
-=========================
-Visit: {{ parent_portal_url }}
-Stay updated on {{ student.first_name }}'s progress and school announcements.
-
-If you have any questions about the course, our facilities, or anything else, please don't hesitate to reach out. Our friendly team is here to help make this artistic journey as smooth and enjoyable as possible.
-
-CONTACT INFORMATION
-==================
+{% endif %}CONTACT
 Email: {{ contact_email }}
 Phone: {{ contact_phone }}
 Website: https://{{ site_domain }}
 
-Welcome to the Perth Art School family! Let's create something beautiful together. 🎨
+Welcome aboard - we can't wait to create something beautiful together.
 
 --
-This welcome email was sent to {{ recipient_email }} for {{ student.first_name }}'s enrolment at Perth Art School.
-© 2025 Perth Art School. All rights reserved.
-
-Visit our website: https://{{ site_domain }}
-Contact us: {{ contact_email }}
+This welcome email was sent to {{ recipient_email }}.
+© {{ current_year }} Perth Art School

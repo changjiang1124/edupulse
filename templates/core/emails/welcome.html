@@ -6,411 +6,222 @@
     <title>Welcome to Perth Art School - {{ course.name }}</title>
     <style>
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
             margin: 0;
             padding: 0;
+            background-color: #f8f9fa;
+            font-family: 'Montserrat', Arial, sans-serif;
+            color: #212529;
+            line-height: 1.6;
         }
-        .container {
-            max-width: 600px;
+        .email-wrapper {
+            max-width: 640px;
             margin: 0 auto;
             background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
             overflow: hidden;
         }
-        .header {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            padding: 40px 30px;
-            text-align: center;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 32px;
-            font-weight: 600;
-        }
-        .header p {
-            margin: 15px 0 0 0;
-            font-size: 18px;
-            opacity: 0.9;
-        }
-        .welcome-icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-        }
-        .content {
-            padding: 40px 30px;
-        }
-        .greeting {
-            font-size: 20px;
-            margin-bottom: 25px;
-            color: #10b981;
-            font-weight: 600;
-        }
-        .welcome-message {
-            background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
-            border-left: 4px solid #10b981;
-            padding: 25px;
-            margin: 25px 0;
-            border-radius: 0 8px 8px 0;
-        }
-        .course-info {
-            background-color: #f8fafc;
-            border-radius: 8px;
-            padding: 25px;
-            margin: 25px 0;
-        }
-        .course-info h3 {
-            margin: 0 0 15px 0;
-            color: #2563eb;
-            font-size: 20px;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .info-item {
+        .email-header {
             background-color: #ffffff;
-            padding: 15px;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
+            padding: 32px 40px;
+            border-bottom: 1px solid #dee2e6;
+            text-align: left;
         }
-        .info-label {
-            font-weight: 600;
-            color: #475569;
-            font-size: 14px;
-            margin-bottom: 5px;
-        }
-        .info-value {
-            color: #64748b;
-            font-size: 16px;
-        }
-        .what-to-expect {
-            background-color: #fef7ff;
-            border: 1px solid #a855f7;
-            border-radius: 8px;
-            padding: 25px;
-            margin: 25px 0;
-        }
-        .what-to-expect h4 {
-            margin: 0 0 15px 0;
-            color: #7c3aed;
-            font-size: 18px;
-        }
-        .expect-list {
+        .email-header h1 {
             margin: 0;
-            padding-left: 20px;
-            color: #6b46c1;
-        }
-        .expect-list li {
-            margin: 10px 0;
-        }
-        .important-info {
-            background-color: #fef3c7;
-            border: 1px solid #f59e0b;
-            border-radius: 8px;
-            padding: 25px;
-            margin: 25px 0;
-        }
-        .important-info h4 {
-            margin: 0 0 15px 0;
-            color: #92400e;
-            font-size: 18px;
-        }
-        .important-info ul {
-            margin: 0;
-            padding-left: 20px;
-            color: #78350f;
-        }
-        .important-info li {
-            margin: 8px 0;
-        }
-        .contact-info {
-            background-color: #f1f5f9;
-            padding: 25px;
-            margin: 25px 0;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .contact-info h4 {
-            margin: 0 0 15px 0;
-            color: #475569;
-        }
-        .contact-details {
-            color: #64748b;
-        }
-        .cta-section {
-            text-align: center;
-            margin: 30px 0;
-        }
-        .cta-button {
-            display: inline-block;
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            color: white;
-            padding: 15px 30px;
-            text-decoration: none;
-            border-radius: 8px;
+            font-size: 26px;
             font-weight: 600;
+            letter-spacing: -0.02em;
+            color: #212529;
+        }
+        .email-header p {
+            margin: 12px 0 0;
+            font-size: 15px;
+            color: #6c757d;
+        }
+        .email-body {
+            padding: 40px;
+        }
+        .intro-text {
             font-size: 16px;
+            margin-bottom: 24px;
         }
-        .footer {
-            background-color: #f8fafc;
-            padding: 30px;
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-            color: #64748b;
-            font-size: 14px;
-        }
-        .footer a {
-            color: #2563eb;
-            text-decoration: none;
-        }
-        
-        /* Payment Information Styles */
-        .payment-info {
-            background: linear-gradient(135deg, #f0fdf4 0%, #f7fee7 100%);
-            border: 2px solid #16a34a;
-            border-radius: 12px;
-            padding: 30px;
-            margin: 30px 0;
-        }
-        .payment-info h4 {
-            margin: 0 0 20px 0;
-            color: #15803d;
-            font-size: 22px;
-            text-align: center;
-        }
-        .payment-details p {
-            text-align: center;
-            font-size: 16px;
-            color: #166534;
-            margin-bottom: 25px;
-        }
-        .payment-methods {
-            display: grid;
-            gap: 20px;
-        }
-        .payment-method {
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 20px;
-            border: 1px solid #d1fae5;
-        }
-        .payment-method h5 {
-            margin: 0 0 15px 0;
-            color: #047857;
-            font-size: 18px;
-            text-align: center;
-        }
-        .bank-transfer {
-            border-left: 4px solid #16a34a;
-        }
-        .bank-details {
-            background-color: #f8fafc;
-            padding: 20px;
-            border-radius: 6px;
-            margin: 15px 0;
-        }
-        .bank-detail-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .bank-detail-row:last-child {
-            border-bottom: none;
-        }
-        .detail-label {
+        .section-title {
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.08em;
             font-weight: 600;
-            color: #475569;
-            font-size: 14px;
+            color: #495057;
+            margin-bottom: 12px;
         }
-        .detail-value {
-            font-weight: 700;
-            color: #1e293b;
-            font-size: 16px;
-            font-family: 'Courier New', monospace;
-        }
-        .detail-value.highlight {
-            background-color: #fef3c7;
-            padding: 4px 8px;
+        .card {
+            border: 1px solid #dee2e6;
             border-radius: 4px;
-            border: 1px solid #f59e0b;
-            color: #92400e;
+            padding: 24px;
+            margin-bottom: 24px;
+            background-color: #ffffff;
         }
-        .payment-note {
-            background-color: #fef2f2;
-            border: 1px solid #fca5a5;
-            border-radius: 6px;
-            padding: 15px;
-            margin-top: 15px;
-        }
-        .payment-note p {
+        .muted-copy {
+            color: #6c757d;
             margin: 0;
-            color: #b91c1c;
-            font-size: 14px;
         }
-        .alternative {
-            border-left: 4px solid #2563eb;
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
         }
-        .payment-options {
-            margin: 15px 0 0 0;
-            padding-left: 20px;
-            color: #374151;
+        .detail-table tr {
+            border-bottom: 1px solid #f1f3f5;
         }
-        .payment-options li {
-            margin: 8px 0;
+        .detail-table td {
+            padding: 10px 0;
+            font-size: 15px;
         }
-        .payment-confirmation {
-            margin-top: 20px;
+        .detail-table td:first-child {
+            font-weight: 600;
+            color: #343a40;
+            width: 45%;
         }
-        .confirmation-box {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            border: 1px solid #3b82f6;
-            border-radius: 8px;
-            padding: 20px;
+        .list-reset {
+            margin: 0;
+            padding-left: 18px;
+            color: #495057;
         }
-        .confirmation-box h5 {
-            margin: 0 0 15px 0;
-            color: #1d4ed8;
-            font-size: 16px;
+        .list-reset li {
+            margin-bottom: 10px;
         }
-        .confirmation-box p {
-            margin: 0 0 10px 0;
-            color: #1e40af;
-            font-size: 14px;
+        .contact-card {
+            text-align: center;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 24px;
+            background-color: #f8f9fa;
+            margin-top: 24px;
         }
-        .confirmation-box ul {
-            margin: 10px 0 0 0;
-            padding-left: 20px;
-            color: #1e40af;
+        .contact-card a {
+            color: #212529;
+            text-decoration: none;
+            font-weight: 600;
         }
-        .confirmation-box li {
-            margin: 6px 0;
-            font-size: 14px;
+        .email-footer {
+            text-align: center;
+            padding: 24px;
+            font-size: 13px;
+            color: #868e96;
         }
-        
-        @media (max-width: 600px) {
-            .container {
-                margin: 10px;
-                border-radius: 0;
+        .email-footer a {
+            color: #212529;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        @media (max-width: 640px) {
+            .email-header,
+            .email-body {
+                padding: 24px;
             }
-            .content {
-                padding: 30px 20px;
-            }
-            .header {
-                padding: 30px 20px;
-            }
-            .info-grid {
-                grid-template-columns: 1fr;
-            }
-            .payment-info {
-                padding: 20px 15px;
-            }
-            .bank-detail-row {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 5px;
-            }
-            .detail-value {
-                font-size: 14px;
+            .card {
+                padding: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="welcome-icon">🎨</div>
-            <h1>Welcome to Perth Art School!</h1>
-            <p>We're thrilled to have you join our creative community</p>
-        </div>
-        
-        <div class="content">
-            <div class="greeting">
-                Welcome {{ recipient_name }}!
+    <div style="padding: 32px 16px; background-color: #f8f9fa;">
+        <div class="email-wrapper">
+            <div class="email-header">
+                <h1>Welcome to Perth Art School</h1>
+                <p>We're thrilled to have {{ student.first_name }} join our creative community.</p>
             </div>
-            
-            <div class="welcome-message">
-                <p>Congratulations! {{ student.first_name }} is now officially enrolled at Perth Art School. We're excited to be part of their creative journey and can't wait to see the amazing artwork they'll create.</p>
-                
-                <p>Our experienced instructors and supportive environment will help nurture their artistic talents and inspire new levels of creativity.</p>
-            </div>
-            
-            <div class="course-info">
-                <h3>{{ course.name }}</h3>
-                <p>{{ course.short_description }}</p>
-                
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Course Type</div>
-                        <div class="info-value">{{ course.get_course_type_display }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Duration</div>
-                        <div class="info-value">{{ course.get_duration_display }}</div>
-                    </div>
-                    {% if course.facility %}
-                    <div class="info-item">
-                        <div class="info-label">Location</div>
-                        <div class="info-value">{{ course.facility.name }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Address</div>
-                        <div class="info-value">{{ facility_address }}</div>
-                    </div>
-                    {% endif %}
+            <div class="email-body">
+                <p class="intro-text">Dear {{ recipient_name }},<br>
+                Thank you for choosing Perth Art School. We can't wait to see what {{ student.first_name }} creates in <strong>{{ course.name }}</strong>.</p>
+
+                <div class="card">
+                    <div class="section-title">Course Overview</div>
+                    <table class="detail-table" role="presentation">
+                        <tr>
+                            <td>Course</td>
+                            <td>{{ course.name }}</td>
+                        </tr>
+                        <tr>
+                            <td>Course type</td>
+                            <td>{{ course.get_course_type_display }}</td>
+                        </tr>
+                        <tr>
+                            <td>Duration</td>
+                            <td>{{ course.get_duration_display }}</td>
+                        </tr>
+                        {% if course.start_date %}
+                        <tr>
+                            <td>Start date</td>
+                            <td>{{ course.start_date|date:"l, d F Y" }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if course.facility %}
+                        <tr>
+                            <td>Location</td>
+                            <td>{{ course.facility.name }}</td>
+                        </tr>
+                        <tr>
+                            <td>Address</td>
+                            <td>{{ facility_address }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if course.teacher %}
+                        <tr>
+                            <td>Instructor</td>
+                            <td>{{ course.teacher.get_full_name }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
                 </div>
-            </div>
-            
-            <div class="what-to-expect">
-                <h4>What to Expect</h4>
-                <ul class="expect-list">
-                    <li><strong>Creative Environment:</strong> A supportive space designed to inspire artistic expression</li>
-                    <li><strong>Expert Instruction:</strong> Learn from experienced artists and educators</li>
-                    <li><strong>Individual Attention:</strong> Personalised guidance to help develop artistic skills</li>
-                    <li><strong>Quality Materials:</strong> Access to professional-grade art supplies and equipment</li>
-                    <li><strong>Community:</strong> Connect with fellow artists and build lasting friendships</li>
-                </ul>
-            </div>
-            
-            <div class="important-info">
-                <h4>Before Your First Class</h4>
-                <ul>
-                    <li>We'll send detailed class information and material lists 1 week before your start date</li>
-                    <li>Please arrive 15 minutes early for your first class for a brief orientation</li>
-                    <li>Bring comfortable clothes that you don't mind getting a bit messy</li>
-                    <li>All art materials and supplies are provided unless otherwise specified</li>
-                    <li>Don't forget to bring your creativity and enthusiasm!</li>
-                </ul>
-            </div>
-            
-            <p>If you have any questions about the course, our facilities, or anything else, please don't hesitate to reach out. Our friendly team is here to help make this artistic journey as smooth and enjoyable as possible.</p>
-            
-            <div class="contact-info">
-                <h4>Get in Touch</h4>
-                <div class="contact-details">
-                    <p><strong>Email:</strong> {{ contact_email }}</p>
-                    <p><strong>Phone:</strong> {{ contact_phone }}</p>
-                    <p><strong>Website:</strong> <a href="https://{{ site_domain }}">{{ site_domain }}</a></p>
+
+                <div class="card">
+                    <div class="section-title">What to Expect</div>
+                    <ul class="list-reset">
+                        <li>A supportive studio environment designed to spark creativity.</li>
+                        <li>Guidance from experienced artists and educators.</li>
+                        <li>Personalised feedback to help {{ student.first_name }} grow in confidence.</li>
+                        <li>Access to quality art materials and equipment.</li>
+                        <li>A welcoming community of fellow creatives.</li>
+                    </ul>
                 </div>
+
+                <div class="card">
+                    <div class="section-title">Before the First Class</div>
+                    <ul class="list-reset">
+                        <li>We'll send a detailed welcome pack around one week before commencement.</li>
+                        <li>Arrive 15 minutes early for the first session for orientation and setup.</li>
+                        <li>Wear comfortable clothes that can handle a little paint or clay.</li>
+                        <li>All core materials are provided unless we specify otherwise.</li>
+                        <li>Bring a water bottle and a sense of adventure!</li>
+                    </ul>
+                </div>
+
+                {% if parent_portal_url %}
+                <div class="card">
+                    <div class="section-title">Stay Connected</div>
+                    <p class="muted-copy">Use the parent portal to follow announcements and {{ student.first_name }}'s studio highlights.</p>
+                    <p style="margin-top:12px;"><a href="{{ parent_portal_url }}" style="color:#212529; font-weight:600; text-decoration:none;">Access the Parent Portal</a></p>
+                </div>
+                {% endif %}
+
+                <p class="muted-copy">We're here to make this experience rewarding and fun. Reach out at any time if you have questions about schedules, materials, or support.</p>
+
+                <div class="contact-card">
+                    <div class="section-title" style="margin-bottom:8px;">Get in Touch</div>
+                    <p style="margin:6px 0;">Call: <a href="tel:{{ contact_phone }}">{{ contact_phone }}</a></p>
+                    <p style="margin:6px 0;">Email: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>
+                    <p style="margin:6px 0;">Website: <a href="https://{{ site_domain }}">{{ site_domain }}</a></p>
+                </div>
+
+                <p style="margin-top: 24px;">Welcome aboard - let's create something beautiful together.<br>The Perth Art School Team</p>
             </div>
-            
-            <p style="text-align: center; font-style: italic; color: #6b7280; margin-top: 30px;">
-                Welcome to the Perth Art School family! Let's create something beautiful together. 🎨
-            </p>
-        </div>
-        
-        <div class="footer">
-            <p>This welcome email was sent to {{ recipient_email }} for {{ student.first_name }}'s enrolment at Perth Art School.</p>
-            <p>© 2025 Perth Art School. All rights reserved.</p>
-            <p><a href="https://{{ site_domain }}">Visit our website</a> | <a href="mailto:{{ contact_email }}">Contact us</a></p>
+            <div class="email-footer">
+                <p style="margin:4px 0;">This welcome email was sent to {{ recipient_email }}.</p>
+                <p style="margin:4px 0;">&copy; {{ current_year }} Perth Art School</p>
+                <p style="margin:4px 0;"><a href="https://{{ site_domain }}">perthartschool.com.au</a></p>
+            </div>
         </div>
     </div>
 </body>

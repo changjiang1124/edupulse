@@ -1,57 +1,39 @@
-PERTH ART SCHOOL - ENROLMENT CONFIRMED!
+Perth Art School - Enrolment Confirmed
 
-Congratulations {{ recipient_name }}!
+Hi {{ recipient_name }},
 
-We're delighted to confirm that {{ student.first_name }}'s enrolment at Perth Art School has been successfully processed. Payment has been received and their place in the course is now secured.
+Payment has been received and {{ student.first_name }}'s place in {{ course.name }} is now confirmed.
 
-================================
-✅ ENROLMENT STATUS: CONFIRMED ✅
-{{ student.first_name }} is officially enrolled and ready to begin their creative journey!
-================================
+Reference: {{ enrollment.get_reference_id }}
 
-COURSE DETAILS:
---------------
-Course: {{ course.name }}
-Reference ID: {{ enrollment.get_reference_id }}
-Student Name: {{ student.get_full_name }}
-Course Type: {{ course.get_course_type_display }}
-Duration: {{ course.get_duration_display }}
-{% if course.start_date %}Start Date: {{ course.start_date|date:"l, d F Y" }}{% endif %}
-{% if course.end_date and course.course_type == 'multiple' %}End Date: {{ course.end_date|date:"l, d F Y" }}{% endif %}
-{% if course.facility %}Location: {{ course.facility.name }}{% endif %}
-{% if course.facility %}Address: {{ course.facility.address }}{% endif %}
-{% if course.teacher %}Instructor: {{ course.teacher.get_full_name }}{% endif %}
+COURSE DETAILS
+Student: {{ student.get_full_name }}
+Course type: {{ course.get_course_type_display }}
+Duration: {{ course.get_duration_display }}{% if course.start_date %}
+Start date: {{ course.start_date|date:"l, d F Y" }}{% endif %}{% if course.end_date and course.course_type == 'multiple' %}
+End date: {{ course.end_date|date:"l, d F Y" }}{% endif %}{% if course.facility %}
+Location: {{ course.facility.name }}
+Address: {{ course.facility.address }}{% endif %}{% if course.teacher %}
+Instructor: {{ course.teacher.get_full_name }}{% endif %}
 
-WHAT HAPPENS NEXT:
-------------------
-📅 Class Schedule: Detailed class information and timetables will be sent 1 week before the start date
-📝 Materials List: A comprehensive list of required materials will be provided before your first class
-🎯 Orientation: Please arrive 15 minutes early for your first class for a brief orientation
-📚 Preparation: Course-specific preparation instructions will be emailed separately
+WHAT HAPPENS NEXT
+* A welcome pack with logistics arrives about a week before the first class.
+* Watch for any preparation notes from the teaching team.
+* Please arrive 15 minutes early on day one so {{ student.first_name }} can settle in.
+* Tell us early if any plans change so we can assist another student if needed.
 
-IMPORTANT INFORMATION:
----------------------
-• First Class: Please arrive 15 minutes early for orientation and setup
-• Dress Code: Wear comfortable clothes that you don't mind getting a bit messy
-• Materials: All basic art supplies are provided unless otherwise specified
-• Parking: Free parking is available at our facility
-• Contact: If you need to reschedule or have questions, contact us immediately
+GOOD TO KNOW
+* Wear comfortable clothes that can handle a little creative mess.
+* Core art materials are provided unless we tell you otherwise.
+* Parking and travel tips will be included in the welcome pack.
 
-We're incredibly excited to have {{ student.first_name }} join our creative community at Perth Art School. Our experienced instructors and supportive environment will help nurture their artistic talents and inspire new levels of creativity.
-
-If you have any questions or need to make any changes to the enrolment, please don't hesitate to contact our friendly team.
-
-CONTACT INFORMATION:
--------------------
+CONTACT
 Email: {{ contact_email }}
 Phone: {{ contact_phone }}
-Business Hours: Monday - Friday, 9:00 AM - 5:00 PM
-Website: https://{{ site_domain }}
+Office Hours: Monday to Friday, 9.00am – 5.00pm AWST
 
-Welcome to the Perth Art School family! Let's create something beautiful together. 🎨
+We're excited to welcome {{ student.first_name }} to the Perth Art School community.
 
----
-
-This confirmation email was sent to {{ recipient_email }} regarding {{ student.first_name }}'s confirmed enrolment.
-
-© 2025 Perth Art School. All rights reserved.
+--
+This confirmation was sent to {{ recipient_email }}.
+© {{ current_year }} Perth Art School · https://{{ site_domain }}

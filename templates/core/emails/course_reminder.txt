@@ -1,44 +1,41 @@
-PERTH ART SCHOOL - CLASS REMINDER ⏰
+Perth Art School - Class Reminder
 
 Hello {{ recipient_name }},
 
-{% if days_ahead == 1 %}Just a friendly reminder that {{ student.first_name }} has a class tomorrow!{% else %}We wanted to remind you that {{ student.first_name }} has an upcoming class in {{ days_ahead }} days.{% endif %}
+{% if days_ahead == 0 %}Your class is scheduled for today.{% elif days_ahead == 1 %}Your next class takes place tomorrow.{% else %}Here are the details for the class in {{ days_ahead }} days.{% endif %}
 
-CLASS INFORMATION
-=================
+CLASS DETAILS
 Course: {{ course.name }}
 Date: {{ class_date|date:"l, d F Y" }}
 Time: {{ class_time|time:"g:i A" }}
 Duration: {{ course.get_duration_display }}
-Instructor: {{ teacher.get_full_name }}
+Instructor: {{ teacher.get_full_name }}{% if reference_code %}
+Reference: {{ reference_code }}{% endif %}
 
-{% if facility %}
-LOCATION DETAILS
-================
-Venue: {{ facility.name }}
-{% if classroom %}Room: {{ classroom.name }}{% endif %}
-Address: {{ facility.address }}
-{% if facility.phone %}Phone: {{ facility.phone }}{% endif %}
+{% if facility %}LOCATION
+Venue: {{ facility.name }}{% if classroom %}
+Room: {{ classroom.name }}{% endif %}
+Address: {{ facility.address }}{% if facility.phone %}
+Venue phone: {{ facility.phone }}{% endif %}
 {% endif %}
+QUICK REMINDERS
+* Arrive 5–10 minutes early to set up comfortably.
+* Wear clothes that can handle a little creative mess.
+* All materials are provided unless we have advised otherwise.
+* Bring a water bottle for longer sessions.
+{% if days_ahead == 1 %}* Set a reminder tonight so class is top of mind tomorrow.
+{% endif %}
+We look forward to welcoming {{ student.first_name }} to the studio. If plans change, please contact us so we can adjust the class list.
 
-IMPORTANT REMINDERS
-===================
-* Please arrive 5-10 minutes early to allow time for setup
-* Bring comfortable clothes that you don't mind getting a bit messy
-* All art materials and supplies are provided
-* Water bottles are recommended for longer classes
-{% if days_ahead == 1 %}* Don't forget - class is tomorrow!{% endif %}
-
-{% if days_ahead == 1 %}We're excited to see {{ student.first_name }} in class tomorrow!{% else %}We're looking forward to seeing {{ student.first_name }} in class.{% endif %} If you have any questions or need to make any changes, please don't hesitate to contact us.
-
-CONTACT INFORMATION
-==================
+CONTACT
 Email: {{ contact_email }}
 Phone: {{ contact_phone }}
+Office Hours: Monday to Friday, 9.00am – 5.00pm AWST
+
+Warm regards,
+Perth Art School Team
 
 --
 This reminder was sent to {{ recipient_email }} for {{ student.first_name }}'s class at Perth Art School.
-© 2025 Perth Art School. All rights reserved.
-
-Visit our website: https://{{ site_domain }}
-Contact us: {{ contact_email }}
+© {{ current_year }} Perth Art School
+Visit: https://{{ site_domain }}

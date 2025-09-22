@@ -6,263 +6,287 @@
     <title>Attendance Notice - {{ course.name }}</title>
     <style>
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
             margin: 0;
             padding: 0;
+            background-color: #f8f9fa;
+            font-family: 'Montserrat', Arial, sans-serif;
+            color: #212529;
+            line-height: 1.6;
         }
-        .container {
-            max-width: 600px;
+        .email-wrapper {
+            max-width: 640px;
             margin: 0 auto;
             background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
             overflow: hidden;
         }
-        .header {
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
+        .email-header {
+            background-color: #ffffff;
+            padding: 32px 40px;
+            border-bottom: 1px solid #dee2e6;
+            text-align: left;
         }
-        .header.late {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        }
-        .header.early-leave {
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-        }
-        .header h1 {
+        .email-header h1 {
             margin: 0;
-            font-size: 28px;
+            font-size: 26px;
             font-weight: 600;
+            letter-spacing: -0.02em;
+            color: #212529;
         }
-        .header p {
-            margin: 10px 0 0 0;
+        .email-header p {
+            margin: 12px 0 0;
+            font-size: 15px;
+            color: #6c757d;
+        }
+        .email-body {
+            padding: 40px;
+        }
+        .intro-text {
             font-size: 16px;
-            opacity: 0.9;
+            margin-bottom: 24px;
         }
-        .content {
-            padding: 40px 30px;
+        .section-title {
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 12px;
         }
-        .greeting {
-            font-size: 18px;
-            margin-bottom: 20px;
-            color: #dc2626;
+        .card {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 24px;
+            margin-bottom: 24px;
+            background-color: #ffffff;
         }
-        .greeting.late {
-            color: #f59e0b;
+        .card--status {
+            border-left: 4px solid #212529;
         }
-        .greeting.early-leave {
-            color: #6366f1;
+        .card--absent {
+            border-left-color: #f87171;
+            background-color: #fff5f5;
         }
-        .attendance-summary {
-            background-color: #fef2f2;
-            border: 1px solid #dc2626;
-            border-radius: 8px;
-            padding: 25px;
-            margin: 25px 0;
-            text-align: center;
+        .card--late {
+            border-left-color: #f59e0b;
+            background-color: #fffdf5;
         }
-        .attendance-summary.late {
+        .card--early {
+            border-left-color: #6366f1;
+            background-color: #f6f5ff;
+        }
+        .status-pill {
+            display: inline-block;
+            padding: 6px 14px;
+            border: 1px solid #adb5bd;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 16px;
+        }
+        .status-pill--absent {
+            background-color: #fee2e2;
+            border-color: #f87171;
+            color: #b91c1c;
+        }
+        .status-pill--late {
             background-color: #fef3c7;
             border-color: #f59e0b;
+            color: #b45309;
         }
-        .attendance-summary.early-leave {
-            background-color: #eef2ff;
+        .status-pill--early {
+            background-color: #ede9fe;
             border-color: #6366f1;
+            color: #4338ca;
         }
-        .status-badge {
-            display: inline-block;
-            background-color: #dc2626;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
+        .muted-copy {
+            color: #6c757d;
+            margin: 0;
+        }
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+        .detail-table tr {
+            border-bottom: 1px solid #f1f3f5;
+        }
+        .detail-table td {
+            padding: 10px 0;
+            font-size: 15px;
+        }
+        .detail-table td:first-child {
             font-weight: 600;
-            font-size: 16px;
-            margin: 10px 0;
+            color: #343a40;
+            width: 45%;
         }
-        .status-badge.late {
-            background-color: #f59e0b;
+        .list-reset {
+            margin: 0;
+            padding-left: 18px;
+            color: #495057;
         }
-        .status-badge.early-leave {
-            background-color: #6366f1;
+        .list-reset li {
+            margin-bottom: 10px;
         }
-        .class-details {
-            background-color: #f8fafc;
-            border-radius: 8px;
-            padding: 25px;
-            margin: 25px 0;
-        }
-        .class-details h3 {
-            margin: 0 0 20px 0;
-            color: #2563eb;
-            font-size: 20px;
-        }
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 10px 0;
-            padding: 8px 0;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .detail-label {
-            font-weight: 600;
-            color: #475569;
-        }
-        .detail-value {
-            color: #64748b;
-        }
-        .info-section {
-            background-color: #f0f9ff;
-            border: 1px solid #0284c7;
-            border-radius: 8px;
-            padding: 25px;
-            margin: 25px 0;
-        }
-        .info-section h4 {
-            margin: 0 0 15px 0;
-            color: #0369a1;
-            font-size: 18px;
-        }
-        .info-section p {
-            margin: 10px 0;
-            color: #075985;
-        }
-        .contact-info {
-            background-color: #f1f5f9;
-            padding: 20px;
-            margin: 25px 0;
-            border-radius: 8px;
+        .contact-card {
             text-align: center;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 24px;
+            background-color: #f8f9fa;
+            margin-top: 24px;
         }
-        .contact-info h4 {
-            margin: 0 0 15px 0;
-            color: #475569;
-        }
-        .contact-details {
-            color: #64748b;
-        }
-        .footer {
-            background-color: #f8fafc;
-            padding: 30px;
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-            color: #64748b;
-            font-size: 14px;
-        }
-        .footer a {
-            color: #2563eb;
+        .contact-card a {
+            color: #212529;
             text-decoration: none;
+            font-weight: 600;
         }
-        @media (max-width: 600px) {
-            .container {
-                margin: 10px;
-                border-radius: 0;
+        .email-footer {
+            text-align: center;
+            padding: 24px;
+            font-size: 13px;
+            color: #868e96;
+        }
+        .email-footer a {
+            color: #212529;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        @media (max-width: 640px) {
+            .email-header,
+            .email-body {
+                padding: 24px;
             }
-            .content {
-                padding: 30px 20px;
-            }
-            .header {
-                padding: 25px 20px;
-            }
-            .detail-row {
-                flex-direction: column;
-                gap: 5px;
+            .card {
+                padding: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header {% if attendance.status == 'late' %}late{% elif attendance.status == 'early_leave' %}early-leave{% endif %}">
-            <h1>Attendance Notice</h1>
-            <p>{{ class.course.name }}</p>
-        </div>
-        
-        <div class="content">
-            <div class="greeting {% if attendance.status == 'late' %}late{% elif attendance.status == 'early_leave' %}early-leave{% endif %}">
-                Dear {{ recipient_name }},
+    <div style="padding: 32px 16px; background-color: #f8f9fa;">
+        <div class="email-wrapper">
+            <div class="email-header">
+                <h1>Attendance Notice</h1>
+                <p>Keeping you informed about today's class participation.</p>
             </div>
-            
-            <p>We wanted to inform you about {{ student.first_name }}'s attendance for today's class.</p>
-            
-            <div class="attendance-summary {% if attendance.status == 'late' %}late{% elif attendance.status == 'early_leave' %}early-leave{% endif %}">
-                <h3>Attendance Status</h3>
-                <div class="status-badge {% if attendance.status == 'late' %}late{% elif attendance.status == 'early_leave' %}early-leave{% endif %}">
-                    {{ status_display }}
+            <div class="email-body">
+                <p class="intro-text">Hi {{ recipient_name }},<br>
+                This is a quick update on {{ student.first_name }}'s attendance for <strong>{{ class.course.name }}</strong> today.</p>
+
+                {% if attendance.status == 'absent' %}
+                <div class="card card--status card--absent">
+                    <div class="section-title">Status</div>
+                    <span class="status-pill status-pill--absent">{{ status_display }}</span>
+                    {% if attendance.time_recorded %}
+                    <p class="muted-copy">Marked at {{ attendance.time_recorded|time:"g:i A" }}.</p>
+                    {% endif %}
+                    <p class="muted-copy" style="margin-top: 12px;">{{ student.first_name }} was marked absent from today's session. If this was unexpected, please let us know so we can support their progress and share any missed materials.</p>
                 </div>
-                {% if attendance.time_recorded %}
-                <p>Time Recorded: {{ attendance.time_recorded|time:"g:i A" }}</p>
+                {% elif attendance.status == 'late' %}
+                <div class="card card--status card--late">
+                    <div class="section-title">Status</div>
+                    <span class="status-pill status-pill--late">{{ status_display }}</span>
+                    {% if attendance.time_recorded %}
+                    <p class="muted-copy">Arrival recorded at {{ attendance.time_recorded|time:"g:i A" }}.</p>
+                    {% endif %}
+                    <p class="muted-copy" style="margin-top: 12px;">{{ student.first_name }} arrived after the scheduled start. We understand delays happen; arriving a little earlier next time helps them settle in and catch the opening briefing.</p>
+                </div>
+                {% elif attendance.status == 'early_leave' %}
+                <div class="card card--status card--early">
+                    <div class="section-title">Status</div>
+                    <span class="status-pill status-pill--early">{{ status_display }}</span>
+                    {% if attendance.time_recorded %}
+                    <p class="muted-copy">Departure recorded at {{ attendance.time_recorded|time:"g:i A" }}.</p>
+                    {% endif %}
+                    <p class="muted-copy" style="margin-top: 12px;">{{ student.first_name }} needed to leave class before the end. Let us know if you require any follow-up materials or if we can help with future scheduling.</p>
+                </div>
+                {% else %}
+                <div class="card card--status">
+                    <div class="section-title">Status</div>
+                    <span class="status-pill">{{ status_display }}</span>
+                    {% if attendance.time_recorded %}
+                    <p class="muted-copy">Recorded at {{ attendance.time_recorded|time:"g:i A" }}.</p>
+                    {% endif %}
+                    <p class="muted-copy" style="margin-top: 12px;">Please contact us if you would like more detail about today's roll marking.</p>
+                </div>
                 {% endif %}
-            </div>
-            
-            <div class="class-details">
-                <h3>Class Information</h3>
-                <div class="detail-row">
-                    <span class="detail-label">Course:</span>
-                    <span class="detail-value">{{ class.course.name }}</span>
+
+                <div class="card">
+                    <div class="section-title">Class Details</div>
+                    <table class="detail-table" role="presentation">
+                        <tr>
+                            <td>Course</td>
+                            <td>{{ class.course.name }}</td>
+                        </tr>
+                        <tr>
+                            <td>Date</td>
+                            <td>{{ class.date|date:"d F Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Scheduled time</td>
+                            <td>{{ class.start_time|time:"g:i A" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Instructor</td>
+                            <td>{{ class.teacher.get_full_name }}</td>
+                        </tr>
+                        {% if class.facility %}
+                        <tr>
+                            <td>Location</td>
+                            <td>{{ class.facility.name }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Date:</span>
-                    <span class="detail-value">{{ class.date|date:"d F Y" }}</span>
+
+                {% if attendance.status == 'absent' %}
+                <div class="card">
+                    <div class="section-title">How We Can Help</div>
+                    <ul class="list-reset">
+                        <li>Let us know if the absence was due to illness or an emergency so we can make allowances.</li>
+                        <li>We can organise catch-up materials or a brief recap with the instructor.</li>
+                        <li>Please share any upcoming scheduling challenges so we can plan around them.</li>
+                    </ul>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Time:</span>
-                    <span class="detail-value">{{ class.start_time|time:"g:i A" }}</span>
+                {% elif attendance.status == 'late' %}
+                <div class="card">
+                    <div class="section-title">Keeping Things On Track</div>
+                    <ul class="list-reset">
+                        <li>Consider arriving 5–10 minutes early so {{ student.first_name }} can settle before class commences.</li>
+                        <li>Reach out if transport or timing is proving difficult and we will explore options together.</li>
+                        <li>We'll continue to flag arrival times so you stay informed.</li>
+                    </ul>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Instructor:</span>
-                    <span class="detail-value">{{ class.teacher.get_full_name }}</span>
-                </div>
-                {% if class.facility %}
-                <div class="detail-row">
-                    <span class="detail-label">Location:</span>
-                    <span class="detail-value">{{ class.facility.name }}</span>
+                {% elif attendance.status == 'early_leave' %}
+                <div class="card">
+                    <div class="section-title">After-Class Support</div>
+                    <ul class="list-reset">
+                        <li>We can send a summary of the activities covered after {{ student.first_name }} departed.</li>
+                        <li>Let us know if today's early departure will continue for future sessions.</li>
+                        <li>Contact us if any follow-up assistance is needed.</li>
+                    </ul>
                 </div>
                 {% endif %}
-            </div>
-            
-            {% if attendance.status == 'absent' %}
-            <div class="info-section">
-                <h4>About Today's Absence</h4>
-                <p>{{ student.first_name }} was marked as absent from today's class. If this was due to illness or an emergency, please let us know so we can arrange any necessary catch-up sessions or provide class materials.</p>
-                <p>We understand that unexpected circumstances can arise, and we're here to support {{ student.first_name }}'s continued learning.</p>
-            </div>
-            {% elif attendance.status == 'late' %}
-            <div class="info-section">
-                <h4>Late Arrival</h4>
-                <p>{{ student.first_name }} arrived late to today's class. While we understand that delays can happen, arriving on time helps ensure {{ student.first_name }} doesn't miss important instructions and can fully participate in the activities.</p>
-                <p>If you're experiencing ongoing challenges with punctuality, please let us know how we can help.</p>
-            </div>
-            {% elif attendance.status == 'early_leave' %}
-            <div class="info-section">
-                <h4>Early Departure</h4>
-                <p>{{ student.first_name }} left class early today. If this was planned, thank you for letting us know. If not, we wanted to make sure everything is okay.</p>
-                <p>We can provide information about any activities or instructions {{ student.first_name }} may have missed.</p>
-            </div>
-            {% endif %}
-            
-            <p>Regular attendance helps students get the most from their art education and maintain momentum in their creative development. If you have any concerns or questions about attendance, please don't hesitate to reach out to us.</p>
-            
-            <div class="contact-info">
-                <h4>Questions or Concerns?</h4>
-                <div class="contact-details">
-                    <p><strong>Email:</strong> {{ contact_email }}</p>
-                    <p><strong>Phone:</strong> {{ contact_phone }}</p>
+
+                <p class="muted-copy">Regular attendance helps students build momentum and confidence. Please reach out if we can help keep {{ student.first_name }}'s creativity flowing.</p>
+
+                <div class="contact-card">
+                    <div class="section-title" style="margin-bottom:8px;">Questions or concerns?</div>
+                    <p style="margin:6px 0;">Call: <a href="tel:{{ contact_phone }}">{{ contact_phone }}</a></p>
+                    <p style="margin:6px 0;">Email: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>
+                    <p style="margin:6px 0;">Our office hours are Monday to Friday, 9.00am – 5.00pm AWST.</p>
                 </div>
+
+                <p style="margin-top: 24px;">Warm regards,<br>The Perth Art School Team</p>
             </div>
-            
-            <p style="text-align: center; font-style: italic; color: #6b7280; margin-top: 30px;">
-                We appreciate your partnership in {{ student.first_name }}'s artistic journey.
-            </p>
-        </div>
-        
-        <div class="footer">
-            <p>This attendance notice was sent to {{ recipient_email }} for {{ student.first_name }}'s class at Perth Art School.</p>
-            <p>© 2025 Perth Art School. All rights reserved.</p>
-            <p><a href="https://{{ site_domain }}">Visit our website</a> | <a href="mailto:{{ contact_email }}">Contact us</a></p>
+            <div class="email-footer">
+                <p style="margin:4px 0;">This notice was sent to {{ recipient_email }} for {{ student.first_name }}'s class.</p>
+                <p style="margin:4px 0;">&copy; {{ current_year }} Perth Art School</p>
+                <p style="margin:4px 0;"><a href="https://{{ site_domain }}">perthartschool.com.au</a></p>
+            </div>
         </div>
     </div>
 </body>
