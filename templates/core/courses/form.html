@@ -147,7 +147,30 @@
                                 </div>
                             </div>
                         </div>
-                        
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.early_bird_price.id_for_label }}" class="form-label">Early Bird Price ($)</label>
+                                    {{ form.early_bird_price }}
+                                    <div class="form-text">Optional discounted price for enrollments before the deadline.</div>
+                                    {% if form.early_bird_price.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.early_bird_price.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.early_bird_deadline.id_for_label }}" class="form-label">Early Bird Deadline</label>
+                                    {{ form.early_bird_deadline }}
+                                    <div class="form-text">Set the last date students can secure the early bird price.</div>
+                                    {% if form.early_bird_deadline.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.early_bird_deadline.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">

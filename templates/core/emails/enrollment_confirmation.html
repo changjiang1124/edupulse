@@ -1,3 +1,4 @@
+{% load price_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -79,6 +80,21 @@
         .muted-copy {
             color: #6c757d;
             margin: 0;
+        }
+        .total-amount {
+            font-size: 22px;
+            font-weight: 600;
+            margin: 20px 0 0;
+            color: #212529;
+        }
+        .highlight-strip {
+            padding: 14px 18px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 2px;
+            margin-top: 16px;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
         }
         .detail-table {
             width: 100%;
@@ -165,6 +181,49 @@
                     <span class="status-pill status-pill--success">Enrolment confirmed</span>
                     <p class="muted-copy" style="margin-top: 12px;">You're all set. We'll keep you informed as the course approaches so {{ student.first_name }} feels ready for day one.</p>
                     <div class="highlight-strip">Reference: {{ enrollment.get_reference_id }}</div>
+                </div>
+
+                <div class="card">
+                    <div class="section-title">Fee Summary</div>
+                    <table class="detail-table" role="presentation">
+                        <tr>
+                            <td>Course fee</td>
+                            <td>
+                                {{ enrollment.course_fee|currency }}
+                                {% if enrollment.is_early_bird %}
+                                    <span style="color:#10b981; font-weight:600;">(Early Bird)</span>
+                                {% else %}
+                                    <span class="muted-copy" style="font-size:13px;">(Standard pricing)</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if enrollment.is_early_bird and enrollment.original_price %}
+                        <tr style="color: #9ca3af;">
+                            <td>Regular price</td>
+                            <td><del>{{ enrollment.original_price|currency }}</del></td>
+                        </tr>
+                        <tr style="color: #10b981; font-weight: 600;">
+                            <td>You saved</td>
+                            <td>{{ enrollment.early_bird_savings|currency }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if enrollment.registration_fee %}
+                        <tr>
+                            <td>Registration</td>
+                            <td>{{ enrollment.registration_fee|currency }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                    <div class="total-amount">Total due: {{ enrollment.get_total_fee|currency }}</div>
+                    {% if enrollment.is_early_bird and course.early_bird_deadline %}
+                    <p style="color: #10b981; font-weight: 600; margin: 12px 0 0; font-size: 14px;">
+                        You locked in the early bird rate before {{ course.early_bird_deadline|date:"d M Y" }}.
+                    </p>
+                    {% elif not enrollment.is_early_bird and course.early_bird_deadline %}
+                    <p class="muted-copy" style="margin-top: 12px; font-size: 14px;">
+                        Early bird pricing was available until {{ course.early_bird_deadline|date:"d M Y" }}.
+                    </p>
+                    {% endif %}
                 </div>
 
                 <div class="card">

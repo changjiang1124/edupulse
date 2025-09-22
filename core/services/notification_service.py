@@ -39,6 +39,8 @@ class NotificationService:
             # Prepare context for email template
             site = Site.objects.get_current()
             org_settings = OrganisationSettings.get_instance()
+            price_summary = enrollment.get_price_summary()
+
             context = {
                 'enrollment': enrollment,
                 'student': student,
@@ -51,6 +53,8 @@ class NotificationService:
                 'enrollment_url': f"https://{site.domain}{reverse('enrollment:enrollment_detail', args=[enrollment.id])}",
                 'contact_email': org_settings.contact_email,
                 'contact_phone': org_settings.contact_phone,
+                'recipient_email': recipient_email,
+                'price_summary': price_summary,
             }
             
             # Render email templates

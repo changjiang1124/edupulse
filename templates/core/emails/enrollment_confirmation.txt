@@ -6,6 +6,16 @@ Payment has been received and {{ student.first_name }}'s place in {{ course.name
 
 Reference: {{ enrollment.get_reference_id }}
 
+FEE SUMMARY
+Course fee: ${{ enrollment.course_fee }}{% if enrollment.is_early_bird %} (Early Bird){% else %} (Standard){% endif %}
+{% if enrollment.is_early_bird and enrollment.original_price %}Regular price: ${{ enrollment.original_price }}
+You saved: ${{ enrollment.early_bird_savings }}
+{% endif %}{% if enrollment.registration_fee %}Registration fee: ${{ enrollment.registration_fee }}
+{% endif %}Total due: ${{ enrollment.get_total_fee }}
+{% if enrollment.is_early_bird and course.early_bird_deadline %}You secured the early bird rate by enrolling before {{ course.early_bird_deadline|date:"d F Y" }}.
+{% elif not enrollment.is_early_bird and course.early_bird_deadline %}Early bird pricing was available until {{ course.early_bird_deadline|date:"d F Y" }}.
+{% endif %}
+
 COURSE DETAILS
 Student: {{ student.get_full_name }}
 Course type: {{ course.get_course_type_display }}
