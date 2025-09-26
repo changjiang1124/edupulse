@@ -224,6 +224,11 @@ class Course(models.Model):
         null=True,
         verbose_name='WooCommerce Product ID'
     )
+    woocommerce_last_synced_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='WooCommerce Last Synced At'
+    )
     
     created_at = models.DateTimeField(
         auto_now_add=True,

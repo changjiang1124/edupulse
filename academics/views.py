@@ -7,6 +7,7 @@ from django.urls import reverse_lazy, reverse
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import date, datetime
+from decimal import Decimal
 
 from .models import Course, Class
 from .forms import CourseForm, CourseUpdateForm, ClassForm, ClassUpdateForm
@@ -77,6 +78,22 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
             ).select_related('student').all()
         except ImportError:
             context['enrollments'] = []
+
+        regular_price = self.object.price or Decimal('0')
+        early_bird_price = self.object.early_bird_price
+        savings = None
+
+        if early_bird_price is not None and regular_price and regular_price > early_bird_price:
+            savings = regular_price - early_bird_price
+
+        context['price_breakdown'] = self.object.get_price_breakdown()
+        context['early_bird_info'] = {
+            'price': early_bird_price,
+            'deadline': self.object.early_bird_deadline,
+            'savings': savings,
+            'is_active': self.object.is_early_bird_available() if early_bird_price else False,
+            'regular_price': regular_price,
+        }
         return context
 
 

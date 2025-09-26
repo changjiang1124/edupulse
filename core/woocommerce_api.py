@@ -673,6 +673,13 @@ class WooCommerceSyncService:
                     result = self.api.update_external_product(wc_product_id, course_data)
                     if result['status'] == 'success':
                         logger.info(f"Successfully updated WooCommerce product for course {course.id}")
+                        sync_timestamp = timezone.now()
+                        course.__class__.objects.filter(pk=course.pk).update(
+                            woocommerce_last_synced_at=sync_timestamp,
+                            updated_at=sync_timestamp
+                        )
+                        course.woocommerce_last_synced_at = sync_timestamp
+                        course.updated_at = sync_timestamp
                         success_result = {
                             'status': 'success',
                             'wc_product_id': wc_product_id,
@@ -688,8 +695,15 @@ class WooCommerceSyncService:
                     if result['status'] == 'success':
                         # Update with new WooCommerce product ID
                         new_wc_product_id = result['wc_product_id']
+                        sync_timestamp = timezone.now()
+                        course.__class__.objects.filter(pk=course.pk).update(
+                            external_id=str(new_wc_product_id),
+                            woocommerce_last_synced_at=sync_timestamp,
+                            updated_at=sync_timestamp
+                        )
                         course.external_id = str(new_wc_product_id)
-                        course.save(update_fields=['external_id'])
+                        course.woocommerce_last_synced_at = sync_timestamp
+                        course.updated_at = sync_timestamp
                         logger.info(f"Successfully created new WooCommerce product {new_wc_product_id} for course {course.id}")
                         success_result = result
                     else:
@@ -702,8 +716,15 @@ class WooCommerceSyncService:
                 if result['status'] == 'success':
                     # Save WooCommerce product ID to course
                     wc_product_id = result['wc_product_id']
+                    sync_timestamp = timezone.now()
+                    course.__class__.objects.filter(pk=course.pk).update(
+                        external_id=str(wc_product_id),
+                        woocommerce_last_synced_at=sync_timestamp,
+                        updated_at=sync_timestamp
+                    )
                     course.external_id = str(wc_product_id)
-                    course.save(update_fields=['external_id'])
+                    course.woocommerce_last_synced_at = sync_timestamp
+                    course.updated_at = sync_timestamp
                     logger.info(f"Successfully created WooCommerce product {wc_product_id} for course {course.id}")
                     success_result = result
                 else:
