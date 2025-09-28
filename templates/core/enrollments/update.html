@@ -324,6 +324,97 @@
                             </div>
                         </div>
 
+                        <!-- Fee Management -->
+                        <div class="form-section">
+                            <h6 class="fw-bold">
+                                <i class="fas fa-dollar-sign me-2"></i>Fee Management
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        {{ form.course_fee.label_tag }}
+                                        {{ form.course_fee }}
+                                        {% if form.course_fee.help_text %}
+                                            <div class="form-text">{{ form.course_fee.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.course_fee.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.course_fee.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        {{ form.registration_fee.label_tag }}
+                                        {{ form.registration_fee }}
+                                        {% if form.registration_fee.help_text %}
+                                            <div class="form-text">{{ form.registration_fee.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.registration_fee.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.registration_fee.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Total Fee</label>
+                                        <div class="form-control-plaintext fw-bold text-success" id="totalFeeDisplay">
+                                            $<span id="totalFeeAmount">{{ enrollment.get_total_fee|default:0 }}</span>
+                                        </div>
+                                        <div class="form-text">Automatically calculated</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-3">
+                                        {{ form.charge_registration_fee }}
+                                        {{ form.charge_registration_fee.label_tag }}
+                                        {% if form.charge_registration_fee.help_text %}
+                                            <div class="form-text">{{ form.charge_registration_fee.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.charge_registration_fee.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.charge_registration_fee.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check mb-3">
+                                        {{ form.registration_fee_paid }}
+                                        {{ form.registration_fee_paid.label_tag }}
+                                        {% if form.registration_fee_paid.help_text %}
+                                            <div class="form-text">{{ form.registration_fee_paid.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.registration_fee_paid.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.registration_fee_paid.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="alert alert-info" role="alert">
+                                <small>
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Uncheck "Charge Registration Fee" to set registration fee to $0.
+                                    Mark "Registration Fee Paid" when payment is received.
+                                </small>
+                            </div>
+                        </div>
+
                         <!-- Email Notification Options -->
                         <div class="form-section">
                             <h6 class="fw-bold">
@@ -419,9 +510,43 @@
                             <div class="mb-2">
                                 <strong>Registration:</strong> {{ enrollment.get_registration_status_display }}
                             </div>
-                            {% if enrollment.created %}
+                            {% if enrollment.created_at %}
                                 <div class="mb-0">
-                                    <strong>Created:</strong> {{ enrollment.created|date:"M d, Y" }}
+                                    <strong>Created:</strong> {{ enrollment.created_at|date:"M d, Y" }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Fee Status Information -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-dollar-sign me-2"></i>Fee Status
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <strong>Course Fee:</strong> ${{ enrollment.course_fee|default:enrollment.course.price }}
+                            </div>
+                            <div class="mb-2">
+                                <strong>Registration Fee:</strong> ${{ enrollment.registration_fee|default:0 }}
+                                {% if enrollment.registration_fee_paid %}
+                                    <span class="badge bg-success ms-1">Paid</span>
+                                {% else %}
+                                    <span class="badge bg-warning ms-1">Unpaid</span>
+                                {% endif %}
+                            </div>
+                            <hr>
+                            <div class="mb-0">
+                                <strong>Total Fee:</strong>
+                                <span class="text-success fw-bold">${{ enrollment.get_total_fee }}</span>
+                            </div>
+                            {% if enrollment.is_early_bird %}
+                                <div class="mt-2">
+                                    <small class="text-info">
+                                        <i class="fas fa-tag me-1"></i>Early Bird Pricing Applied
+                                    </small>
                                 </div>
                             {% endif %}
                         </div>
@@ -441,6 +566,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const guardianInfo = document.getElementById('guardianInfo');
     const guardianNameField = document.getElementById('id_guardian_name');
 
+    // Fee calculation elements
+    const courseFeeField = document.getElementById('id_course_fee');
+    const registrationFeeField = document.getElementById('id_registration_fee');
+    const chargeRegistrationFeeCheckbox = document.getElementById('id_charge_registration_fee');
+    const totalFeeAmount = document.getElementById('totalFeeAmount');
+
     // Age detection functionality
     if (birthDateField && guardianInfo && guardianNameField) {
         birthDateField.addEventListener('change', function() {
@@ -451,6 +582,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (birthDateField.value) {
             checkStudentAge();
         }
+    }
+
+    // Fee calculation functionality
+    if (courseFeeField && registrationFeeField && chargeRegistrationFeeCheckbox && totalFeeAmount) {
+        // Add event listeners for real-time calculation
+        courseFeeField.addEventListener('input', calculateTotalFee);
+        registrationFeeField.addEventListener('input', calculateTotalFee);
+        chargeRegistrationFeeCheckbox.addEventListener('change', function() {
+            toggleRegistrationFee();
+            calculateTotalFee();
+        });
+
+        // Initial calculation
+        toggleRegistrationFee();
+        calculateTotalFee();
     }
 
     function checkStudentAge() {
@@ -479,6 +625,64 @@ document.addEventListener('DOMContentLoaded', function() {
             guardianInfo.style.display = 'none';
             guardianNameField.required = false;
         }
+    }
+
+    function toggleRegistrationFee() {
+        if (chargeRegistrationFeeCheckbox && registrationFeeField) {
+            if (chargeRegistrationFeeCheckbox.checked) {
+                registrationFeeField.disabled = false;
+                registrationFeeField.style.opacity = '1';
+            } else {
+                registrationFeeField.disabled = true;
+                registrationFeeField.style.opacity = '0.5';
+                registrationFeeField.value = '0';
+            }
+        }
+    }
+
+    function calculateTotalFee() {
+        if (!courseFeeField || !registrationFeeField || !chargeRegistrationFeeCheckbox || !totalFeeAmount) {
+            return;
+        }
+
+        const courseFee = parseFloat(courseFeeField.value) || 0;
+        const registrationFee = chargeRegistrationFeeCheckbox.checked ? (parseFloat(registrationFeeField.value) || 0) : 0;
+        const total = courseFee + registrationFee;
+
+        totalFeeAmount.textContent = total.toFixed(2);
+
+        // Update visual feedback
+        if (total > 0) {
+            totalFeeAmount.parentElement.classList.remove('text-muted');
+            totalFeeAmount.parentElement.classList.add('text-success');
+        } else {
+            totalFeeAmount.parentElement.classList.remove('text-success');
+            totalFeeAmount.parentElement.classList.add('text-muted');
+        }
+    }
+
+    // Form validation enhancement
+    const form = document.getElementById('enrollmentUpdateForm');
+    if (form) {
+        form.addEventListener('submit', function(event) {
+            // Validate fee amounts
+            const courseFee = parseFloat(courseFeeField?.value || 0);
+            const registrationFee = parseFloat(registrationFeeField?.value || 0);
+
+            if (courseFee < 0) {
+                event.preventDefault();
+                alert('Course fee cannot be negative.');
+                courseFeeField.focus();
+                return false;
+            }
+
+            if (chargeRegistrationFeeCheckbox?.checked && registrationFee < 0) {
+                event.preventDefault();
+                alert('Registration fee cannot be negative.');
+                registrationFeeField.focus();
+                return false;
+            }
+        });
     }
 });
 </script>

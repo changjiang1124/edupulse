@@ -93,6 +93,53 @@ class EnrollmentUpdateForm(forms.ModelForm):
         help_text='Send email notification about enrollment status changes'
     )
 
+    # Fee management fields
+    course_fee = forms.DecimalField(
+        required=False,
+        max_digits=10,
+        decimal_places=2,
+        label='Course Fee',
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'step': '0.01',
+            'min': '0'
+        }),
+        help_text='Course fee amount for this enrollment'
+    )
+
+    registration_fee = forms.DecimalField(
+        required=False,
+        max_digits=10,
+        decimal_places=2,
+        label='Registration Fee',
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'step': '0.01',
+            'min': '0'
+        }),
+        help_text='Registration fee amount (for new students)'
+    )
+
+    charge_registration_fee = forms.BooleanField(
+        required=False,
+        initial=False,
+        label='Charge Registration Fee',
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Whether to charge registration fee for this enrollment'
+    )
+
+    registration_fee_paid = forms.BooleanField(
+        required=False,
+        initial=False,
+        label='Registration Fee Paid',
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Mark registration fee as paid'
+    )
+
     # Student information fields (same as StaffEnrollmentForm)
     student_birth_date = forms.DateField(
         required=False,
@@ -217,6 +264,19 @@ class EnrollmentUpdateForm(forms.ModelForm):
             self.fields['course'].disabled = True
             self.fields['course'].help_text = "Course cannot be changed for existing enrollments"
 
+            # Set fee field initial values from enrollment
+            self.fields['course_fee'].initial = self.instance.course_fee or self.instance.course.price
+            self.fields['registration_fee'].initial = self.instance.registration_fee or 0
+            self.fields['registration_fee_paid'].initial = self.instance.registration_fee_paid
+
+            # Determine if registration fee should be charged based on form_data or current state
+            charge_reg_fee = False
+            if hasattr(self.instance, 'form_data') and self.instance.form_data:
+                charge_reg_fee = self.instance.form_data.get('charge_registration_fee', self.instance.registration_fee > 0)
+            else:
+                charge_reg_fee = self.instance.registration_fee > 0
+            self.fields['charge_registration_fee'].initial = charge_reg_fee
+
             # Pre-populate fields with existing data from form_data
             if hasattr(self.instance, 'form_data') and self.instance.form_data:
                 additional_info = self.instance.form_data.get('additional_student_info', {})
@@ -278,6 +338,24 @@ class EnrollmentUpdateForm(forms.ModelForm):
             except Enrollment.DoesNotExist:
                 pass
 
+        # Handle fee updates
+        course_fee = self.cleaned_data.get('course_fee')
+        registration_fee = self.cleaned_data.get('registration_fee')
+        charge_registration_fee = self.cleaned_data.get('charge_registration_fee', False)
+        registration_fee_paid = self.cleaned_data.get('registration_fee_paid', False)
+
+        # Update enrollment fee fields
+        if course_fee is not None:
+            enrollment.course_fee = course_fee
+
+        # Handle registration fee logic
+        if charge_registration_fee and registration_fee is not None:
+            enrollment.registration_fee = registration_fee
+        elif not charge_registration_fee:
+            enrollment.registration_fee = 0
+
+        enrollment.registration_fee_paid = registration_fee_paid
+
         # Update additional student information in form_data
         additional_student_info = {}
         student_fields = [
@@ -301,7 +379,9 @@ class EnrollmentUpdateForm(forms.ModelForm):
 
         enrollment.form_data.update({
             'additional_student_info': additional_student_info,
-            'last_updated_by_staff': True
+            'last_updated_by_staff': True,
+            'charge_registration_fee': charge_registration_fee,
+            'fee_updated': True
         })
 
         if self.user:
@@ -726,7 +806,7 @@ class StaffEnrollmentForm(forms.ModelForm):
     # Registration fee option
     charge_registration_fee = forms.BooleanField(
         required=False,
-        initial=True,
+        initial=False,
         label='Charge Registration Fee',
         widget=forms.CheckboxInput(attrs={
             'class': 'form-check-input'
@@ -737,7 +817,7 @@ class StaffEnrollmentForm(forms.ModelForm):
     # Additional enrollment options
     send_confirmation_email = forms.BooleanField(
         required=False,
-        initial=True,
+        initial=False,
         label='Send Confirmation Email',
         widget=forms.CheckboxInput(attrs={
             'class': 'form-check-input'
