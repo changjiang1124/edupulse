@@ -978,8 +978,8 @@ class StaffEnrollmentForm(forms.ModelForm):
 
         # Add staff notes to form_data if provided
         staff_notes = self.cleaned_data.get('staff_notes')
-        send_confirmation_email = self.cleaned_data.get('send_confirmation_email', True)
-        charge_registration_fee = self.cleaned_data.get('charge_registration_fee', True)
+        send_confirmation_email = self.cleaned_data.get('send_confirmation_email', False)
+        charge_registration_fee = self.cleaned_data.get('charge_registration_fee', False)
 
         if not enrollment.form_data:
             enrollment.form_data = {}
@@ -1000,8 +1000,28 @@ class StaffEnrollmentForm(forms.ModelForm):
                 'name': f'{self.user.first_name} {self.user.last_name}'.strip()
             }
 
+        # Calculate and set enrollment fees using the fee calculator
         if commit:
             enrollment.save()
+
+            # Import here to avoid circular imports
+            from students.services import EnrollmentFeeCalculator
+
+            # Determine registration status for fee calculation
+            registration_status = enrollment.registration_status or 'new'
+
+            # Calculate fees and update enrollment
+            fees = EnrollmentFeeCalculator.update_enrollment_fees(
+                enrollment,
+                enrollment.course,
+                registration_status == 'new'
+            )
+
+            # Override registration fee based on staff choice
+            if not charge_registration_fee:
+                enrollment.registration_fee = 0
+                enrollment.save()
+
         return enrollment
 
 

@@ -332,14 +332,9 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
         try:
             from core.services import NotificationService
 
-            # Calculate total fee
-            course_fee = enrollment.course.price
-            charge_registration_fee = enrollment.form_data.get('charge_registration_fee', True)
-            registration_fee = 0
-
-            if charge_registration_fee and enrollment.course.has_registration_fee():
-                registration_fee = enrollment.course.registration_fee
-
+            # Use enrollment's calculated fees (which include early bird pricing)
+            course_fee = enrollment.course_fee or enrollment.course.get_applicable_price()
+            registration_fee = enrollment.registration_fee or 0
             total_fee = course_fee + registration_fee
 
             # Get contact information
@@ -348,7 +343,7 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
                 contact_info = enrollment.form_data.get('contact_info', {}).get('primary_email')
 
             if contact_info:
-                # Send notification with fee breakdown
+                # Send notification with accurate fee breakdown
                 notification_sent = NotificationService.send_enrollment_pending_email(
                     enrollment=enrollment,
                     recipient_email=contact_info,
@@ -356,7 +351,11 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
                         'course_fee': course_fee,
                         'registration_fee': registration_fee,
                         'total_fee': total_fee,
-                        'charge_registration_fee': charge_registration_fee
+                        'charge_registration_fee': registration_fee > 0,
+                        'has_registration_fee': registration_fee > 0,
+                        'is_early_bird': enrollment.is_early_bird,
+                        'original_price': enrollment.original_price,
+                        'early_bird_savings': enrollment.early_bird_savings
                     }
                 )
                 return notification_sent
@@ -742,7 +741,10 @@ class PublicEnrollmentView(TemplateView):
                             'registration_fee': fees.get('registration_fee', 0),
                             'total_fee': fees.get('total_fee', 0),
                             'has_registration_fee': fees.get('has_registration_fee', False),
-                            'charge_registration_fee': fees.get('has_registration_fee', False)
+                            'charge_registration_fee': fees.get('has_registration_fee', False),
+                            'is_early_bird': fees.get('is_early_bird', False),
+                            'original_price': fees.get('original_price'),
+                            'early_bird_savings': fees.get('early_bird_savings')
                         }
                     )
                     
@@ -992,13 +994,16 @@ class SendEnrollmentEmailView(LoginRequiredMixin, View):
                         'error': 'Enrollment pending email can only be sent for pending enrollments.'
                     }, status=400)
 
-                # Calculate fees for email
+                # Calculate fees for email using enrollment's stored values
                 fee_breakdown = {
-                    'course_fee': enrollment.course_fee or enrollment.course.price,
+                    'course_fee': enrollment.course_fee or enrollment.course.get_applicable_price(),
                     'registration_fee': enrollment.registration_fee or 0,
                     'total_fee': enrollment.get_total_fee(),
-                    'charge_registration_fee': True,
-                    'has_registration_fee': enrollment.registration_fee > 0
+                    'charge_registration_fee': enrollment.registration_fee > 0,
+                    'has_registration_fee': enrollment.registration_fee > 0,
+                    'is_early_bird': enrollment.is_early_bird,
+                    'original_price': enrollment.original_price,
+                    'early_bird_savings': enrollment.early_bird_savings
                 }
 
                 email_sent = NotificationService.send_enrollment_pending_email(

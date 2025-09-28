@@ -146,7 +146,9 @@ create:
 
 ### enrolment
 
-- [] enrolment edit or operator create (they are the same form, different from public enrolment create form), when choose pending / confirmed, they should have different email template to be sent, while pending means the current request payment email, and confirmed means the enrolment has been successfully confirmed (no need to mention payment received to enhance its generality). the confirmed email should have the same style of pending email.
+- [x] enrolment edit or operator create (they are the same form, different from public enrolment create form), when choose pending / confirmed, they should have different email template to be sent, while pending means the current request payment email, and confirmed means the enrolment has been successfully confirmed (no need to mention payment received to enhance its generality). the confirmed email should have the same style of pending email.
+
+- [] in the enrolment fee, what about they pay the price after the early bird deadline, but filled the form before the early bird deadline? normally they should be charged with normal price. and as the payment is received and confirmed by operator, when they change the status from pending to confirmed, and the date is after the early bird deadline, the system should prompt such reminder and ask for if to change the price to normal price. and if yes, then update the total fee to normal price, and send the confirmed email with normal price. if no, then keep the early bird price, and send the confirmed email with early bird price. the same logic should be applied when operator send notification for pending enrolment. if the sending date is after the early bird deadline, then prompt the reminder as well to confirm changing the price of the enrolment and send email with right price. please think if there is any other places having such logic to be applied.
 
 - [x] in the enrolment creating page by operator, http://127.0.0.1:20001/enroll/enrollments/staff/create/53/ since we already have student specify module (either newly create or selected from existing student), the fields related to student should be removed from the form to avoid confusion. please review the student fields, and the current enrolment fields, and remove the fields that are not necessary to be filled in this case.
 
@@ -278,3 +280,5 @@ help me generate a command to generate courses for term 4 2025, the course infom
 - [] 1. review enrolment submission email content, and style alignment for enrolment success email and enrolment confirmed email.
 
 review enrolment submission email content. clearly indicate this is submission received email, not confirmed email. the position will be locked upon the payment received and confirmed by PerthArtSchool, and show the course information, and price, and bank details, and indicate or they can pay by cash onsite. review the information to avoid potential confusion.
+
+
