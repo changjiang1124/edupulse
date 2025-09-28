@@ -931,6 +931,32 @@ document.addEventListener('DOMContentLoaded', function() {
     if (statusField) {
         statusField.addEventListener('change', function() {
             updateStatusIndicator();
+
+            // Auto-update bookable_state when changing from draft to published
+            const bookableStateField = document.getElementById('{{ form.bookable_state.id_for_label }}');
+            if (bookableStateField && this.value === 'published' && initialStatusValue === 'draft') {
+                bookableStateField.value = 'bookable';
+
+                // Show a brief notification to user
+                const statusCard = document.querySelector('.card.border-primary');
+                if (statusCard) {
+                    const notification = document.createElement('div');
+                    notification.className = 'alert alert-info alert-dismissible fade show mt-2';
+                    notification.innerHTML = `
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Bookable status automatically updated:</strong> Since you're publishing this course, the bookable status has been set to "Bookable" to allow student enrollments.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    statusCard.appendChild(notification);
+
+                    // Auto-dismiss after 5 seconds
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 5000);
+                }
+            }
         });
     }
     

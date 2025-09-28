@@ -274,7 +274,7 @@ class CourseForm(forms.ModelForm):
 
 class CourseUpdateForm(CourseForm):
     """Course update form with class update options"""
-    
+
     class Meta(CourseForm.Meta):
         fields = CourseForm.Meta.fields + ['bookable_state']
         widgets = CourseForm.Meta.widgets.copy()
@@ -283,18 +283,6 @@ class CourseUpdateForm(CourseForm):
                 'class': 'form-select'
             })
         })
-    
-    # Additional fields for class update control
-    update_existing_classes = forms.BooleanField(
-        required=False,
-        initial=False,
-        label='Apply Changes to Existing Classes',
-        help_text='Update existing class sessions with the course changes',
-        widget=forms.CheckboxInput(attrs={
-            'class': 'form-check-input',
-            'id': 'updateExistingClasses'
-        })
-    )
     
     def __init__(self, *args, **kwargs):
         self.instance = kwargs.get('instance')
@@ -359,10 +347,22 @@ class CourseUpdateForm(CourseForm):
             ).order_by('date', 'start_time')
             
             if upcoming_classes.exists():
+                # Add the class update control fields only when there are upcoming classes
+                self.fields['update_existing_classes'] = forms.BooleanField(
+                    required=False,
+                    initial=False,
+                    label='Apply Changes to Existing Classes',
+                    help_text='Update existing class sessions with the course changes',
+                    widget=forms.CheckboxInput(attrs={
+                        'class': 'form-check-input',
+                        'id': 'updateExistingClasses'
+                    })
+                )
+
                 class_choices = []
                 for class_instance in upcoming_classes:
                     label = f"{class_instance.date.strftime('%a %d/%m/%Y')} at {class_instance.start_time.strftime('%I:%M %p')}"
-                    
+
                     # Add teacher info if available
                     teacher = class_instance.teacher or self.instance.teacher
                     if teacher and (teacher.first_name or teacher.last_name):
@@ -370,15 +370,15 @@ class CourseUpdateForm(CourseForm):
                         label += f" - {teacher_name}"
                     elif teacher:
                         label += f" - {teacher.username}"
-                    
+
                     # Add location info if available
                     if class_instance.classroom:
                         label += f" [{class_instance.classroom.name}]"
                     elif class_instance.facility:
                         label += f" [{class_instance.facility.name}]"
-                    
+
                     class_choices.append((class_instance.id, label))
-                
+
                 self.fields['selected_classes'] = forms.MultipleChoiceField(
                     choices=class_choices,
                     required=False,
@@ -403,13 +403,16 @@ class CourseUpdateForm(CourseForm):
     
     def clean(self):
         cleaned_data = super().clean()
-        update_existing = cleaned_data.get('update_existing_classes')
-        selected_classes = cleaned_data.get('selected_classes', [])
-        
-        if update_existing and not selected_classes:
-            self.add_error('selected_classes', 
-                          'Please select which classes to update.')
-        
+
+        # Only validate class update fields if they exist (i.e., when there are upcoming classes)
+        if 'update_existing_classes' in self.fields:
+            update_existing = cleaned_data.get('update_existing_classes')
+            selected_classes = cleaned_data.get('selected_classes', [])
+
+            if update_existing and not selected_classes:
+                self.add_error('selected_classes',
+                              'Please select which classes to update.')
+
         return cleaned_data
 
 

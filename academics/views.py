@@ -129,10 +129,13 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         response = super().form_valid(form)
 
-        # Handle class updates if requested
-        update_existing = form.cleaned_data.get('update_existing_classes', False)
-        # Only access selected_classes if the field exists in the form
-        selected_classes = form.cleaned_data.get('selected_classes', []) if 'selected_classes' in form.fields else []
+        # Handle class updates if requested (only when fields exist)
+        if 'update_existing_classes' in form.fields:
+            update_existing = form.cleaned_data.get('update_existing_classes', False)
+            selected_classes = form.cleaned_data.get('selected_classes', [])
+        else:
+            update_existing = False
+            selected_classes = []
         
         if update_existing and selected_classes:
             # Get the selected classes to update

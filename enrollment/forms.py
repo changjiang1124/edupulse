@@ -868,7 +868,9 @@ class StaffEnrollmentForm(forms.ModelForm):
 
         # Set default values
         self.fields['status'].initial = 'pending'
+        self.fields['registration_status'].initial = 'returning'  # Default to returning student
         self.fields['source_channel'].initial = 'staff'
+        self.fields['charge_registration_fee'].initial = False  # Default to unchecked
 
         # Configure student field for search functionality
         self.fields['student'].required = False  # Disable Django form-level validation
@@ -885,11 +887,12 @@ class StaffEnrollmentForm(forms.ModelForm):
                 self.fields['course'].disabled = True
                 self.fields['course'].help_text = f'Pre-selected course: {course.name}'
 
-                # Set registration fee default based on course
+                # Set registration fee default - always default to unchecked per UX requirement
+                self.fields['charge_registration_fee'].initial = False
                 if hasattr(course, 'has_registration_fee') and course.has_registration_fee():
-                    self.fields['charge_registration_fee'].initial = True
+                    # Course has registration fee but still default to unchecked
+                    self.fields['charge_registration_fee'].help_text = 'Registration fee available for this course (unchecked by default)'
                 else:
-                    self.fields['charge_registration_fee'].initial = False
                     self.fields['charge_registration_fee'].widget.attrs['disabled'] = 'disabled'
                     self.fields['charge_registration_fee'].help_text = 'No registration fee for this course'
 
