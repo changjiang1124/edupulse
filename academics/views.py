@@ -127,29 +127,12 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'core/courses/form.html'
     
     def form_valid(self, form):
-        # Save course changes
         response = super().form_valid(form)
-        # Handle class update logic
-        update_existing = form.cleaned_data.get('update_existing_classes', False)
-        if update_existing:
-            self.object.update_related_classes()
-        return response
 
-    def get_success_url(self):
-        return reverse('academics:course_detail', kwargs={'pk': self.object.pk})
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['is_edit_mode'] = True
-        context['existing_classes'] = self.object.classes.order_by('date', 'start_time')
-        return context
-    
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        
         # Handle class updates if requested
         update_existing = form.cleaned_data.get('update_existing_classes', False)
-        selected_classes = form.cleaned_data.get('selected_classes', [])
+        # Only access selected_classes if the field exists in the form
+        selected_classes = form.cleaned_data.get('selected_classes', []) if 'selected_classes' in form.fields else []
         
         if update_existing and selected_classes:
             # Get the selected classes to update
