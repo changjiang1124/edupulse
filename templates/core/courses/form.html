@@ -413,13 +413,11 @@
                     {% endif %}
 
                     <!-- Class Update Options for Edit Form -->
-                    {% if form.instance.pk %}
+                    {% if form.instance.pk and existing_classes %}
                     <div class="mb-4">
                         <h6 class="text-muted mb-3">
                             <i class="fas fa-sync-alt me-2"></i>Apply Changes to Existing Classes
-                            {% if existing_classes %}
-                                <span class="badge bg-info ms-2">{{ existing_classes }} upcoming class(es)</span>
-                            {% endif %}
+                            <span class="badge bg-info ms-2">{{ existing_classes }} upcoming class(es)</span>
                         </h6>
                         
                         <div class="card bg-light">
