@@ -115,7 +115,11 @@ class CourseForm(forms.ModelForm):
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+
+        # For new courses, set online booking as default selected
+        if not self.instance.pk:
+            self.initial['is_online_bookable'] = True
+
         # For existing instances, ensure all fields are properly pre-filled using initial values
         if self.instance and self.instance.pk:
             # Use form.initial to guarantee the widget receives the value even for disabled fields

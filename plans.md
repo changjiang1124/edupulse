@@ -1,3 +1,34 @@
+## 课程在线预订默认设置优化 (2025-09-29) ✅ 已完成
+
+### 实施目标
+根据用户需求，将课程创建表单中的"在线预订"选项设置为默认选中，表明系统鼓励使用在线预订功能。
+
+### 主要变更
+**文件**: `academics/forms.py`
+**修改位置**: `CourseForm.__init__` 方法 (第116-124行)
+
+#### 修改内容
+在新课程创建时，自动将 `is_online_bookable` 字段设置为 `True`：
+```python
+# For new courses, set online booking as default selected
+if not self.instance.pk:
+    self.initial['is_online_bookable'] = True
+```
+
+### 验证结果
+- ✅ 新课程创建表单中"Allow Online Bookings"复选框默认选中
+- ✅ 现有课程编辑表单保持原有状态不变
+- ✅ HTML 渲染正确包含 `checked` 属性
+- ✅ 不影响现有课程数据和功能
+
+### 技术细节
+- 仅在新课程创建时 (`self.instance.pk` 为 `None`) 设置初始值
+- 通过 `self.initial` 设置表单字段初始值
+- 继承到 `CourseUpdateForm` 不受影响，保持原有逻辑
+- 符合系统鼓励在线预订的业务需求
+
+---
+
 ## 学生删除管理命令系统 (2025-09-22) ✅ 已完成
 
 ### 实施目标
