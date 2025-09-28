@@ -3,6 +3,14 @@
 
 {% block title %}{{ enrollment.student.get_full_name }} - {{ enrollment.course.name }} - {{ block.super }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/enrollment-detail.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/early-bird-price-adjustment.js' %}"></script>
+{% endblock %}
+
 {% block content %}
 <!-- Standard Detail Page Header -->
 <div class="mb-3">
@@ -263,13 +271,9 @@
                             {% endif %}
 
                             {% if enrollment.status == 'pending' %}
-                            <form method="post" class="d-inline w-100">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="confirm">
-                                <button type="submit" class="btn btn-success w-100">
-                                    <i class="fas fa-check me-2"></i>Confirm Enrollment
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-success w-100" onclick="confirmEnrollmentWithPriceCheck()">
+                                <i class="fas fa-check me-2"></i>Confirm Enrollment
+                            </button>
                             {% endif %}
                         </div>
                     </div>
@@ -341,7 +345,71 @@
 </div>
 
 {% block extra_js %}
+<script src="{% static 'js/early-bird-price-adjustment.js' %}"></script>
 <script>
+/**
+ * Confirm enrollment with price adjustment check
+ */
+async function confirmEnrollmentWithPriceCheck() {
+    const enrollmentId = {{ enrollment.pk }};
+
+    try {
+        // Check if price adjustment is needed
+        const needsAdjustment = await checkAndShowPriceAdjustment(enrollmentId, (result) => {
+            // Callback after price adjustment (or no adjustment needed)
+            if (result.adjustment_made || !result.error) {
+                // Proceed with enrollment confirmation
+                proceedWithEnrollmentConfirmation();
+            } else if (result.error) {
+                showToast('error', 'Price check failed: ' + result.error);
+            }
+        });
+
+        // If no adjustment dialog was shown, proceed directly
+        if (!needsAdjustment) {
+            proceedWithEnrollmentConfirmation();
+        }
+    } catch (error) {
+        console.error('Error during price check:', error);
+        showToast('error', 'Failed to check pricing. Please try again.');
+    }
+}
+
+/**
+ * Proceed with actual enrollment confirmation
+ */
+function proceedWithEnrollmentConfirmation() {
+    // Show loading state
+    const confirmBtn = document.querySelector('button[onclick="confirmEnrollmentWithPriceCheck()"]');
+    if (confirmBtn) {
+        const originalText = confirmBtn.innerHTML;
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Confirming...';
+
+        // Create form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = window.location.href;
+
+        // Add CSRF token
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        form.appendChild(csrfInput);
+
+        // Add action
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'confirm';
+        form.appendChild(actionInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
 function sendEnrollmentEmail(emailType) {
     const btnId = emailType === 'pending' ? 'sendPendingEmailBtn' : 'sendConfirmationEmailBtn';
     const btn = document.getElementById(btnId);
@@ -353,6 +421,23 @@ function sendEnrollmentEmail(emailType) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
 
+    // Check for price adjustment first if sending pending email
+    if (emailType === 'pending') {
+        checkAndShowPriceAdjustment({{ enrollment.pk }}, (result) => {
+            // After price adjustment (or no adjustment needed), send email
+            sendEmailAfterPriceCheck(emailType, btn, originalText);
+        }).catch(error => {
+            console.error('Price check error:', error);
+            // Proceed with email sending even if price check fails
+            sendEmailAfterPriceCheck(emailType, btn, originalText);
+        });
+    } else {
+        // For confirmation emails, send directly
+        sendEmailAfterPriceCheck(emailType, btn, originalText);
+    }
+}
+
+function sendEmailAfterPriceCheck(emailType, btn, originalText) {
     // Prepare form data
     const formData = new FormData();
     formData.append('email_type', emailType);

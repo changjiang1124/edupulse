@@ -74,18 +74,32 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
     
     def post(self, request, *args, **kwargs):
         from core.services import NotificationService
-        
+        from core.services.early_bird_pricing_service import EarlyBirdPricingService
+
         self.object = self.get_object()
         action = request.POST.get('action')
-        
+
         if action == 'confirm' and self.object.status == 'pending':
+            # Check if price adjustment is needed before confirming
+            price_check = EarlyBirdPricingService.check_price_adjustment_needed(self.object)
+
+            if price_check['needs_adjustment']:
+                # Return JSON response indicating price adjustment is needed
+                return JsonResponse({
+                    'needs_price_adjustment': True,
+                    'enrollment_id': self.object.id,
+                    'price_check_data': EarlyBirdPricingService.get_price_adjustment_summary(self.object),
+                    'message': 'Price adjustment required before confirmation'
+                })
+
+            # Proceed with normal confirmation if no price adjustment needed
             self.object.status = 'confirmed'
             self.object.save()
-            
+
             # Check how many classes exist for automatic attendance creation
             active_classes = self.object.course.classes.filter(is_active=True)
             class_count = active_classes.count()
-            
+
             # Create student activity record for enrollment confirmation
             from students.models import StudentActivity
             StudentActivity.create_activity(
@@ -104,7 +118,7 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
                     'attendance_records_created': class_count
                 }
             )
-            
+
             # Send welcome email upon confirmation
             try:
                 welcome_sent = NotificationService.send_welcome_email(self.object)
@@ -125,23 +139,23 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
                         }
                     )
                     messages.success(
-                        request, 
+                        request,
                         f'Enrollment for {self.object.student.get_full_name()} has been confirmed and welcome email sent. '
                         f'Attendance records automatically created for {class_count} existing classes.'
                     )
                 else:
                     messages.success(
-                        request, 
+                        request,
                         f'Enrollment for {self.object.student.get_full_name()} has been confirmed, but welcome email could not be sent. '
                         f'Attendance records automatically created for {class_count} existing classes.'
                     )
             except Exception as e:
                 messages.success(
-                    request, 
+                    request,
                     f'Enrollment for {self.object.student.get_full_name()} has been confirmed, but notification error: {str(e)}. '
                     f'Attendance records automatically created for {class_count} existing classes.'
                 )
-        
+
         return redirect('enrollment:enrollment_detail', pk=self.object.pk)
 
 
@@ -331,6 +345,19 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
         """Send enrollment confirmation email with fee information and return success status"""
         try:
             from core.services import NotificationService
+            from core.services.early_bird_pricing_service import EarlyBirdPricingService
+
+            # Check for price adjustment before sending email
+            price_check = EarlyBirdPricingService.check_price_adjustment_needed(enrollment)
+
+            if price_check['needs_adjustment']:
+                # Log the price adjustment need but proceed with current enrollment values
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Price adjustment needed for enrollment {enrollment.id} during staff creation, "
+                    f"but proceeding with current values: {price_check['reason']}"
+                )
 
             # Use enrollment's calculated fees (which include early bird pricing)
             course_fee = enrollment.course_fee or enrollment.course.get_applicable_price()
@@ -413,13 +440,43 @@ class EnrollmentUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy('enrollment:enrollment_detail', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
+        from core.services.early_bird_pricing_service import EarlyBirdPricingService
+
+        # Get original status before saving
+        original_status = self.object.status
+
         # Save the enrollment
         enrollment = form.save()
 
+        # Check if status changed and if price adjustment might be needed
+        status_changed = enrollment.status != original_status
+
+        if status_changed:
+            # Check if price adjustment is needed for status changes
+            price_check = EarlyBirdPricingService.check_price_adjustment_needed(enrollment)
+
+            if price_check['needs_adjustment']:
+                # Store price check data for frontend handling
+                enrollment.form_data = enrollment.form_data or {}
+                enrollment.form_data.update({
+                    'price_adjustment_needed': True,
+                    'price_check_data': EarlyBirdPricingService.get_price_adjustment_summary(enrollment),
+                    'status_changed': status_changed,
+                    'original_status': original_status
+                })
+                enrollment.save()
+
+                # Return JSON response for AJAX handling
+                if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'needs_price_adjustment': True,
+                        'enrollment_id': enrollment.id,
+                        'price_check_data': enrollment.form_data['price_check_data'],
+                        'message': 'Price adjustment required before proceeding'
+                    })
+
         # Check if we should send update notification
         send_notification = enrollment.form_data.get('send_update_notification', False)
-        status_changed = enrollment.form_data.get('status_changed', False)
-        original_status = enrollment.form_data.get('original_status')
 
         # Send notification if requested and status changed to specific states
         if send_notification and status_changed:
@@ -975,6 +1032,21 @@ class SendEnrollmentEmailView(LoginRequiredMixin, View):
                     'error': 'Invalid email type. Must be "pending" or "confirmation".'
                 }, status=400)
 
+            # Check for price adjustment before sending email
+            from core.services.early_bird_pricing_service import EarlyBirdPricingService
+
+            price_check = EarlyBirdPricingService.check_price_adjustment_needed(enrollment)
+
+            if price_check['needs_adjustment']:
+                # Return price adjustment needed response
+                return JsonResponse({
+                    'needs_price_adjustment': True,
+                    'enrollment_id': enrollment.id,
+                    'price_check_data': EarlyBirdPricingService.get_price_adjustment_summary(enrollment),
+                    'message': 'Price adjustment required before sending email',
+                    'email_type': email_type  # Include the requested email type for later use
+                })
+
             # Get recipient email
             recipient_email = enrollment.student.get_contact_email()
             if not recipient_email:
@@ -1039,7 +1111,8 @@ class SendEnrollmentEmailView(LoginRequiredMixin, View):
                         'email_type': email_description,
                         'recipient': recipient_email,
                         'triggered_by': 'manual_staff_action',
-                        'staff_user': request.user.username
+                        'staff_user': request.user.username,
+                        'price_adjustment_checked': True
                     }
                 )
 
@@ -1062,4 +1135,99 @@ class SendEnrollmentEmailView(LoginRequiredMixin, View):
             return JsonResponse({
                 'success': False,
                 'error': 'An unexpected error occurred while sending the email.'
+            }, status=500)
+
+
+class CheckPriceAdjustmentAPIView(LoginRequiredMixin, View):
+    """
+    AJAX API endpoint to check if enrollment needs price adjustment
+    """
+
+    def get(self, request, enrollment_id):
+        """Check if price adjustment is needed for enrollment"""
+        if not request.user.is_staff:
+            return JsonResponse({'error': 'Access denied'}, status=403)
+
+        try:
+            enrollment = get_object_or_404(Enrollment, pk=enrollment_id)
+
+            from core.services.early_bird_pricing_service import EarlyBirdPricingService
+
+            # Get comprehensive price adjustment summary
+            summary = EarlyBirdPricingService.get_price_adjustment_summary(enrollment)
+
+            return JsonResponse(summary)
+
+        except Enrollment.DoesNotExist:
+            return JsonResponse({'error': 'Enrollment not found'}, status=404)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking price adjustment for enrollment {enrollment_id}: {str(e)}")
+            return JsonResponse({
+                'error': 'An unexpected error occurred while checking price adjustment.'
+            }, status=500)
+
+
+class ApplyPriceAdjustmentAPIView(LoginRequiredMixin, View):
+    """
+    AJAX API endpoint to apply price adjustment to enrollment
+    """
+
+    def post(self, request, enrollment_id):
+        """Apply price adjustment to enrollment"""
+        if not request.user.is_staff:
+            return JsonResponse({'error': 'Access denied'}, status=403)
+
+        try:
+            enrollment = get_object_or_404(Enrollment, pk=enrollment_id)
+
+            import json
+            data = json.loads(request.body)
+            adjustment_type = data.get('adjustment_type')
+
+            if adjustment_type not in ['keep_early_bird', 'apply_regular']:
+                return JsonResponse({
+                    'error': 'Invalid adjustment type. Must be "keep_early_bird" or "apply_regular".'
+                }, status=400)
+
+            from core.services.early_bird_pricing_service import EarlyBirdPricingService
+
+            # Determine price adjustment parameters
+            use_regular_price = (adjustment_type == 'apply_regular')
+
+            # Apply price adjustment
+            result = EarlyBirdPricingService.apply_price_adjustment(
+                enrollment=enrollment,
+                use_regular_price=use_regular_price,
+                performed_by=request.user
+            )
+
+            if result['success']:
+                return JsonResponse({
+                    'success': True,
+                    'message': result['message'],
+                    'adjustment_details': {
+                        'previous_price': str(result['previous_price']),
+                        'new_price': str(result['new_price']),
+                        'price_difference': str(result['price_difference']),
+                        'adjustment_type': result['adjustment_type']
+                    }
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': result['message']
+                }, status=500)
+
+        except Enrollment.DoesNotExist:
+            return JsonResponse({'error': 'Enrollment not found'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error applying price adjustment for enrollment {enrollment_id}: {str(e)}")
+            return JsonResponse({
+                'error': 'An unexpected error occurred while applying price adjustment.'
             }, status=500)

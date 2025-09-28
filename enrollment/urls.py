@@ -16,6 +16,10 @@ urlpatterns = [
     
     # Student Search API for staff
     path('api/students/search/', views.StudentSearchAPIView.as_view(), name='student_search_api'),
+
+    # Price Adjustment API for early bird deadline handling
+    path('api/check-price-adjustment/<int:enrollment_id>/', views.CheckPriceAdjustmentAPIView.as_view(), name='check_price_adjustment_api'),
+    path('api/price-adjustment/<int:enrollment_id>/', views.ApplyPriceAdjustmentAPIView.as_view(), name='apply_price_adjustment_api'),
     
     # Public Enrollment (no authentication required)
     path('', views.PublicEnrollmentView.as_view(), name='public_enrollment'),
