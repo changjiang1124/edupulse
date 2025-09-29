@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Email Logs - EduPulse{% endblock %}
+
+{% block extra_css %}
+<style>
+.logs-header {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+.logs-card {
+    border: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border-radius: 12px;
+}
+.status-badge.sent {
+    background-color: #d4edda !important;
+    color: #155724 !important;
+}
+.status-badge.failed {
+    background-color: #f8d7da !important;
+    color: #721c24 !important;
+}
+.filter-section {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+.log-row:hover {
+    background-color: rgba(0,0,0,0.02);
+}
+.log-content {
+    max-width: 300px;
+    word-wrap: break-word;
+}
+.email-subject {
+    font-weight: 600;
+    color: #1f2937;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Logs Header -->
+    <div class="logs-header">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-envelope-open-text fa-3x"></i>
+                </div>
+                <div>
+                    <h1 class="h2 mb-0">Email Logs</h1>
+                    <p class="mb-0 opacity-75">View and monitor email sending activity</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'core:email_settings' %}" class="btn btn-light">
+                    <i class="fas fa-cog me-1"></i>Email Settings
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card logs-card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-mail-bulk me-2 text-primary"></i>Email Activity Log
+                </h5>
+                <div>
+                    <span class="badge bg-success">{{ logs|length }} entries</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="card-body">
+            <div class="filter-section">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Status</label>
+                        <select name="status" class="form-select form-select-sm">
+                            <option value="">All Statuses</option>
+                            {% for value, display in filter_choices.statuses %}
+                                <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>
+                                    {{ display }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Email Type</label>
+                        <select name="email_type" class="form-select form-select-sm">
+                            <option value="">All Types</option>
+                            {% for value, display in filter_choices.email_types %}
+                                <option value="{{ value }}" {% if current_filters.email_type == value %}selected{% endif %}>
+                                    {{ display }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Recipient Type</label>
+                        <select name="recipient_type" class="form-select form-select-sm">
+                            <option value="">All Recipients</option>
+                            {% for type in filter_choices.recipient_types %}
+                                <option value="{{ type }}" {% if current_filters.recipient_type == type %}selected{% endif %}>
+                                    {{ type|title }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary btn-sm me-2">
+                            <i class="fas fa-filter me-1"></i>Filter
+                        </button>
+                        <a href="{% url 'core:email_logs' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-times me-1"></i>Clear
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Email Logs Table -->
+            {% if logs %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Recipient</th>
+                                <th>Subject</th>
+                                <th>Type</th>
+                                <th>Content Preview</th>
+                                <th>Status</th>
+                                <th>Backend</th>
+                                <th>Sent Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr class="log-row">
+                                <td>
+                                    <div>
+                                        <strong>{{ log.recipient_email }}</strong>
+                                        <div class="small text-muted">
+                                            <i class="fas fa-user me-1"></i>{{ log.get_recipient_type_display }}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="email-subject">
+                                        {{ log.subject|truncatechars:40 }}
+                                        {% if log.subject|length > 40 %}
+                                            <button type="button" class="btn btn-link btn-sm p-0 ms-1"
+                                                    data-bs-toggle="tooltip" data-bs-title="{{ log.subject }}">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ log.get_email_type_display }}</span>
+                                </td>
+                                <td>
+                                    <div class="log-content">
+                                        <span class="small">{{ log.content|truncatechars:50 }}</span>
+                                        {% if log.content|length > 50 %}
+                                            <button type="button" class="btn btn-link btn-sm p-0 ms-1"
+                                                    data-bs-toggle="tooltip" data-bs-title="{{ log.content|truncatechars:200 }}">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if log.status == 'sent' %}
+                                        <span class="badge status-badge sent">
+                                            <i class="fas fa-check me-1"></i>Sent
+                                        </span>
+                                    {% else %}
+                                        <span class="badge status-badge failed">
+                                            <i class="fas fa-times me-1"></i>Failed
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="small text-muted">{{ log.email_backend }}</span>
+                                </td>
+                                <td>
+                                    <div class="small">
+                                        {% if log.sent_at %}
+                                            {{ log.sent_at|date:"M d, Y" }}<br>
+                                            <span class="text-muted">{{ log.sent_at|time:"H:i" }}</span>
+                                        {% else %}
+                                            <span class="text-muted">--</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-primary btn-sm"
+                                                onclick="showLogDetails('{{ log.id }}', '{{ log.recipient_email }}', '{{ log.subject|escapejs }}', '{{ log.get_email_type_display }}', '{{ log.content|escapejs }}', '{{ log.status }}', '{{ log.error_message|escapejs }}', '{{ log.sent_at|date:"M d, Y H:i" }}', '{{ log.email_backend }}')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if log.status == 'failed' and log.error_message %}
+                                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                                    data-bs-toggle="tooltip" data-bs-title="{{ log.error_message }}">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-inbox fa-4x text-muted"></i>
+                    </div>
+                    <h5 class="text-muted">No email logs found</h5>
+                    <p class="text-muted">
+                        {% if current_filters.status or current_filters.email_type or current_filters.recipient_type %}
+                            Try adjusting your filters to see more results.
+                        {% else %}
+                            Email logs will appear here once you start sending messages.
+                        {% endif %}
+                    </p>
+                    {% if current_filters.status or current_filters.email_type or current_filters.recipient_type %}
+                        <a href="{% url 'core:email_logs' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-times me-1"></i>Clear Filters
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Card Footer -->
+        <div class="card-footer">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    Showing recent email logs (limited to 100 entries)
+                </div>
+                <div>
+                    <a href="{% url 'core:email_settings' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-cog me-1"></i>Email Settings
+                    </a>
+                    <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-home me-1"></i>Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Details Modal -->
+<div class="modal fade" id="logDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Email Log Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Recipient Email:</strong>
+                        <p id="detail-email"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Email Type:</strong>
+                        <p id="detail-type"></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Status:</strong>
+                        <p id="detail-status"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Sent Time:</strong>
+                        <p id="detail-time"></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <strong>Email Backend:</strong>
+                        <p id="detail-backend" class="font-monospace"></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <strong>Subject:</strong>
+                        <div class="border p-2 bg-light rounded mt-1">
+                            <p id="detail-subject" class="mb-0 fw-bold"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <strong>Email Content:</strong>
+                        <div class="border p-2 bg-light rounded mt-1" style="max-height: 300px; overflow-y: auto;">
+                            <p id="detail-content" class="mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3" id="error-section" style="display: none;">
+                    <div class="col-12">
+                        <strong>Error Message:</strong>
+                        <div class="alert alert-danger mt-1">
+                            <p id="detail-error" class="mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+function showLogDetails(id, email, subject, type, content, status, error, sentTime, backend) {
+    $('#detail-email').text(email);
+    $('#detail-subject').text(subject);
+    $('#detail-type').text(type);
+    $('#detail-content').text(content);
+    $('#detail-time').text(sentTime || 'Not available');
+    $('#detail-backend').text(backend || 'Not specified');
+
+    // Status with icon
+    if (status === 'sent') {
+        $('#detail-status').html('<span class="badge bg-success"><i class="fas fa-check me-1"></i>Sent</span>');
+    } else {
+        $('#detail-status').html('<span class="badge bg-danger"><i class="fas fa-times me-1"></i>Failed</span>');
+    }
+
+    // Show/hide error section
+    if (error && error.trim() && status === 'failed') {
+        $('#detail-error').text(error);
+        $('#error-section').show();
+    } else {
+        $('#error-section').hide();
+    }
+
+    $('#logDetailsModal').modal('show');
+}
+</script>
+{% endblock %}
