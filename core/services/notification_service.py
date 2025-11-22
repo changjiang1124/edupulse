@@ -12,6 +12,7 @@ from django.conf import settings
 from django.contrib.sites.models import Site
 from django.urls import reverse
 from core.models import OrganisationSettings
+from core.services.invoice_service import EnrollmentInvoiceService
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,15 @@ class NotificationService:
     Service class to handle all automated notifications
     """
     
+    @staticmethod
+    def _get_sender():
+        from core.models import EmailSettings
+        org = OrganisationSettings.get_instance()
+        config = EmailSettings.get_active_config()
+        from_email = config.from_email if config and getattr(config, 'from_email', None) else settings.DEFAULT_FROM_EMAIL
+        reply_to = config.reply_to_email if config and getattr(config, 'reply_to_email', None) else org.reply_to_email
+        return from_email, reply_to
+
     @staticmethod
     def send_enrollment_confirmation(enrollment):
         """
@@ -63,12 +73,13 @@ class NotificationService:
             text_content = render_to_string('core/emails/enrollment_confirmation.txt', context)
             
             # Create and send email
+            sender_from, sender_reply = NotificationService._get_sender()
             email = EmailMultiAlternatives(
                 subject=subject,
                 body=text_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
+                from_email=sender_from,
                 to=[recipient_email],
-                reply_to=[org_settings.reply_to_email],
+                reply_to=[sender_reply],
             )
             email.attach_alternative(html_content, "text/html")
             
@@ -145,14 +156,36 @@ class NotificationService:
             text_content = render_to_string('core/emails/enrollment_pending.txt', context)
             
             # Create and send email
+            sender_from, sender_reply = NotificationService._get_sender()
             email = EmailMultiAlternatives(
                 subject=subject,
                 body=text_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
+                from_email=sender_from,
                 to=[recipient_email],
-                reply_to=[org_settings.reply_to_email],
+                reply_to=[sender_reply],
             )
             email.attach_alternative(html_content, "text/html")
+
+            # Attach PDF invoice to help parents pay with correct reference
+            try:
+                invoice_data = EnrollmentInvoiceService.generate_invoice_pdf(
+                    enrollment,
+                    fee_breakdown={
+                        'course_fee': course_fee,
+                        'registration_fee': registration_fee,
+                        'total_fee': total_fee
+                    }
+                )
+                if invoice_data:
+                    email.attach(
+                        invoice_data['filename'],
+                        invoice_data['content'],
+                        invoice_data['mimetype']
+                    )
+                else:
+                    logger.warning("Invoice PDF not generated for enrollment %s", enrollment.id)
+            except Exception as invoice_exc:
+                logger.error("Failed to attach invoice PDF for enrollment %s: %s", enrollment.id, invoice_exc)
 
             sent = email.send()
 
@@ -202,12 +235,13 @@ class NotificationService:
             text_content = render_to_string('core/emails/welcome.txt', context)
             
             # Create and send email
+            sender_from, sender_reply = NotificationService._get_sender()
             email = EmailMultiAlternatives(
                 subject=subject,
                 body=text_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
+                from_email=sender_from,
                 to=[recipient_email],
-                reply_to=[org_settings.reply_to_email],
+                reply_to=[sender_reply],
             )
             email.attach_alternative(html_content, "text/html")
 
@@ -262,12 +296,13 @@ class NotificationService:
             text_content = render_to_string('core/emails/course_reminder.txt', context)
             
             # Create and send email
+            sender_from, sender_reply = NotificationService._get_sender()
             email = EmailMultiAlternatives(
                 subject=subject,
                 body=text_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
+                from_email=sender_from,
                 to=[recipient_email],
-                reply_to=[org_settings.reply_to_email],
+                reply_to=[sender_reply],
             )
             email.attach_alternative(html_content, "text/html")
 
@@ -448,10 +483,9 @@ class NotificationService:
         Send SMS notification using configured SMS backend
         """
         try:
-            from core.sms_backends import DynamicSMSBackend
+            from core.sms_backends import send_sms
             
-            sms_backend = DynamicSMSBackend()
-            success = sms_backend.send_sms(phone_number, message, notification_type)
+            success = send_sms(phone_number, message, notification_type)
             
             if success:
                 logger.info(f"SMS notification sent to {phone_number}")

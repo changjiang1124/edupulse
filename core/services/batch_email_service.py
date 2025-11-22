@@ -92,7 +92,8 @@ class BatchEmailService:
                         result = connection.send_messages([email])
                         if result > 0:
                             sent_count += 1
-                            self._log_email_success(email)
+                            if not getattr(settings, 'EMAIL_LOG_VIA_BACKEND_ONLY', True):
+                                self._log_email_success(email)
                             # Consume quota immediately for successful sends
                             try:
                                 NotificationQuota.consume_quota('email', 1)
@@ -128,8 +129,9 @@ class BatchEmailService:
 
         # Log any remaining failed emails
         failed_count = len(batch_failed_emails)
-        for email in batch_failed_emails:
-            self._log_email_failure(email, f"Failed after {max_retries} attempts")
+        if not getattr(settings, 'EMAIL_LOG_VIA_BACKEND_ONLY', True):
+            for email in batch_failed_emails:
+                self._log_email_failure(email, f"Failed after {max_retries} attempts")
 
         return sent_count, failed_count
 
@@ -302,13 +304,24 @@ class BatchEmailService:
                 logger.error(f"Failed to render email template {template_name}: {e}")
                 return None
 
+            # Resolve sender using EmailSettings/OrganisationSettings priority
+            try:
+                from core.models import EmailSettings, OrganisationSettings
+                config = EmailSettings.get_active_config()
+                org = OrganisationSettings.get_instance()
+                sender_from = config.from_email if config and getattr(config, 'from_email', None) else settings.DEFAULT_FROM_EMAIL
+                sender_reply = config.reply_to_email if config and getattr(config, 'reply_to_email', None) else org.reply_to_email
+            except Exception:
+                sender_from = settings.DEFAULT_FROM_EMAIL
+                sender_reply = getattr(settings, 'REPLY_TO_EMAIL', settings.DEFAULT_FROM_EMAIL)
+
             # Create email
             email = EmailMultiAlternatives(
                 subject=full_subject,
                 body=text_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
+                from_email=sender_from,
                 to=[to_email] if isinstance(to_email, str) else to_email,
-                reply_to=[getattr(settings, 'REPLY_TO_EMAIL', settings.DEFAULT_FROM_EMAIL)]
+                reply_to=[sender_reply]
             )
             email.attach_alternative(html_content, "text/html")
 

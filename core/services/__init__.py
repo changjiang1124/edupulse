@@ -4,5 +4,6 @@ Services package for EduPulse core functionality
 from .notification_service import NotificationService
 from .qr_service import QRCodeService
 from .timesheet_service import TimesheetExportService
+from .invoice_service import EnrollmentInvoiceService
 
-__all__ = ['NotificationService', 'QRCodeService', 'TimesheetExportService']
+__all__ = ['NotificationService', 'QRCodeService', 'TimesheetExportService', 'EnrollmentInvoiceService']

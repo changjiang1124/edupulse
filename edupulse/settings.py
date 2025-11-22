@@ -164,14 +164,24 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # 默认主键字段类型
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Caching configuration for progress tracking
+# Use in‑memory cache to ensure BulkNotificationProgress works reliably in dev
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'edupulse-cache',
+    }
+}
+
 # Email settings - Dynamic backend with environment variable fallback
 EMAIL_BACKEND = 'core.backends.DynamicEmailBackend'
 EMAIL_HOST = os.getenv('SMTP_SERVER', 'localhost')
-EMAIL_PORT = int(os.getenv('SMTP_PORT', '587'))
+SMTP_PORT_ENV = os.getenv('SMTP_PORT', '587')
+EMAIL_PORT = int(SMTP_PORT_ENV)
 EMAIL_HOST_USER = os.getenv('SMTP_USERNAME', '')
 EMAIL_HOST_PASSWORD = os.getenv('SMTP_PASSWORD', '')
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
+EMAIL_USE_SSL = (SMTP_PORT_ENV == '465') or (os.getenv('EMAIL_USE_SSL', 'False') == 'True')
+EMAIL_USE_TLS = (not EMAIL_USE_SSL) and (os.getenv('EMAIL_USE_TLS', 'True') == 'True')
 DEFAULT_FROM_EMAIL = os.getenv('SMTP_USERNAME', 'noreply@perthartschool.com.au')
 
 # Email performance and reliability settings

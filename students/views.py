@@ -313,14 +313,15 @@ def bulk_notification_execute(request, task_id):
                     logger.info(f"Bulk email notification completed: sent {email_sent}, failed {email_failed}")
                 except Exception as e:
                     logger.error(f"Bulk email notification error: {e}")
-                    BulkNotificationProgress.mark_failed(task_id, str(e))
-                    return JsonResponse({'error': f'Email sending failed: {e}'}, status=500)
+                    # Do not abort the whole task; record failures and continue with SMS
+                    email_failed = len(email_data_list)
+                    email_sent = 0
 
         # Send SMS notifications (individual processing as before)
         if notification_type in ['sms', 'both']:
             for student in recipients:
-                if student.guardian_phone or student.phone:
-                    phone = student.guardian_phone or student.phone
+                phone = student.get_contact_phone()
+                if phone:
                     try:
                         success = NotificationService.send_sms_notification(phone, message, 'bulk')
                         if success:

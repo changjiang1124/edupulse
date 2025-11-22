@@ -30,7 +30,10 @@ class DynamicEmailBackend(EmailBackend):
             username = config.smtp_username
             password = config.smtp_password
             use_tls = config.use_tls
-            use_ssl = False  # We use TLS, not SSL
+            use_ssl = False
+            if port == 465:
+                use_ssl = True
+                use_tls = False
             
             logger.info(f'Using database email config: {config.get_email_backend_type_display()} ({config.smtp_username})')
         else:
@@ -41,8 +44,11 @@ class DynamicEmailBackend(EmailBackend):
             port = port or int(os.getenv('SMTP_PORT', '0')) or getattr(settings, 'EMAIL_PORT', 25)
             username = username or os.getenv('SMTP_USERNAME') or getattr(settings, 'EMAIL_HOST_USER', '')
             password = password or os.getenv('SMTP_PASSWORD') or getattr(settings, 'EMAIL_HOST_PASSWORD', '')
-            use_tls = use_tls if use_tls is not None else getattr(settings, 'EMAIL_USE_TLS', True)  # Default to True for Gmail
+            use_tls = use_tls if use_tls is not None else getattr(settings, 'EMAIL_USE_TLS', True)
             use_ssl = use_ssl if use_ssl is not None else getattr(settings, 'EMAIL_USE_SSL', False)
+            if port == 465:
+                use_ssl = True
+                use_tls = False
             
             logger.info(f'Using fallback email configuration from environment variables ({host}:{port}) or settings.py')
         
