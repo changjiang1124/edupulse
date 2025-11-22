@@ -103,7 +103,8 @@ class EnrollmentInvoiceService:
                 "Please include the reference exactly when paying so we can match your payment quickly."
             )
 
-            pdf_bytes = pdf.output(dest="S").encode("latin-1")
+            # fpdf2 returns a bytearray when dest="S"; convert to immutable bytes for attachments
+            pdf_bytes = bytes(pdf.output(dest="S"))
             return {
                 'filename': f"Invoice-{reference}.pdf",
                 'content': pdf_bytes,
