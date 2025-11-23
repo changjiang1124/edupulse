@@ -40,7 +40,18 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         
         # Check user role for data filtering
         is_teacher = hasattr(self.request.user, 'role') and self.request.user.role == 'teacher'
-        
+        today = timezone.localdate()
+        week_param = self.request.GET.get('week')
+        selected_teacher = None
+        try:
+            selected_date = datetime.strptime(week_param, '%Y-%m-%d').date() if week_param else today
+        except (TypeError, ValueError):
+            selected_date = today
+        start_of_week = selected_date - timedelta(days=selected_date.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        prev_week = start_of_week - timedelta(days=7)
+        next_week = start_of_week + timedelta(days=7)
+
         # Statistics - filter based on user role
         if is_teacher:
             # Teachers see limited statistics relevant to their work
@@ -68,6 +79,19 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     course__teacher=self.request.user
                 ).select_related('student', 'course').order_by('-created_at')[:5],
             })
+            week_classes = Class.objects.select_related(
+                'course', 'teacher', 'facility', 'classroom'
+            ).filter(
+                Q(course__teacher=self.request.user) | Q(teacher=self.request.user),
+                date__range=[start_of_week, end_of_week],
+                is_active=True
+            ).annotate(
+                student_count=Count(
+                    'course__enrollments',
+                    filter=~Q(course__enrollments__status='cancelled'),
+                    distinct=True
+                )
+            ).order_by('date', 'start_time')
         else:
             # Admin users see full statistics
             context.update({
@@ -93,7 +117,66 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     'student', 'course'
                 ).order_by('-created_at')[:5],
             })
+            selected_teacher = self.request.GET.get('teacher')
+            week_classes = Class.objects.select_related(
+                'course', 'teacher', 'facility', 'classroom'
+            ).filter(
+                date__range=[start_of_week, end_of_week],
+                is_active=True
+            ).annotate(
+                student_count=Count(
+                    'course__enrollments',
+                    filter=~Q(course__enrollments__status='cancelled'),
+                    distinct=True
+                )
+            )
+            if selected_teacher:
+                week_classes = week_classes.filter(
+                    Q(course__teacher__id=selected_teacher) | Q(teacher__id=selected_teacher)
+                )
+            week_classes = week_classes.order_by('date', 'start_time')
+            context['teacher_options'] = Staff.objects.filter(role='teacher', is_active_staff=True)
         
+        # Build weekly calendar structure
+        classes_by_date = {}
+        for class_instance in week_classes:
+            start_dt = datetime.combine(class_instance.date, class_instance.start_time)
+            end_time = (start_dt + timedelta(minutes=class_instance.duration_minutes or 60)).time()
+            day_classes = classes_by_date.setdefault(class_instance.date, [])
+            day_classes.append({
+                'instance': class_instance,
+                'start_time': class_instance.start_time,
+                'end_time': end_time,
+                'classroom_name': class_instance.classroom.name if class_instance.classroom else None,
+                'facility_name': class_instance.facility.name if class_instance.facility else None,
+                'teacher_name': (
+                    f"{class_instance.teacher.first_name} {class_instance.teacher.last_name}"
+                    if class_instance.teacher else
+                    (f"{class_instance.course.teacher.first_name} {class_instance.course.teacher.last_name}" if class_instance.course.teacher else None)
+                ),
+            })
+
+        calendar_days = []
+        for day_offset in range(7):
+            day_date = start_of_week + timedelta(days=day_offset)
+            calendar_days.append({
+                'date': day_date,
+                'is_today': day_date == today,
+                'classes': sorted(
+                    classes_by_date.get(day_date, []),
+                    key=lambda item: item['start_time']
+                )
+            })
+
+        context.update({
+            'calendar_week_start': start_of_week,
+            'calendar_week_end': end_of_week,
+            'calendar_days': calendar_days,
+            'previous_week': prev_week,
+            'next_week': next_week,
+            'selected_week': start_of_week,
+            'selected_teacher': selected_teacher,
+        })
         # Add role context for template logic
         context['is_teacher'] = is_teacher
         

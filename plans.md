@@ -2814,3 +2814,20 @@ rendered = template.render(context)
 *版本: v6.8*
 *当前阶段: 邮件日志系统完整实施，邮件功能闭环完成*
 *最后更新时间: 2025-09-29*
+## 老师签到测试数据与用例 (2025-11-23) ✅ 已完成
+
+### 主要变更
+- 新增管理命令：`core/management/commands/create_teacher_clock_test_data.py`，一键创建老师、场地、教室、今日课程与课节测试数据。
+- 新增单元测试：`core/tests/test_teacher_clock.py`，覆盖签到页面访问、定位校验与提交签到流程。
+
+### 使用方式
+- 创建测试数据：`python manage.py create_teacher_clock_test_data`
+- 测试登录信息：用户名 `teacher`，密码 `Teacher123!`
+- 老师签到入口：`/core/attendance/teacher/clock/`
+
+### 验证结果
+- 老师账户可正常登录并访问签到页面
+- 设备定位校验通过且可选择当天课节
+- 提交签到返回成功并生成老师出勤记录
+
+---

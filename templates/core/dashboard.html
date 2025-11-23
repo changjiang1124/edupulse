@@ -3,6 +3,32 @@
 
 {% block title %}Dashboard - EduPulse{% endblock %}
 
+{% block extra_css %}
+<style>
+.weekly-calendar-wrapper {
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+.weekly-day-card {
+    min-width: 230px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+}
+
+.weekly-day-card .class-item {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+}
+
+.weekly-day-card .class-item:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-12">
@@ -44,6 +70,96 @@
             <h3>{{ pending_enrollments }}</h3>
             <p>Pending Enrolments</p>
             <a href="{% url 'enrollment:enrollment_list' %}?status=pending" class="stretched-link"></a>
+        </div>
+    </div>
+</div>
+
+<!-- Weekly Calendar -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div>
+                    <h5 class="mb-0">Weekly Timetable</h5>
+                    <small class="text-muted">{{ calendar_week_start|date:"d M" }} - {{ calendar_week_end|date:"d M Y" }}</small>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <a class="btn btn-outline-secondary btn-sm" href="{% url 'dashboard' %}?week={{ previous_week|date:'Y-m-d' }}{% if selected_teacher %}&teacher={{ selected_teacher }}{% endif %}">
+                        <i class="fas fa-chevron-left me-1"></i>Previous
+                    </a>
+                    <a class="btn btn-outline-secondary btn-sm" href="{% url 'dashboard' %}?week={{ next_week|date:'Y-m-d' }}{% if selected_teacher %}&teacher={{ selected_teacher }}{% endif %}">
+                        Next<i class="fas fa-chevron-right ms-1"></i>
+                    </a>
+                    <form method="get" class="d-flex align-items-center gap-2">
+                        <label class="form-label mb-0 small text-muted">Week of</label>
+                        <input type="date" name="week" value="{{ selected_week|date:'Y-m-d' }}" class="form-control form-control-sm" aria-label="Select week">
+                        {% if not is_teacher %}
+                        <select name="teacher" class="form-select form-select-sm" aria-label="Filter by teacher">
+                            <option value="">All teachers</option>
+                            {% for teacher in teacher_options %}
+                                <option value="{{ teacher.id }}" {% if selected_teacher == teacher.id|stringformat:'s' %}selected{% endif %}>
+                                    {{ teacher.first_name }} {{ teacher.last_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% endif %}
+                        <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="weekly-calendar-wrapper">
+                    <div class="d-flex gap-3">
+                        {% for day in calendar_days %}
+                        <div class="weekly-day-card p-3 flex-shrink-0">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <div class="fw-semibold">{{ day.date|date:"l" }}</div>
+                                    <small class="text-muted">{{ day.date|date:"d M" }}</small>
+                                </div>
+                                {% if day.is_today %}
+                                    <span class="badge bg-success">Today</span>
+                                {% endif %}
+                            </div>
+                            {% if day.classes %}
+                                <div class="d-flex flex-column gap-2">
+                                    {% for item in day.classes %}
+                                    <div class="class-item p-3">
+                                        <div class="d-flex justify-content-between align-items-start mb-1">
+                                            <div class="fw-semibold">{{ item.instance.course.name|truncatechars:45 }}</div>
+                                            <span class="badge bg-primary">{{ item.instance.course.get_course_type_display }}</span>
+                                        </div>
+                                        <div class="text-muted small mb-1">
+                                            <i class="fas fa-clock me-1"></i>{{ item.start_time|time:"H:i" }} - {{ item.end_time|time:"H:i" }}
+                                            <span class="ms-2 text-muted">({{ item.instance.get_duration_display }})</span>
+                                        </div>
+                                        <div class="small mb-1">
+                                            <i class="fas fa-location-dot me-1 text-info"></i>
+                                            {% if item.classroom_name %}
+                                                {{ item.classroom_name }}{% if item.facility_name %}, {{ item.facility_name }}{% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Location TBD</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if item.teacher_name and not is_teacher %}
+                                        <div class="small text-muted mb-1">
+                                            <i class="fas fa-chalkboard-teacher me-1"></i>{{ item.teacher_name }}
+                                        </div>
+                                        {% endif %}
+                                        <div class="small text-muted">
+                                            <i class="fas fa-user-friends me-1"></i>{{ item.instance.student_count|default:0 }} students
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted mb-0">No classes scheduled.</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
