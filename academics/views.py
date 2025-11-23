@@ -422,21 +422,24 @@ class ClassDetailView(LoginRequiredMixin, DetailView):
             # Get enrolled students from course enrollments
             enrolled_students = []
             enrollments = Enrollment.objects.filter(
-                course=self.object.course,
-                status='confirmed'
-            ).select_related('student')
+                course=self.object.course
+            ).exclude(status='cancelled').select_related('student')
+
+            attendance_map = {
+                attendance.student_id: attendance.status
+                for attendance in Attendance.objects.filter(class_instance=self.object)
+            }
             
             for enrollment in enrollments:
-                # Check if student has attendance record for this class
-                attendance = Attendance.objects.filter(
-                    student=enrollment.student,
-                    class_instance=self.object
-                ).first()
+                attendance_status = attendance_map.get(enrollment.student_id)
+                participation_type = 'enrolled' if enrollment.status == 'confirmed' else 'pending'
                 
                 enrolled_students.append({
                     'student': enrollment.student,
-                    'participation_type': 'enrolled',
-                    'attendance_status': attendance.status if attendance else None,
+                    'participation_type': participation_type,
+                    'attendance_status': attendance_status,
+                    'enrollment_status': enrollment.status,
+                    'enrollment_status_display': enrollment.get_status_display(),
                 })
             
             context['class_students'] = enrolled_students

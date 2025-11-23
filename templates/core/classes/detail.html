@@ -45,6 +45,10 @@
     background-color: #dbeafe;
     color: #1e40af;
 }
+.participation-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
 .participation-temp {
     background-color: #fef3c7;
     color: #92400e;
@@ -231,7 +235,9 @@
                             <div class="col-md-3">
                                 <span class="participation-badge participation-{{ student_info.participation_type }}">
                                     {% if student_info.participation_type == 'enrolled' %}
-                                        <i class="fas fa-user-check me-1"></i>Enrolled
+                                        <i class="fas fa-user-check me-1"></i>{{ student_info.enrollment_status_display|default:"Enrolled" }}
+                                    {% elif student_info.participation_type == 'pending' %}
+                                        <i class="fas fa-hourglass-half me-1"></i>{{ student_info.enrollment_status_display|default:"Pending" }}
                                     {% elif student_info.participation_type == 'temp' %}
                                         <i class="fas fa-user-clock me-1"></i>Temporary
                                     {% else %}

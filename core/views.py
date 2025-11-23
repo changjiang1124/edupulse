@@ -55,6 +55,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     course__teacher=self.request.user,
                     date__gte=timezone.now().date(),
                     is_active=True
+                ).annotate(
+                    student_count=Count(
+                        'course__enrollments',
+                        filter=~Q(course__enrollments__status='cancelled'),
+                        distinct=True
+                    )
                 ).order_by('date', 'start_time')[:5],
                 
                 # Recent enrollments for teacher's courses only
@@ -74,6 +80,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'upcoming_classes': Class.objects.filter(
                     date__gte=timezone.now().date(),
                     is_active=True
+                ).annotate(
+                    student_count=Count(
+                        'course__enrollments',
+                        filter=~Q(course__enrollments__status='cancelled'),
+                        distinct=True
+                    )
                 ).order_by('date', 'start_time')[:5],
                 
                 # Recent enrollments for all courses

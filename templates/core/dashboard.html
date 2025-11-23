@@ -66,6 +66,7 @@
                                     <th>Time</th>
                                     <th>Teacher</th>
                                     <th>Classroom</th>
+                                    <th class="text-center">Students</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -91,6 +92,9 @@
                                         {% else %}
                                             <span class="text-muted">Not assigned</span>
                                         {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ class.student_count|default:0 }}</span>
                                     </td>
                                 </tr>
                                 {% endfor %}
