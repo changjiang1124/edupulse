@@ -2831,3 +2831,25 @@ rendered = template.render(context)
 - 提交签到返回成功并生成老师出勤记录
 
 ---
+## 修复 Class 详情页面学生面板 Dropdown 遮挡问题 (2025-12-03) ✅ 已完成
+
+### 问题描述
+在 `Class` 详情页面的 `Students` 面板，点击每行右侧三点按钮打开菜单时，菜单会被其他面板覆盖，尤其在学生行或卡片处于 `hover` 状态时更明显。
+
+### 根因分析
+全局样式对 `.card:hover` 应用 `transform: translateY(-1px)`，该变换会创建新的 stacking context；同时学生行在 `hover` 时也有 `transform`。当下拉菜单在这些 stacking context 内渲染时，其 `z-index` 无法穿透到兄弟卡片之上，导致菜单被相邻面板覆盖。
+
+### 变更内容
+- 文件：`templates/core/classes/detail.html`
+- 修改位置：内联样式与 JS 事件绑定
+- 具体修改：
+  - 新增 `.z-index-card-active` 类，强制父卡片 `position: relative; z-index: 2000; transform: none`。
+  - 在下拉菜单打开时为所在行添加 `.z-index-active`，并为父 `.class-meta-card` 添加 `.z-index-card-active`；关闭时移除。
+
+### 影响范围与验证
+- 仅影响 `Class` 详情页面的学生列表下拉菜单层级显示。
+- 手动验证：在页面 hover 学生行或卡片时打开菜单，菜单能稳定覆盖其他卡片与按钮不再被遮挡。
+
+### 代码位置参考
+- `templates/core/classes/detail.html:75-83` 新增样式
+- `templates/core/classes/detail.html:618-635` 事件绑定与类切换

@@ -81,6 +81,11 @@
     position: relative;
     transform: none !important;
 }
+.z-index-card-active {
+    z-index: 2000 !important;
+    position: relative;
+    transform: none !important;
+}
 </style>
 {% endblock %}
 
@@ -624,11 +629,15 @@ document.addEventListener('DOMContentLoaded', function() {
         dropdown.addEventListener('show.bs.dropdown', function () {
             // When dropdown opens, add class to parent row
             this.closest('.student-list-item').classList.add('z-index-active');
+            const card = this.closest('.class-meta-card');
+            if (card) card.classList.add('z-index-card-active');
         });
         
         dropdown.addEventListener('hidden.bs.dropdown', function () {
             // When dropdown closes, remove class from parent row
             this.closest('.student-list-item').classList.remove('z-index-active');
+            const card = this.closest('.class-meta-card');
+            if (card) card.classList.remove('z-index-card-active');
         });
     });
 });
