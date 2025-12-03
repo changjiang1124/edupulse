@@ -76,10 +76,16 @@
     z-index: 1050 !important;
     position: absolute !important;
 }
+.z-index-active {
+    z-index: 100 !important;
+    position: relative;
+    transform: none !important;
+}
 </style>
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <!-- Standard Detail Page Header -->
 <div class="mb-3">
     <a href="{% url 'academics:class_list' %}" class="text-decoration-none text-muted">
@@ -432,7 +438,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="addSelectedStudents()">Add Students</button>
+                <button type="button" class="btn btn-primary" id="addStudentsBtn" onclick="addSelectedStudents()">Add Students</button>
             </div>
         </div>
     </div>
@@ -459,19 +465,60 @@ function addSelectedStudents() {
     }
     
     const participationType = document.getElementById('participationType').value;
-    console.log('Add selected students:', selectedStudents, 'as', participationType);
+    const studentIds = selectedStudents.map(s => s.id);
     
-    // Here you would make an AJAX call to add the students
-    // For now, we'll just close the modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentModal'));
-    modal.hide();
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     
-    // Reset selections
-    selectedStudents = [];
-    document.getElementById('studentSearchResults').innerHTML = '';
-    document.getElementById('studentSearch').value = '';
-    document.getElementById('addNewStudentOption').style.display = 'none';
+    // Disable the button to prevent double-clicks
+    const addButton = document.getElementById('addStudentsBtn');
+    addButton.disabled = true;
+    addButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding...';
+    
+    // Make AJAX call to add students
+    fetch('{% url "academics:class_add_students" class.pk %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({
+            student_ids: studentIds,
+            participation_type: participationType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert(data.message);
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentModal'));
+            modal.hide();
+            
+            // Reload page to show updated student list
+            window.location.reload();
+        } else {
+            // Show error message
+            alert('Error: ' + data.message);
+            
+            // Re-enable button
+            addButton.disabled = false;
+            addButton.innerHTML = 'Add Students';
+        }
+    })
+    .catch(error => {
+        console.error('Error adding students:', error);
+        alert('An error occurred while adding students. Please try again.');
+        
+        // Re-enable button
+        addButton.disabled = false;
+        addButton.innerHTML = 'Add Students';
+    });
 }
+
 
 function toggleStudentSelection(studentId, studentName) {
     const index = selectedStudents.findIndex(s => s.id === studentId);
@@ -567,5 +614,23 @@ function displaySearchResults(students, query) {
         addNewOption.style.display = 'block';
     }
 }
+
+// Fix for dropdown z-index issue
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners to all dropdowns in the student list
+    const dropdowns = document.querySelectorAll('.student-list-item .dropdown');
+    
+    dropdowns.forEach(dropdown => {
+        dropdown.addEventListener('show.bs.dropdown', function () {
+            // When dropdown opens, add class to parent row
+            this.closest('.student-list-item').classList.add('z-index-active');
+        });
+        
+        dropdown.addEventListener('hidden.bs.dropdown', function () {
+            // When dropdown closes, remove class from parent row
+            this.closest('.student-list-item').classList.remove('z-index-active');
+        });
+    });
+});
 </script>
 {% endblock %}

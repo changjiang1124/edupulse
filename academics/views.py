@@ -557,3 +557,126 @@ class ClassDeleteView(LoginRequiredMixin, DeleteView):
         except Exception as e:
             messages.error(request, f'Error deleting class: {str(e)}')
             return redirect('academics:class_detail', pk=self.object.pk)
+
+
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+
+
+@login_required
+@require_http_methods(["POST"])
+def class_add_students(request, pk):
+    """
+    AJAX endpoint to add students to a class.
+    Creates enrollment records for the selected students.
+    """
+    try:
+        class_instance = get_object_or_404(Class, pk=pk)
+        
+        # Parse request data
+        import json
+        data = json.loads(request.body)
+        student_ids = data.get('student_ids', [])
+        participation_type = data.get('participation_type', 'enrolled')
+        
+        if not student_ids:
+            return JsonResponse({
+                'success': False,
+                'message': 'No students selected.'
+            }, status=400)
+        
+        # Import models
+        from enrollment.models import Enrollment, Attendance
+        from students.models import Student
+        
+        # Track results
+        added_count = 0
+        skipped_count = 0
+        errors = []
+        
+        for student_id in student_ids:
+            try:
+                student = Student.objects.get(pk=student_id)
+                
+                # Check if enrollment already exists for this student and class
+                existing_enrollment = Enrollment.objects.filter(
+                    student=student,
+                    class_instance=class_instance
+                ).first()
+                
+                if existing_enrollment:
+                    skipped_count += 1
+                    continue
+                
+                # Determine enrollment status based on participation type
+                if participation_type == 'temp':
+                    status = 'confirmed'  # Temporary students are confirmed
+                elif participation_type == 'makeup':
+                    status = 'confirmed'  # Makeup students are confirmed
+                else:
+                    status = 'confirmed'  # Default to confirmed for enrolled
+                
+                # Create enrollment for this specific class
+                enrollment = Enrollment.objects.create(
+                    student=student,
+                    course=class_instance.course,
+                    class_instance=class_instance,
+                    status=status,
+                    source_channel='staff',  # Correct field name
+                    registration_status='returning',  # Assume returning since they're being manually added
+                    is_new_student=False,  # Manually added students are typically existing
+                    matched_existing_student=True
+                )
+                
+                # Update pricing from course after creation
+                enrollment.update_pricing_from_course()
+                enrollment.save()
+
+                
+                # Create attendance record with pending status
+                Attendance.objects.get_or_create(
+                    student=student,
+                    class_instance=class_instance,
+                    defaults={
+                        'status': 'pending',
+                        'attendance_time': class_instance.start_time
+                    }
+                )
+                
+                added_count += 1
+                
+            except Student.DoesNotExist:
+                errors.append(f'Student ID {student_id} not found.')
+            except Exception as e:
+                errors.append(f'Error adding student {student_id}: {str(e)}')
+        
+        # Build response message
+        message_parts = []
+        if added_count > 0:
+            message_parts.append(f'{added_count} student(s) added successfully.')
+        if skipped_count > 0:
+            message_parts.append(f'{skipped_count} student(s) already enrolled.')
+        if errors:
+            message_parts.append(f'Errors: {"; ".join(errors)}')
+        
+        return JsonResponse({
+            'success': added_count > 0,
+            'message': ' '.join(message_parts),
+            'added_count': added_count,
+            'skipped_count': skipped_count,
+            'errors': errors
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data.'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }, status=500)
+
