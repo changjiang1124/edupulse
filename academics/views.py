@@ -6,7 +6,7 @@ from django.views import View
 from django.urls import reverse_lazy, reverse
 from django.db.models import Count, Q
 from django.utils import timezone
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from .models import Course, Class
@@ -127,7 +127,20 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'core/courses/form.html'
     
     def form_valid(self, form):
+        # Capture original repeat configuration from the database before saving
+        original = Course.objects.get(pk=form.instance.pk)
+        original_repeat_weekday = original.repeat_weekday
+
         response = super().form_valid(form)
+
+        new_repeat_pattern = self.object.repeat_pattern
+        new_repeat_weekday = self.object.repeat_weekday
+        supports_weekday_shift = new_repeat_pattern == 'weekly' and new_repeat_weekday is not None
+        weekday_changed = (
+            supports_weekday_shift
+            and original_repeat_weekday is not None
+            and new_repeat_weekday != original_repeat_weekday
+        )
 
         # Handle class updates if requested (only when fields exist)
         if 'update_existing_classes' in form.fields:
@@ -136,20 +149,23 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
         else:
             update_existing = False
             selected_classes = []
-        
+
         if update_existing and selected_classes:
             # Get the selected classes to update
             classes_to_update = self.object.classes.filter(
                 is_active=True,
                 id__in=[int(class_id) for class_id in selected_classes]
             )
-            
+
             updated_count = 0
-            
+            dates_shifted_count = 0
+            moved_beyond_end_date = False
+            now = timezone.localtime()
+
             # Apply all course changes to selected classes
             for class_instance in classes_to_update:
                 updated = False
-                
+
                 # Update all relevant fields from course
                 update_fields = ['teacher', 'start_time', 'duration_minutes', 'facility', 'classroom']
                 for field in update_fields:
@@ -158,22 +174,59 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
                     if current_value != new_value:
                         setattr(class_instance, field, new_value)
                         updated = True
-                
+
+                # Automatically shift class dates forward to the new weekday (future classes only)
+                is_future_class = (
+                    class_instance.date > now.date() or
+                    (
+                        class_instance.date == now.date() and (
+                            class_instance.start_time is None or
+                            class_instance.start_time >= now.time()
+                        )
+                    )
+                )
+
+                if supports_weekday_shift and weekday_changed and is_future_class:
+                    current_weekday = class_instance.date.weekday()
+                    if current_weekday != new_repeat_weekday:
+                        # Move forward to the nearest occurrence of the new weekday
+                        delta_days = (new_repeat_weekday - current_weekday) % 7
+                        new_date = class_instance.date + timedelta(days=delta_days)
+                        if new_date != class_instance.date:
+                            class_instance.date = new_date
+                            updated = True
+                            dates_shifted_count += 1
+                            if self.object.end_date and new_date > self.object.end_date:
+                                moved_beyond_end_date = True
+
                 if updated:
                     class_instance.save()
                     updated_count += 1
-            
+
             # Provide success message
+            base_message = 'Course updated successfully!'
             if updated_count > 0:
-                messages.success(
-                    self.request,
-                    f'Course updated successfully! Course changes applied to {updated_count} selected class(es).'
-                )
+                details = [f'Course changes applied to {updated_count} selected class(es).']
+                if supports_weekday_shift and weekday_changed:
+                    if dates_shifted_count > 0:
+                        details.append(f'{dates_shifted_count} class date(s) were moved to the new weekday.')
+                    else:
+                        details.append('No class dates needed to be moved to the new weekday.')
+                messages.success(self.request, f"{base_message} {' '.join(details)}")
             else:
-                messages.success(self.request, f'Course updated successfully! No classes needed updates.')
+                if supports_weekday_shift and weekday_changed:
+                    messages.success(self.request, f'{base_message} No classes needed updates or date shifts.')
+                else:
+                    messages.success(self.request, f'{base_message} No classes needed updates.')
+
+            if moved_beyond_end_date and self.object.end_date:
+                messages.warning(
+                    self.request,
+                    'Some class dates were moved beyond the current course end date; please review the schedule and adjust the course end date if necessary.'
+                )
         else:
             messages.success(self.request, f'Course updated successfully!')
-        
+
         return response
     
     def get_success_url(self):
@@ -679,4 +732,3 @@ def class_add_students(request, pk):
             'success': False,
             'message': f'Server error: {str(e)}'
         }, status=500)
-

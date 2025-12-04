@@ -76,3 +76,13 @@ python manage.py createsuperuser
 python manage.py makemigrations
 python manage.py migrate
 ```
+
+## 课程排课逻辑调整 (2025-12-04)
+
+- 新建课程时，`repeat_pattern` 仅暴露 `once` 和 `weekly` 两种最常用选项，暂时隐藏 `daily` / `monthly`。
+- 在课程编辑页，可以勾选 “Apply Changes to Existing Classes”，
+  - 同步教师、时间、时长、教室等变更到选中的未来 Class；
+  - 对于 `repeat_pattern == 'weekly'` 且 weekday 发生变化的课程：
+    - 自动将选中的、未开始的 Class 日期**向后**移动到最近一次目标 weekday（不会早于原始日期）；
+    - 如有 Class 被移动到 `end_date` 之后，会在前端给管理员提示。
+- 现有 `repeat_pattern` 为 daily/monthly 的课程仍然保留原有行为，但不鼓励新建。

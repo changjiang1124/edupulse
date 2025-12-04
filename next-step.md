@@ -282,3 +282,6 @@ help me generate a command to generate courses for term 4 2025, the course infom
 review enrolment submission email content. clearly indicate this is submission received email, not confirmed email. the position will be locked upon the payment received and confirmed by PerthArtSchool, and show the course information, and price, and bank details, and indicate or they can pay by cash onsite. review the information to avoid potential confusion.
 
 
+## 记录备忘
+
+- 目前不支持“自动满员检测”：当 confirmed 报名数 ≥ vacancy 时，自动将 bookable_state 置为 fully_booked ，并在公开报名页禁用该课程。暂时先都人工处理状态。目前是为了避免引入太多的复杂性。

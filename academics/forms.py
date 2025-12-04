@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Q
 from tinymce.widgets import TinyMCE
 from .models import Course, Class
 from .widgets import DurationField
@@ -116,9 +117,16 @@ class CourseForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # For new courses, set online booking as default selected
+        # For new courses, set defaults and limit repeat patterns to the most common options
         if not self.instance.pk:
             self.initial['is_online_bookable'] = True
+
+            from .models import Course
+            allowed_patterns = {'once', 'weekly'}
+            self.fields['repeat_pattern'].choices = [
+                choice for choice in Course.REPEAT_PATTERN_CHOICES
+                if choice[0] in allowed_patterns
+            ]
 
         # For existing instances, ensure all fields are properly pre-filled using initial values
         if self.instance and self.instance.pk:
@@ -343,11 +351,12 @@ class CourseUpdateForm(CourseForm):
             
             # Add individual class selection field for upcoming classes
             from django.utils import timezone
-            today = timezone.now().date()
-            
-            upcoming_classes = self.instance.classes.filter(
-                is_active=True,
-                date__gte=today
+            now = timezone.localtime()
+
+            upcoming_classes = self.instance.classes.filter(is_active=True).filter(
+                Q(date__gt=now.date()) |
+                Q(date=now.date(), start_time__gte=now.time()) |
+                Q(date=now.date(), start_time__isnull=True)
             ).order_by('date', 'start_time')
             
             if upcoming_classes.exists():
@@ -356,7 +365,7 @@ class CourseUpdateForm(CourseForm):
                     required=False,
                     initial=False,
                     label='Apply Changes to Existing Classes',
-                    help_text='Update existing class sessions with the course changes',
+                    help_text='Update selected future classes to match the updated course settings (including weekday, time and location).',
                     widget=forms.CheckboxInput(attrs={
                         'class': 'form-check-input',
                         'id': 'updateExistingClasses'

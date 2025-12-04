@@ -465,7 +465,15 @@
                                         
                                         <div class="alert alert-info mt-3">
                                             <i class="fas fa-info-circle me-2"></i>
-                                            <small><strong>Note:</strong> All course changes (teacher, time, duration, location) will be applied to the selected classes.</small>
+                                            <small>
+                                                <strong>Note:</strong>
+                                                When you apply changes to existing classes:
+                                                <ul class="mb-0 ps-3">
+                                                    <li>Teacher, start time, duration and location will be updated to match the course.</li>
+                                                    <li>For weekly courses where the course weekday has changed, each selected <strong>future</strong> class will be moved forward to the nearest occurrence of the new weekday (never earlier than its current date).</li>
+                                                    <li>Past classes are never changed, and you can exclude any classes you have already adjusted manually by un-ticking them.</li>
+                                                </ul>
+                                            </small>
                                         </div>
                                     </div>
                                     {% else %}
@@ -578,6 +586,8 @@
 {% block extra_js %}
 <script src="{% static 'js/tinymce/js/tinymce/tinymce.min.js' %}"></script>
 <script>
+const isEditMode = {{ form.instance.pk|yesno:"true,false" }};
+
 tinymce.init({
     selector: '#id_description',
     height: 360,
@@ -787,7 +797,6 @@ function handleRepeatPatternChange() {
     const dailyConfig = document.getElementById('dailyConfig');
     const classGenerationSection = document.getElementById('classGenerationSection');
     const endDateField = document.getElementById('{{ form.end_date.id_for_label }}');
-    const isEditMode = {{ form.instance.pk|yesno:"true,false" }};
 
     // Hide all configuration sections first
     weeklyConfig.style.display = 'none';
@@ -854,7 +863,15 @@ function autoSetWeekdayFromStartDate() {
     const startDateField = document.getElementById('{{ form.start_date.id_for_label }}');
     const weekdayField = document.getElementById('{{ form.repeat_weekday.id_for_label }}');
     
-    if (startDateField.value && weekdayField) {
+    // Preserve stored value when editing; only auto-fill for new courses or empty selections
+    if (!weekdayField) {
+        return;
+    }
+    if (isEditMode && weekdayField.value) {
+        return;
+    }
+
+    if (startDateField && startDateField.value) {
         const startDate = new Date(startDateField.value);
         if (!isNaN(startDate.getTime())) {
             // JavaScript getDay(): 0=Sunday, 1=Monday, etc.
@@ -872,7 +889,15 @@ function autoSetDayOfMonthFromStartDate() {
     const startDateField = document.getElementById('{{ form.start_date.id_for_label }}');
     const dayOfMonthField = document.getElementById('{{ form.repeat_day_of_month.id_for_label }}');
     
-    if (startDateField.value && dayOfMonthField) {
+    // Avoid overwriting stored values when editing existing courses
+    if (!dayOfMonthField) {
+        return;
+    }
+    if (isEditMode && dayOfMonthField.value) {
+        return;
+    }
+
+    if (startDateField && startDateField.value) {
         const startDate = new Date(startDateField.value);
         if (!isNaN(startDate.getTime())) {
             dayOfMonthField.value = startDate.getDate();
