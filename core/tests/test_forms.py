@@ -13,7 +13,7 @@ class NotificationFormTest(TestCase):
         self.student = Student.objects.create(
             first_name='Test',
             last_name='Student',
-            email='student@test.com'
+            contact_email='student@test.com'
         )
         
         self.valid_form_data = {
@@ -116,7 +116,7 @@ class NotificationFormTest(TestCase):
         student2 = Student.objects.create(
             first_name='Test2',
             last_name='Student2',
-            email='student2@test.com'
+            contact_email='student2@test.com'
         )
         
         form_data = self.valid_form_data.copy()
@@ -161,7 +161,7 @@ class BulkNotificationFormTest(TestCase):
         student = Student.objects.create(
             first_name='Bulk',
             last_name='Student',
-            email='bulk@test.com'
+            contact_email='bulk@test.com'
         )
         
         form_data = self.valid_form_data.copy()

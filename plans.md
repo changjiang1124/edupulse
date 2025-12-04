@@ -2853,3 +2853,29 @@ rendered = template.render(context)
 ### 代码位置参考
 - `templates/core/classes/detail.html:75-83` 新增样式
 - `templates/core/classes/detail.html:618-635` 事件绑定与类切换
+## 核心通知系统测试修复与统一 (2025-12-04) ✅ 已完成
+
+### 实施目标
+统一 `core` 应用的测试数据结构，修复因模型字段调整导致的失败用例，确保通知相关视图与集成测试全部通过。
+
+### 主要变更
+- 测试数据使用 `students.Student` 的统一联系字段：`contact_email`、`contact_phone`（替代旧的 `email`、`phone`）
+  - 文件：`core/tests/test_views.py:33-38`、`core/tests/test_forms.py:13-17`、`core/tests/test_integration.py:333-337`
+- 课程测试补充必需的时间字段以满足模型验证
+  - 文件：`core/tests/test_views.py:42-49`（新增 `start_time`）
+- 监护人回退逻辑测试补充未成年人判定所需的出生日期
+  - 文件：`core/tests/test_views.py:364-377`
+- 邮件设置表单增加 Google Workspace App Password 长度校验，完善安全性
+  - 文件：`core/forms.py:66-70`
+- 配额测试改为当前年月，避免因固定月份导致的 `get_current_quota` 创建新记录
+  - 文件：`core/tests/test_views.py:68-82`
+
+### 验证结果
+- ✅ 执行 `python manage.py test core -v 2` 全部 70 个测试通过
+- ✅ 视图与集成测试覆盖通知发送、配额消耗与错误处理流程
+
+### 影响评估
+- 仅调整测试用例与少量表单校验，未改动业务逻辑与模型结构，符合最小化修改原则
+- 提升测试与模型的一致性，降低后续迭代的回归风险
+
+---

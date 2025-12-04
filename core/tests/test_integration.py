@@ -52,27 +52,30 @@ class NotificationSystemIntegrationTest(TransactionTestCase):
         )
         
         # Create test course
+        # Ensure required schedule fields are provided to satisfy model validation
         self.course = Course.objects.create(
             name='Test Art Course',
             short_description='A test art course',
             price=150.00,
-            status='published'
+            status='published',
+            start_date=timezone.now().date(),
+            start_time=timezone.now().time().replace(second=0, microsecond=0)
         )
         
         # Create students with different age scenarios
         self.adult_student = Student.objects.create(
             first_name='Adult',
             last_name='Student',
-            email='adult@test.com',
-            phone='0412345678'
+            contact_email='adult@test.com',
+            contact_phone='0412345678'
         )
         
         self.minor_student = Student.objects.create(
             first_name='Minor',
             last_name='Student',
             guardian_name='Parent Guardian',
-            guardian_email='parent@test.com',
-            guardian_phone='0487654321'
+            contact_email='parent@test.com',
+            contact_phone='0487654321'
         )
         
         # Create enrollments with proper contact info
@@ -333,7 +336,7 @@ class ErrorHandlingIntegrationTest(TestCase):
         self.student = Student.objects.create(
             first_name='Test',
             last_name='Student',
-            email='student@test.com'
+            contact_email='student@test.com'
         )
     
     def test_notification_with_invalid_student_ids(self):

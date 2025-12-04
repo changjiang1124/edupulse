@@ -65,7 +65,12 @@ class EmailSettingsForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        # Add any SMTP-specific validation here if needed in the future
+        # Enforce Google Workspace app password minimum length for security
+        backend_type = self.data.get('email_backend_type')
+        smtp_password = cleaned_data.get('smtp_password')
+        if backend_type == 'google_workspace':
+            if smtp_password and len(smtp_password) < 8:
+                raise ValidationError({'smtp_password': 'App Password should be at least 8 characters'})
         return cleaned_data
 
     def save(self, commit=True):

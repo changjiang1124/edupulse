@@ -2,6 +2,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
+from django.utils import timezone
 from unittest.mock import patch, MagicMock
 import json
 
@@ -33,17 +34,18 @@ class NotificationViewTest(TestCase):
         self.student = Student.objects.create(
             first_name='Test',
             last_name='Student',
-            email='student@test.com',
-            phone='0412345678'
+            contact_email='student@test.com',
+            contact_phone='0412345678'
         )
         
         # Create test course for enrollment
-        from datetime import date, timedelta
+        from datetime import date, timedelta, time
         self.course = Course.objects.create(
             name='Test Course',
             short_description='Test course description',
             price=100.00,
             status='published',
+            start_time=time(10, 0),
             start_date=date.today(),
             end_date=date.today() + timedelta(days=30)
         )
@@ -67,16 +69,16 @@ class NotificationViewTest(TestCase):
         # Create notification quotas
         NotificationQuota.objects.create(
             notification_type='email',
-            year=2025,
-            month=9,
+            year=timezone.now().year,
+            month=timezone.now().month,
             monthly_limit=100,
             used_count=10
         )
         
         NotificationQuota.objects.create(
             notification_type='sms',
-            year=2025,
-            month=9,
+            year=timezone.now().year,
+            month=timezone.now().month,
             monthly_limit=50,
             used_count=5
         )
@@ -307,16 +309,17 @@ class ContactInfoExtractionTest(TestCase):
         self.student = Student.objects.create(
             first_name='Test',
             last_name='Student',
-            email='student@test.com',
-            phone='0412345678'
+            contact_email='student@test.com',
+            contact_phone='0412345678'
         )
         
-        from datetime import date, timedelta
+        from datetime import date, timedelta, time
         self.course = Course.objects.create(
             name='Test Course',
             short_description='Test course description',
             price=100.00,
             status='published',
+            start_time=time(10, 0),
             start_date=date.today(),
             end_date=date.today() + timedelta(days=30)
         )
@@ -363,16 +366,19 @@ class ContactInfoExtractionTest(TestCase):
         """Test guardian contact detection from student model"""
         from core.views import _get_student_contact_info
         
-        # Add guardian info to student
-        self.student.guardian_email = 'guardian@test.com'
-        self.student.guardian_phone = '0487654321'
+        # Add guardian name and set minor birth date to indicate minor status
+        from datetime import timedelta
+        self.student.guardian_name = 'Parent Guardian'
+        self.student.birth_date = timezone.now().date() - timedelta(days=16*365)
         self.student.save()
         
         contact_info = _get_student_contact_info(self.student)
         
-        # Should detect guardian type
+        # Should detect guardian type when student is minor with guardian
         self.assertEqual(contact_info['type'], 'guardian')
-        self.assertIn('guardian@test.com', contact_info['email'])
+        # Fallback uses student contact details when no enrollment override
+        self.assertEqual(contact_info['email'], 'student@test.com')
+        self.assertEqual(contact_info['phone'], '0412345678')
 
 
 class EmailSMSHelperFunctionsTest(TestCase):
