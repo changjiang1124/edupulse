@@ -855,10 +855,11 @@ class PublicEnrollmentView(TemplateView):
                 return redirect('enrollment:enrollment_success', enrollment_id=enrollment.pk)
         
         # Form validation failed - prepare context for re-rendering
-        context = {
+        context = self.get_context_data(**kwargs)
+        context.update({
             'form': form,
             'courses': courses
-        }
+        })
         
         # Add selected course context if applicable
         if selected_course:
