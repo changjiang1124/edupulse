@@ -46,6 +46,7 @@ urlpatterns = [
 
     # Student Level Management API URLs
     path('api/student-levels/', views.student_levels_api, name='student_levels_api'),
+    path('api/student-levels/<int:level_id>/update/', views.student_level_update, name='student_level_update'),
     path('api/student-levels/<int:level_id>/toggle/', views.student_level_toggle, name='student_level_toggle'),
     path('api/student-levels/<int:level_id>/delete/', views.student_level_delete, name='student_level_delete'),
 

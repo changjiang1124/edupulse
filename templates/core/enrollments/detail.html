@@ -10,6 +10,10 @@
 
 
 {% block content %}
+<form id="csrfTokenForm" class="d-none">
+    {% csrf_token %}
+</form>
+
 <!-- Standard Detail Page Header -->
 <div class="mb-3">
     <a href="{% url 'enrollment:enrollment_list' %}" class="text-decoration-none text-muted">
@@ -343,8 +347,30 @@
 </div>
 
 {% block extra_js %}
-<script src="{% static 'js/early-bird-price-adjustment.js' %}"></script>
+{# Cache-bust to ensure latest JS gets loaded #}
+<script src="{% static 'js/early-bird-price-adjustment.js' %}?v=3"></script>
 <script>
+// Fallback if the early-bird script fails to load
+if (typeof window.checkAndShowPriceAdjustment !== 'function') {
+    console.warn('[EnrollmentEmail] early-bird script missing; skipping price dialog');
+    window.checkAndShowPriceAdjustment = async function(enrollmentId, onConfirmCallback = null) {
+        if (onConfirmCallback) {
+            onConfirmCallback({ adjustment_made: false, skipped: 'script_missing' });
+        }
+        return false;
+    };
+}
+</script>
+<script>
+function getCsrfToken() {
+    const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (input && input.value) {
+        return input.value;
+    }
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? match[1] : null;
+}
+
 /**
  * Confirm enrollment with price adjustment check
  */
@@ -393,7 +419,7 @@ function proceedWithEnrollmentConfirmation() {
         const csrfInput = document.createElement('input');
         csrfInput.type = 'hidden';
         csrfInput.name = 'csrfmiddlewaretoken';
-        csrfInput.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        csrfInput.value = getCsrfToken();
         form.appendChild(csrfInput);
 
         // Add action
@@ -414,23 +440,66 @@ function sendEnrollmentEmail(emailType) {
 
     if (!btn) return;
 
+    console.log('[EnrollmentEmail] clicked', { emailType, enrollmentId: {{ enrollment.pk }} });
+
     // Show loading state
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
 
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+        showToast('error', 'Missing CSRF token. Please refresh and try again.');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        return;
+    }
+
+    const resetButton = () => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    };
+
+    let emailTriggered = false;
+    let timeoutId = setTimeout(() => {
+        console.warn('[EnrollmentEmail] timeout restoring button');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        showToast('error', 'Request timed out. Please try again.');
+    }, 15000);
+
     // Check for price adjustment first if sending pending email
     if (emailType === 'pending') {
         checkAndShowPriceAdjustment({{ enrollment.pk }}, (result) => {
             // After price adjustment (or no adjustment needed), send email
+            emailTriggered = true;
             sendEmailAfterPriceCheck(emailType, btn, originalText);
+        }).then((dialogShown) => {
+            if (dialogShown) {
+                const modalEl = document.getElementById('earlyBirdPriceModal');
+                if (modalEl) {
+                    const handleHide = () => {
+                        if (!emailTriggered) {
+                            resetButton();
+                        }
+                        modalEl.removeEventListener('hidden.bs.modal', handleHide);
+                        clearTimeout(timeoutId);
+                    };
+                    modalEl.addEventListener('hidden.bs.modal', handleHide);
+                } else if (!emailTriggered) {
+                    resetButton();
+                    clearTimeout(timeoutId);
+                }
+            }
         }).catch(error => {
             console.error('Price check error:', error);
             // Proceed with email sending even if price check fails
+            emailTriggered = true;
             sendEmailAfterPriceCheck(emailType, btn, originalText);
         });
     } else {
         // For confirmation emails, send directly
+        emailTriggered = true;
         sendEmailAfterPriceCheck(emailType, btn, originalText);
     }
 }
@@ -439,14 +508,18 @@ function sendEmailAfterPriceCheck(emailType, btn, originalText) {
     // Prepare form data
     const formData = new FormData();
     formData.append('email_type', emailType);
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('csrfmiddlewaretoken', getCsrfToken());
+
+    const csrfToken = getCsrfToken();
+    console.log('[EnrollmentEmail] sending request', { emailType, enrollmentId: {{ enrollment.pk }} });
 
     // Send request
     fetch('{% url "enrollment:send_enrollment_email" enrollment.pk %}', {
         method: 'POST',
         body: formData,
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
         }
     })
     .then(response => response.json())
@@ -465,6 +538,7 @@ function sendEmailAfterPriceCheck(emailType, btn, originalText) {
         // Restore button state
         btn.disabled = false;
         btn.innerHTML = originalText;
+        console.log('[EnrollmentEmail] request finished, button restored');
     });
 }
 

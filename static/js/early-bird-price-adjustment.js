@@ -1,21 +1,44 @@
 /**
  * Early Bird Price Adjustment Confirmation Dialog
  * Provides interface for staff to confirm price adjustments when early bird deadline has passed
+ *
+ * Guard against double-loading and missing bootstrap to avoid breaking the page.
  */
 
-class EarlyBirdPriceAdjustment {
-    constructor() {
-        this.modalElement = null;
-        this.enrollmentId = null;
-        this.adjustmentData = null;
-        this.onConfirmCallback = null;
-        this.createModal();
+// Prevent double registration if the script is loaded twice
+if (!window.__EARLY_BIRD_PRICE_ADJUSTMENT_LOADED__) {
+    window.__EARLY_BIRD_PRICE_ADJUSTMENT_LOADED__ = true;
+
+    class EarlyBirdPriceAdjustment {
+        constructor() {
+            this.modalElement = null;
+            this.enrollmentId = null;
+            this.adjustmentData = null;
+            this.onConfirmCallback = null;
+            this.createModal();
+        }
+
+    /**
+     * Get CSRF token from form input or cookie
+     */
+    getCsrfToken() {
+        const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (input && input.value) {
+            return input.value;
+        }
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? match[1] : null;
     }
 
     /**
      * Create the modal HTML structure
      */
     createModal() {
+        if (typeof bootstrap === 'undefined') {
+            console.warn('[EarlyBird] bootstrap not available, modal will not be created');
+            return;
+        }
+
         const modalHtml = `
             <div class="modal fade" id="earlyBirdPriceModal" tabindex="-1" aria-labelledby="earlyBirdPriceModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
@@ -199,6 +222,14 @@ class EarlyBirdPriceAdjustment {
      * @param {Function} onConfirmCallback - Callback function when confirmed
      */
     show(enrollmentId, adjustmentData, onConfirmCallback = null) {
+        if (typeof bootstrap === 'undefined') {
+            console.warn('[EarlyBird] bootstrap missing, skipping modal');
+            if (onConfirmCallback) {
+                onConfirmCallback({ adjustment_made: false, skipped: 'bootstrap_missing' });
+            }
+            return;
+        }
+
         this.enrollmentId = enrollmentId;
         this.adjustmentData = adjustmentData;
         this.onConfirmCallback = onConfirmCallback;
@@ -323,7 +354,11 @@ class EarlyBirdPriceAdjustment {
      * @returns {Promise<Object>} - Adjustment result
      */
     async applyPriceAdjustment(enrollmentId, adjustmentType) {
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfToken = this.getCsrfToken();
+
+        if (!csrfToken) {
+            throw new Error('Missing CSRF token');
+        }
 
         const response = await fetch(`/enrollment/api/price-adjustment/${enrollmentId}/`, {
             method: 'POST',
@@ -417,8 +452,21 @@ window.earlyBirdPriceAdjustment = new EarlyBirdPriceAdjustment();
  * @param {Function} onConfirmCallback - Callback after confirmation
  */
 window.checkAndShowPriceAdjustment = async function(enrollmentId, onConfirmCallback = null) {
+    if (typeof bootstrap === 'undefined') {
+        console.warn('[EarlyBird] bootstrap missing, skipping price dialog');
+        if (onConfirmCallback) {
+            onConfirmCallback({ adjustment_made: false, skipped: 'bootstrap_missing' });
+        }
+        return false;
+    }
+
     try {
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.querySelector('input[name=\"csrfmiddlewaretoken\"]');
+        const csrfToken = (csrfInput && csrfInput.value) || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1];
+
+        if (!csrfToken) {
+            throw new Error('Missing CSRF token');
+        }
 
         const response = await fetch(`/enrollment/api/check-price-adjustment/${enrollmentId}/`, {
             method: 'GET',
@@ -453,3 +501,4 @@ window.checkAndShowPriceAdjustment = async function(enrollmentId, onConfirmCallb
         return false;
     }
 };
+}

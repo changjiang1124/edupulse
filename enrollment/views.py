@@ -640,6 +640,13 @@ class PublicEnrollmentView(TemplateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        try:
+            org_settings = OrganisationSettings.get_instance()
+            context['organisation_settings'] = org_settings
+            context['site_domain'] = getattr(org_settings, 'site_domain', 'perthartschool.com.au')
+        except Exception:
+            context['organisation_settings'] = None
+            context['site_domain'] = 'perthartschool.com.au'
         
         # Get course_id from URL path parameter or query parameter
         course_id = self.kwargs.get('course_id') or self.request.GET.get('course')
@@ -876,11 +883,14 @@ class EnrollmentSuccessView(TemplateView):
             context['organisation_settings'] = org_settings
             context['contact_email'] = getattr(org_settings, 'contact_email', '')
             context['contact_phone'] = getattr(org_settings, 'contact_phone', '')
+            context['site_domain'] = getattr(org_settings, 'site_domain', 'perthartschool.com.au')
         except Exception:
             # Fallbacks to ensure page doesn't break if settings not configured
             from django.conf import settings as dj_settings
             context['contact_email'] = getattr(dj_settings, 'DEFAULT_FROM_EMAIL', 'info@perthartschool.com.au')
             context['contact_phone'] = ''
+            context['organisation_settings'] = None
+            context['site_domain'] = 'perthartschool.com.au'
         
         return context
 

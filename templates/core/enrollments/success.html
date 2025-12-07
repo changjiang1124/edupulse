@@ -119,7 +119,7 @@
 
                 <!-- Action Buttons -->
                 <div class="action-buttons">
-                    <a href="https://perthartschool.com.au" class="btn-primary-outline">
+                    <a href="https://{{ organisation_settings.site_domain|default:site_domain }}" class="btn-primary-outline">
                         Return to Home Page
                     </a>
                     <a href="{% url 'enrollment:public_enrollment' %}" class="btn-secondary-outline">

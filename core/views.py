@@ -764,10 +764,11 @@ def _send_email_notification(recipient_email, recipient_name, subject, message, 
     from core.models import OrganisationSettings
     
     org_settings = OrganisationSettings.get_instance()
+    organisation_name = org_settings.organisation_name or 'Perth Art School'
     
     email = EmailMessage(
         subject=subject,
-        body=f"Dear {recipient_name},\n\n{message}\n\nBest regards,\nPerth Art School",
+        body=f"Dear {recipient_name},\n\n{message}\n\nBest regards,\n{organisation_name}",
         from_email=None,  # Will use configured from_email
         to=[recipient_email],
         reply_to=[org_settings.reply_to_email]
@@ -779,9 +780,13 @@ def _send_email_notification(recipient_email, recipient_name, subject, message, 
 def _send_sms_notification(recipient_phone, recipient_name, message, message_type, recipient_type):
     """Send SMS notification using the configured SMS backend"""
     from core.sms_backends import send_sms
+    from core.models import OrganisationSettings
+    
+    org_settings = OrganisationSettings.get_instance()
+    organisation_name = org_settings.organisation_name or 'Perth Art School'
     
     # Format message for SMS
-    sms_message = f"Hi {recipient_name}, {message} - Perth Art School"
+    sms_message = f"Hi {recipient_name}, {message} - {organisation_name}"
     
     # Truncate if too long
     if len(sms_message) > 160:
@@ -1493,6 +1498,50 @@ def student_levels_api(request):
                 description=data.get('description', '').strip(),
                 is_active=data.get('is_active', True)
             )
+
+            # Validate
+            level.full_clean()
+            level.save()
+
+            return JsonResponse({
+                'success': True,
+                'level': {
+                    'id': level.id,
+                    'name': level.name,
+                    'order': level.order,
+                    'description': level.description,
+                    'is_active': level.is_active,
+                }
+            })
+
+        except ValidationError as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@login_required
+def student_level_update(request, level_id):
+    """Update student level details"""
+    # Check if user is admin
+    if not request.user.is_superuser and request.user.role != 'admin':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    if request.method == 'PUT' or request.method == 'POST':
+        import json
+        from students.models import StudentLevel
+        from django.core.exceptions import ValidationError
+
+        try:
+            level = get_object_or_404(StudentLevel, id=level_id)
+            data = json.loads(request.body)
+
+            # Update fields
+            level.name = data.get('name', level.name).strip()
+            level.order = int(data.get('order', level.order))
+            level.description = data.get('description', level.description).strip()
 
             # Validate
             level.full_clean()

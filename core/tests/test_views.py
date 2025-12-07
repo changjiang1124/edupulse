@@ -6,7 +6,7 @@ from django.utils import timezone
 from unittest.mock import patch, MagicMock
 import json
 
-from core.models import NotificationQuota
+from core.models import NotificationQuota, OrganisationSettings
 from students.models import Student
 from enrollment.models import Enrollment
 from academics.models import Course
@@ -384,10 +384,16 @@ class ContactInfoExtractionTest(TestCase):
 class EmailSMSHelperFunctionsTest(TestCase):
     """Test cases for email and SMS helper functions"""
     
-    @patch('django.core.mail.EmailMessage.send')
-    def test_send_email_notification(self, mock_send):
+    @patch('django.core.mail.EmailMessage')
+    def test_send_email_notification(self, mock_email_message):
         """Test email notification sending helper"""
         from core.views import _send_email_notification
+        org_settings = OrganisationSettings.get_instance()
+        org_settings.organisation_name = 'Creative Hub'
+        org_settings.save()
+
+        email_instance = MagicMock()
+        mock_email_message.return_value = email_instance
         
         _send_email_notification(
             recipient_email='test@example.com',
@@ -398,13 +404,18 @@ class EmailSMSHelperFunctionsTest(TestCase):
             recipient_type='student'
         )
         
-        # Check that email send was called
-        mock_send.assert_called_once()
+        mock_email_message.assert_called_once()
+        _, kwargs = mock_email_message.call_args
+        self.assertIn('Creative Hub', kwargs['body'])
+        email_instance.send.assert_called_once()
     
     @patch('core.sms_backends.send_sms')
     def test_send_sms_notification(self, mock_send_sms):
         """Test SMS notification sending helper"""
         from core.views import _send_sms_notification
+        org_settings = OrganisationSettings.get_instance()
+        org_settings.organisation_name = 'Creative Hub'
+        org_settings.save()
         
         _send_sms_notification(
             recipient_phone='+61412345678',
@@ -422,7 +433,7 @@ class EmailSMSHelperFunctionsTest(TestCase):
         sms_content = call_args[0][1]  # Second argument is the message
         self.assertIn('Hi Test User', sms_content)
         self.assertIn('Test message', sms_content)
-        self.assertIn('Perth Art School', sms_content)
+        self.assertIn('Creative Hub', sms_content)
     
     @patch('core.sms_backends.send_sms')
     def test_send_sms_notification_truncation(self, mock_send_sms):

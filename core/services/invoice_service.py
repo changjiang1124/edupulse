@@ -54,6 +54,9 @@ class EnrollmentInvoiceService:
             pdf.set_font("Helvetica", size=12)
             pdf.cell(0, 8, f"Issue Date: {issue_date.strftime('%d %b %Y')}", ln=True)
             pdf.cell(0, 8, f"Invoice #: {reference}", ln=True)
+            abn_number = (org_settings.abn_number or "").strip()
+            if abn_number:
+                pdf.cell(0, 8, f"ABN: {abn_number}", ln=True)
             pdf.ln(6)
 
             pdf.set_font("Helvetica", "B", 12)
