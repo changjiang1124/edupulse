@@ -760,18 +760,42 @@ def _get_student_contact_info(student):
 
 def _send_email_notification(recipient_email, recipient_name, subject, message, message_type, recipient_type):
     """Send email notification using the configured email backend"""
-    from django.core.mail import EmailMessage
-    from core.models import OrganisationSettings
-    
+    from django.core.mail import EmailMessage, get_connection
+    from core.models import OrganisationSettings, EmailSettings
+
     org_settings = OrganisationSettings.get_instance()
     organisation_name = org_settings.organisation_name or 'Perth Art School'
+
+    # Resolve sender details from active email configuration first, then fall back to defaults
+    email_config = EmailSettings.get_active_config()
+    reply_to_email = org_settings.reply_to_email
+    sender_name = organisation_name
+    sender_address = None
+
+    if email_config:
+        sender_name = email_config.from_name or organisation_name
+        sender_address = email_config.from_email
+        reply_to_email = email_config.reply_to_email or reply_to_email
+    else:
+        sender_name = getattr(settings, 'DEFAULT_FROM_NAME', organisation_name)
+        sender_address = (
+            getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+            or getattr(settings, 'EMAIL_HOST_USER', None)
+            or org_settings.contact_email
+        )
+
+    if not sender_address:
+        raise Exception('Email sender address is not configured')
+
+    formatted_from = f'{sender_name} <{sender_address}>' if sender_name else sender_address
     
     email = EmailMessage(
         subject=subject,
         body=f"Dear {recipient_name},\n\n{message}\n\nBest regards,\n{organisation_name}",
-        from_email=None,  # Will use configured from_email
+        from_email=formatted_from,
         to=[recipient_email],
-        reply_to=[org_settings.reply_to_email]
+        reply_to=[reply_to_email] if reply_to_email else None,
+        connection=get_connection()
     )
     
     email.send()
