@@ -214,16 +214,17 @@ class NotificationService:
                 logger.warning(f"No email address found for welcome email - enrollment {enrollment.id}")
                 return False
             
-            # Prepare context for welcome email template
-            site = Site.objects.get_current()
             org_settings = OrganisationSettings.get_instance()
+            site_domain = org_settings.site_domain or Site.objects.get_current().domain
+
+            # Prepare context for welcome email template
             context = {
                 'enrollment': enrollment,
                 'student': student,
                 'course': enrollment.course,
                 'recipient_name': recipient_name,
-                'site_domain': site.domain,
-                'parent_portal_url': f"https://{site.domain}/students/",
+                'site_domain': site_domain,
+                'parent_portal_url': f"https://{site_domain}/students/",
                 'contact_email': org_settings.contact_email,
                 'contact_phone': org_settings.contact_phone,
                 'facility_address': enrollment.course.facility.address if enrollment.course.facility else 'TBA'
