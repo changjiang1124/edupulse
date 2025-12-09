@@ -1,0 +1,17 @@
+[Unit]
+Description=EduPulse RQ Worker
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/edupulse
+Environment=DJANGO_SETTINGS_MODULE=edupulse.settings
+EnvironmentFile=/var/www/edupulse/.env
+ExecStart=/var/www/edupulse/.venv/bin/python manage.py rqworker notifications default
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

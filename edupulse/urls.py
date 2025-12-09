@@ -31,6 +31,9 @@ urlpatterns = [
     # Staff enrollment management URLs (accessible at /enrollment/)  
     path('enrollment/', include(('enrollment.urls', 'enrollment'), namespace='staff_enrollment')),
     
+    # Django RQ dashboard (queue monitoring)
+    path('django-rq/', include('django_rq.urls')),
+    
     # TinyMCE URL
     path('tinymce/', include('tinymce.urls')),
     

@@ -3,6 +3,28 @@
 ## Overview
 This document outlines the steps required to deploy EduPulse in a new environment.
 
+## Quick Deploy (recommended)
+1) 仅首次：系统准备  
+   ```bash
+   sudo apt update && sudo apt install -y python3-venv python3-pip redis-server git
+   sudo systemctl enable --now redis-server
+   ```
+2) 仅首次：目录与虚拟环境  
+   ```bash
+   sudo mkdir -p /var/www/edupulse
+   sudo chown -R $USER:www-data /var/www/edupulse
+   cd /var/www/edupulse
+   python3 -m venv .venv
+   source .venv/bin/activate
+   # 放置代码（git clone 或 scp）
+   pip install -r requirements.txt
+   ```
+3) 准备 `.env`（SMTP、Redis、域名等必需变量）。  
+4) 一键部署（自动安装/更新 systemd 服务，迁移、collectstatic、检查，重启 Gunicorn + RQ Worker，并尝试恢复 Redis）：  
+   ```bash
+   sudo bash deploy/deploy.sh
+   ```
+
 ## Prerequisites
 - Python 3.8+
 - pip package manager
@@ -168,18 +190,7 @@ python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 ```
 
-### 5) Systemd service for Gunicorn
-Copy the service file we provide and enable it:
-```bash
-sudo mkdir -p /etc/systemd/system
-sudo cp deploy/edupulse.service /etc/systemd/system/edupulse.service
-sudo systemctl daemon-reload
-sudo systemctl enable edupulse.service
-sudo systemctl start edupulse.service
-sudo systemctl status edupulse.service --no-pager -n 0
-```
-
-### 6) Nginx configuration
+### 5) Nginx configuration
 ```bash
 sudo cp deploy/nginx-edupulse.conf /etc/nginx/sites-available/edupulse.conf
 sudo ln -s /etc/nginx/sites-available/edupulse.conf /etc/nginx/sites-enabled/edupulse.conf || true
@@ -187,21 +198,15 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### 7) Issue Let's Encrypt SSL (after DNS points to server)
+### 6) Issue Let's Encrypt SSL (after DNS points to server)
 ```bash
 sudo certbot --nginx -d edupulse.perthartschool.com.au --redirect --agree-tos -m admin@perthartschool.com.au -n
 ```
 
-### 8) Post-SSL hardening (optional)
+### 7) Post-SSL hardening (optional)
 - Verify HSTS, TLS versions, and security headers in Nginx as per organisation policy
 
-### 9) Deploy updates in the future
-Use the helper script:
-```bash
-sudo bash deploy/deploy.sh PROJECT_DIR=/var/www/edupulse VENV_DIR=/var/www/edupulse/venv SERVICE_NAME=edupulse
-```
-
-### 10) Log locations
+### 8) Log locations
 - Gunicorn (stderr/stdout): `journalctl -u edupulse -n 200 -f`
 - Nginx access/error: `/var/log/nginx/`
 

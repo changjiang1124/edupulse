@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     # Third-party applications
     'tinymce',
     'django_crontab',
+    'django_rq',
     # Local applications - modular architecture
     'core',
     'accounts',
@@ -171,6 +172,35 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'edupulse-cache',
     }
+}
+
+# Redis / RQ queue settings for async notifications
+REDIS_URL = os.getenv('REDIS_URL')
+REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+REDIS_PORT = int(os.getenv('REDIS_PORT', '6379'))
+REDIS_DB = int(os.getenv('REDIS_DB', '0'))
+RQ_DEFAULT_TIMEOUT = int(os.getenv('RQ_DEFAULT_TIMEOUT', '300'))
+NOTIFICATION_QUEUE_TIMEOUT = int(os.getenv('NOTIFICATION_QUEUE_TIMEOUT', '600'))
+
+_RQ_CONNECTION = (
+    {'URL': REDIS_URL}
+    if REDIS_URL
+    else {
+        'HOST': REDIS_HOST,
+        'PORT': REDIS_PORT,
+        'DB': REDIS_DB,
+    }
+)
+
+RQ_QUEUES = {
+    'default': {
+        **_RQ_CONNECTION,
+        'DEFAULT_TIMEOUT': RQ_DEFAULT_TIMEOUT,
+    },
+    'notifications': {
+        **_RQ_CONNECTION,
+        'DEFAULT_TIMEOUT': NOTIFICATION_QUEUE_TIMEOUT,
+    },
 }
 
 # Email settings - Dynamic backend with environment variable fallback

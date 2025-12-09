@@ -461,12 +461,6 @@ function sendEnrollmentEmail(emailType) {
     };
 
     let emailTriggered = false;
-    let timeoutId = setTimeout(() => {
-        console.warn('[EnrollmentEmail] timeout restoring button');
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        showToast('error', 'Request timed out. Please try again.');
-    }, 15000);
 
     // Check for price adjustment first if sending pending email
     if (emailType === 'pending') {
@@ -483,12 +477,10 @@ function sendEnrollmentEmail(emailType) {
                             resetButton();
                         }
                         modalEl.removeEventListener('hidden.bs.modal', handleHide);
-                        clearTimeout(timeoutId);
                     };
                     modalEl.addEventListener('hidden.bs.modal', handleHide);
                 } else if (!emailTriggered) {
                     resetButton();
-                    clearTimeout(timeoutId);
                 }
             }
         }).catch(error => {
@@ -513,6 +505,12 @@ function sendEmailAfterPriceCheck(emailType, btn, originalText) {
     const csrfToken = getCsrfToken();
     console.log('[EnrollmentEmail] sending request', { emailType, enrollmentId: {{ enrollment.pk }} });
 
+    // Add timeout + abort to avoid hanging; will be cleared on resolve/reject
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, 30000); // 30s hard timeout
+
     // Send request
     fetch('{% url "enrollment:send_enrollment_email" enrollment.pk %}', {
         method: 'POST',
@@ -520,19 +518,34 @@ function sendEmailAfterPriceCheck(emailType, btn, originalText) {
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRFToken': csrfToken
-        }
+        },
+        signal: controller.signal
     })
-    .then(response => response.json())
+    .then(response => {
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        clearTimeout(timeoutId);
         if (data.success) {
-            showToast('success', data.message);
+            const queuedNote = data.job_id ? ` (queued; Job: ${data.job_id})` : '';
+            const successMsg = data.message ? `${data.message}${queuedNote}` : `Email request submitted${queuedNote}`;
+            showToast('success', successMsg);
         } else {
             showToast('error', data.error || 'Failed to send email');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        showToast('error', 'An error occurred while sending the email');
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            showToast('error', 'Request timed out. Please try again.');
+        } else {
+            console.error('Error:', error);
+            showToast('error', 'An error occurred while sending the email');
+        }
     })
     .finally(() => {
         // Restore button state

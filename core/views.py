@@ -23,6 +23,7 @@ from facilities.models import Facility, Classroom
 from enrollment.models import Enrollment, Attendance
 from .models import ClockInOut, EmailSettings, SMSSettings, EmailLog, SMSLog, NotificationQuota, TeacherAttendance, OrganisationSettings
 from .forms import EmailSettingsForm, TestEmailForm, SMSSettingsForm, TestSMSForm, NotificationForm, BulkNotificationForm
+from .services.notification_queue import enqueue_email_notification, enqueue_sms_notification
 from .utils.gps_utils import (
     verify_teacher_location, 
     get_today_classes_for_teacher_at_facility,
@@ -663,7 +664,13 @@ def send_notification_view(request):
         if not students:
             return JsonResponse({'success': False, 'error': 'No valid students found'})
         
-        results = {'email_sent': 0, 'sms_sent': 0, 'errors': []}
+        results = {
+            'email_queued': 0,
+            'sms_queued': 0,
+            'email_sent_now': 0,
+            'sms_sent_now': 0,
+            'errors': [],
+        }
         
         # Check quotas before sending
         if notification_type in ['email', 'both']:
@@ -689,41 +696,56 @@ def send_notification_view(request):
             
             if notification_type in ['email', 'both'] and contact_info['email']:
                 try:
-                    _send_email_notification(
-                        recipient_email=contact_info['email'],
-                        recipient_name=contact_info['name'],
-                        subject=subject,
-                        message=message,
-                        message_type=message_type,
-                        recipient_type=contact_info['type']
-                    )
-                    results['email_sent'] += 1
+                    enqueue_result = enqueue_email_notification({
+                        'recipient_email': contact_info['email'],
+                        'recipient_name': contact_info['name'],
+                        'subject': subject,
+                        'message': message,
+                        'message_type': message_type,
+                        'recipient_type': contact_info['type'],
+                    })
+                    if enqueue_result.get('queued'):
+                        results['email_queued'] += 1
+                    elif enqueue_result.get('sent'):
+                        results['email_sent_now'] += 1
+                    else:
+                        results['errors'].append(
+                            f'Email to {contact_info["name"]}: {enqueue_result.get("error", "Unknown error")}'
+                        )
                 except Exception as e:
                     results['errors'].append(f'Email to {contact_info["name"]}: {str(e)}')
             
             if notification_type in ['sms', 'both'] and contact_info['phone']:
                 try:
-                    _send_sms_notification(
-                        recipient_phone=contact_info['phone'],
-                        recipient_name=contact_info['name'],
-                        message=message,
-                        message_type=message_type,
-                        recipient_type=contact_info['type']
-                    )
-                    results['sms_sent'] += 1
+                    enqueue_result = enqueue_sms_notification({
+                        'recipient_phone': contact_info['phone'],
+                        'recipient_name': contact_info['name'],
+                        'message': message,
+                        'message_type': message_type,
+                        'recipient_type': contact_info['type'],
+                    })
+                    if enqueue_result.get('queued'):
+                        results['sms_queued'] += 1
+                    elif enqueue_result.get('sent'):
+                        results['sms_sent_now'] += 1
+                    else:
+                        results['errors'].append(
+                            f'SMS to {contact_info["name"]}: {enqueue_result.get("error", "Unknown error")}'
+                        )
                 except Exception as e:
                     results['errors'].append(f'SMS to {contact_info["name"]}: {str(e)}')
-        
-        # Consume quotas
-        if results['email_sent'] > 0:
-            NotificationQuota.consume_quota('email', results['email_sent'])
-        if results['sms_sent'] > 0:
-            NotificationQuota.consume_quota('sms', results['sms_sent'])
-        
+        # Legacy keys for compatibility with existing callers/tests
+        results['email_sent'] = results['email_sent_now']
+        results['sms_sent'] = results['sms_sent_now']
+
         return JsonResponse({
             'success': True,
             'results': results,
-            'message': f"Sent {results['email_sent']} emails and {results['sms_sent']} SMS messages"
+            'message': (
+                f"Queued {results['email_queued']} emails and {results['sms_queued']} SMS messages "
+                f"(sent immediately: {results['email_sent_now']} emails, {results['sms_sent_now']} SMS). "
+                f"{'Errors: ' + '; '.join(results['errors']) if results['errors'] else ''}"
+            ).strip()
         })
         
     except Exception as e:
@@ -760,63 +782,33 @@ def _get_student_contact_info(student):
 
 def _send_email_notification(recipient_email, recipient_name, subject, message, message_type, recipient_type):
     """Send email notification using the configured email backend"""
-    from django.core.mail import EmailMessage, get_connection
-    from core.models import OrganisationSettings, EmailSettings
+    from core.services.notification_delivery import send_email_notification
 
-    org_settings = OrganisationSettings.get_instance()
-    organisation_name = org_settings.organisation_name or 'Perth Art School'
-
-    # Resolve sender details from active email configuration first, then fall back to defaults
-    email_config = EmailSettings.get_active_config()
-    reply_to_email = org_settings.reply_to_email
-    sender_name = organisation_name
-    sender_address = None
-
-    if email_config:
-        sender_name = email_config.from_name or organisation_name
-        sender_address = email_config.from_email
-        reply_to_email = email_config.reply_to_email or reply_to_email
-    else:
-        sender_name = getattr(settings, 'DEFAULT_FROM_NAME', organisation_name)
-        sender_address = (
-            getattr(settings, 'DEFAULT_FROM_EMAIL', None)
-            or getattr(settings, 'EMAIL_HOST_USER', None)
-            or org_settings.contact_email
-        )
-
-    if not sender_address:
-        raise Exception('Email sender address is not configured')
-
-    formatted_from = f'{sender_name} <{sender_address}>' if sender_name else sender_address
-    
-    email = EmailMessage(
+    success = send_email_notification(
+        recipient_email=recipient_email,
+        recipient_name=recipient_name,
         subject=subject,
-        body=f"Dear {recipient_name},\n\n{message}\n\nBest regards,\n{organisation_name}",
-        from_email=formatted_from,
-        to=[recipient_email],
-        reply_to=[reply_to_email] if reply_to_email else None,
-        connection=get_connection()
+        message=message,
+        message_type=message_type,
+        recipient_type=recipient_type,
     )
-    
-    email.send()
+    if not success:
+        raise Exception('Email sending failed')
 
 
 def _send_sms_notification(recipient_phone, recipient_name, message, message_type, recipient_type):
     """Send SMS notification using the configured SMS backend"""
-    from core.sms_backends import send_sms
-    from core.models import OrganisationSettings
-    
-    org_settings = OrganisationSettings.get_instance()
-    organisation_name = org_settings.organisation_name or 'Perth Art School'
-    
-    # Format message for SMS
-    sms_message = f"Hi {recipient_name}, {message} - {organisation_name}"
-    
-    # Truncate if too long
-    if len(sms_message) > 160:
-        sms_message = sms_message[:157] + "..."
-    
-    send_sms(recipient_phone, sms_message, message_type)
+    from core.services.notification_delivery import send_sms_notification
+
+    success = send_sms_notification(
+        recipient_phone=recipient_phone,
+        recipient_name=recipient_name,
+        message=message,
+        message_type=message_type,
+        recipient_type=recipient_type,
+    )
+    if not success:
+        raise Exception('SMS sending failed')
 
 
 @login_required

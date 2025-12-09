@@ -14,6 +14,11 @@ from .forms import EnrollmentForm, EnrollmentUpdateForm, PublicEnrollmentForm, S
 from students.models import Student
 from academics.models import Course
 from core.models import OrganisationSettings
+from core.services.notification_queue import (
+    enqueue_enrollment_pending_email,
+    enqueue_enrollment_confirmation_email,
+    enqueue_enrollment_welcome_email,
+)
 
 
 class AdminRequiredMixin(UserPassesTestMixin):
@@ -73,7 +78,6 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
         return context
     
     def post(self, request, *args, **kwargs):
-        from core.services import NotificationService
         from core.services.early_bird_pricing_service import EarlyBirdPricingService
 
         self.object = self.get_object()
@@ -119,9 +123,12 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
                 }
             )
 
-            # Send welcome email upon confirmation
+            # Send welcome email upon confirmation (queued)
             try:
-                welcome_sent = NotificationService.send_welcome_email(self.object)
+                enqueue_result = enqueue_enrollment_welcome_email(self.object.id)
+                welcome_sent = enqueue_result.get('queued') or enqueue_result.get('sent')
+                job_id = enqueue_result.get('job_id')
+
                 if welcome_sent:
                     # Record welcome email activity
                     StudentActivity.create_activity(
@@ -135,12 +142,14 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
                         metadata={
                             'email_type': 'welcome',
                             'recipient': self.object.student.get_contact_email(),
-                            'triggered_by': 'enrollment_confirmation'
+                            'triggered_by': 'enrollment_confirmation',
+                            'job_id': job_id,
                         }
                     )
+                    status_text = 'queued for sending' if enqueue_result.get('queued') else 'sent'
                     messages.success(
                         request,
-                        f'Enrollment for {self.object.student.get_full_name()} has been confirmed and welcome email sent. '
+                        f'Enrollment for {self.object.student.get_full_name()} has been confirmed and welcome email {status_text}. '
                         f'Attendance records automatically created for {class_count} existing classes.'
                     )
                 else:
@@ -344,7 +353,6 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
     def _send_enrollment_notification(self, enrollment):
         """Send enrollment confirmation email with fee information and return success status"""
         try:
-            from core.services import NotificationService
             from core.services.early_bird_pricing_service import EarlyBirdPricingService
 
             # Check for price adjustment before sending email
@@ -370,9 +378,8 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
                 contact_info = enrollment.form_data.get('contact_info', {}).get('primary_email')
 
             if contact_info:
-                # Send notification with accurate fee breakdown
-                notification_sent = NotificationService.send_enrollment_pending_email(
-                    enrollment=enrollment,
+                enqueue_result = enqueue_enrollment_pending_email(
+                    enrollment_id=enrollment.id,
                     recipient_email=contact_info,
                     fee_breakdown={
                         'course_fee': course_fee,
@@ -385,7 +392,7 @@ class StaffEnrollmentCreateView(LoginRequiredMixin, TemplateView):
                         'early_bird_savings': enrollment.early_bird_savings
                     }
                 )
-                return notification_sent
+                return enqueue_result.get('queued') or enqueue_result.get('sent')
             else:
                 # No email address available
                 return False
@@ -531,8 +538,6 @@ class EnrollmentUpdateView(LoginRequiredMixin, UpdateView):
     def _send_update_notification(self, enrollment, original_status):
         """Send enrollment update notification email and return success status"""
         try:
-            from core.services import NotificationService
-
             # Get contact information
             contact_info = enrollment.student.get_contact_email()
             if not contact_info and hasattr(enrollment, 'form_data'):
@@ -545,7 +550,8 @@ class EnrollmentUpdateView(LoginRequiredMixin, UpdateView):
             # Determine email type based on status change
             if enrollment.status == 'confirmed' and original_status == 'pending':
                 # Send confirmation email
-                notification_sent = NotificationService.send_enrollment_confirmation(enrollment)
+                enqueue_result = enqueue_enrollment_confirmation_email(enrollment.id)
+                notification_sent = enqueue_result.get('queued') or enqueue_result.get('sent')
             elif enrollment.status == 'cancelled':
                 # Send cancellation email (if such method exists)
                 # For now, we'll use a generic update notification
@@ -696,7 +702,6 @@ class PublicEnrollmentView(TemplateView):
         
         if form.is_valid():
             from students.services import StudentMatchingService, EnrollmentFeeCalculator
-            from core.services import NotificationService
             
             # Get course
             course = Course.objects.get(pk=form.cleaned_data['course_id'])
@@ -797,8 +802,8 @@ class PublicEnrollmentView(TemplateView):
                 # Process enrollment notifications
                 try:
                     # Send pending email with fee information
-                    notification_sent = NotificationService.send_enrollment_pending_email(
-                        enrollment=enrollment,
+                    enqueue_result = enqueue_enrollment_pending_email(
+                        enrollment_id=enrollment.id,
                         recipient_email=student.get_contact_email(),
                         fee_breakdown={
                             'course_fee': fees.get('course_fee', 0),
@@ -812,8 +817,14 @@ class PublicEnrollmentView(TemplateView):
                         }
                     )
                     
-                    if notification_sent:
+                    if enqueue_result.get('queued'):
+                        messages.success(request, 'Enrollment pending email queued for sending.')
+                    elif enqueue_result.get('sent'):
                         messages.success(request, 'Enrollment pending email sent.')
+                    else:
+                        messages.warning(request, 'Enrollment created but pending email could not be sent.')
+
+                    if enqueue_result.get('queued') or enqueue_result.get('sent'):
                         # Record email sent activity
                         StudentActivity.create_activity(
                             student=student,
@@ -827,8 +838,6 @@ class PublicEnrollmentView(TemplateView):
                                 'recipient': student.get_contact_email()
                             }
                         )
-                    else:
-                        messages.warning(request, 'Enrollment created but pending email could not be sent.')
                 except Exception as e:
                     messages.warning(request, f'Enrollment created but notification error: {str(e)}')
                 
@@ -1066,8 +1075,8 @@ class SendEnrollmentEmailView(LoginRequiredMixin, View):
                     'error': 'No email address found for this student.'
                 }, status=400)
 
-            from core.services import NotificationService
             from students.models import StudentActivity
+            job_id = None
 
             if email_type == 'pending':
                 # Send enrollment pending email (for pending status)
@@ -1089,13 +1098,16 @@ class SendEnrollmentEmailView(LoginRequiredMixin, View):
                     'early_bird_savings': enrollment.early_bird_savings
                 }
 
-                email_sent = NotificationService.send_enrollment_pending_email(
-                    enrollment=enrollment,
+                enqueue_result = enqueue_enrollment_pending_email(
+                    enrollment_id=enrollment.id,
                     recipient_email=recipient_email,
                     fee_breakdown=fee_breakdown
                 )
-
+                email_sent = enqueue_result.get('queued') or enqueue_result.get('sent')
+                job_id = enqueue_result.get('job_id')
                 email_description = 'enrollment pending'
+                if enqueue_result.get('queued'):
+                    email_description = 'enrollment pending (queued)'
 
             elif email_type == 'confirmation':
                 # Send enrollment confirmation/welcome email (for confirmed status)
@@ -1105,11 +1117,16 @@ class SendEnrollmentEmailView(LoginRequiredMixin, View):
                         'error': 'Enrollment confirmation email can only be sent for confirmed enrollments.'
                     }, status=400)
 
-                email_sent = NotificationService.send_welcome_email(enrollment)
+                enqueue_result = enqueue_enrollment_welcome_email(enrollment.id)
+                email_sent = enqueue_result.get('queued') or enqueue_result.get('sent')
+                job_id = enqueue_result.get('job_id')
                 email_description = 'welcome'
+                if enqueue_result.get('queued'):
+                    email_description = 'welcome (queued)'
 
             if email_sent:
                 # Record activity
+                activity_email_type = 'pending' if email_type == 'pending' else 'welcome'
                 StudentActivity.create_activity(
                     student=enrollment.student,
                     activity_type='email_sent',
@@ -1120,6 +1137,7 @@ class SendEnrollmentEmailView(LoginRequiredMixin, View):
                     performed_by=request.user if hasattr(request.user, 'staff') else None,
                     metadata={
                         'email_type': email_description,
+                        'email_type_code': activity_email_type,
                         'recipient': recipient_email,
                         'triggered_by': 'manual_staff_action',
                         'staff_user': request.user.username,
@@ -1129,7 +1147,8 @@ class SendEnrollmentEmailView(LoginRequiredMixin, View):
 
                 return JsonResponse({
                     'success': True,
-                    'message': f'{email_description.title()} email sent successfully to {recipient_email}.'
+                    'message': f'{email_description.title()} email sent successfully to {recipient_email}.',
+                    'job_id': job_id
                 })
             else:
                 return JsonResponse({
