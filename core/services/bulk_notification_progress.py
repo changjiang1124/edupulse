@@ -4,7 +4,7 @@ Handles progress tracking for bulk email operations
 """
 import uuid
 import json
-from django.core.cache import cache
+from django.core.cache import cache, caches
 from django.utils import timezone
 from typing import Dict, Any, Optional
 import logging
@@ -49,8 +49,9 @@ class BulkNotificationProgress:
             'error_message': None
         }
 
+        cache_backend = cls._get_cache()
         cache_key = cls._get_cache_key(task_id)
-        cache.set(cache_key, progress_data, timeout=cls.CACHE_TIMEOUT)
+        cache_backend.set(cache_key, progress_data, timeout=cls.CACHE_TIMEOUT)
 
         logger.info(f"Created progress task {task_id} for {total_emails} emails")
         return task_id
@@ -76,8 +77,9 @@ class BulkNotificationProgress:
             bool: True if update successful, False otherwise
         """
         try:
+            cache_backend = cls._get_cache()
             cache_key = cls._get_cache_key(task_id)
-            progress_data = cache.get(cache_key)
+            progress_data = cache_backend.get(cache_key)
 
             if not progress_data:
                 logger.warning(f"Progress task {task_id} not found in cache")
@@ -99,7 +101,7 @@ class BulkNotificationProgress:
                 progress_data['total_batches'] = total_batches
 
             # Save updated data
-            cache.set(cache_key, progress_data, timeout=cls.CACHE_TIMEOUT)
+            cache_backend.set(cache_key, progress_data, timeout=cls.CACHE_TIMEOUT)
 
             logger.debug(f"Updated progress for task {task_id}: {percentage}% ({processed}/{total})")
             return True
@@ -120,8 +122,9 @@ class BulkNotificationProgress:
             dict: Progress data or None if not found
         """
         try:
+            cache_backend = cls._get_cache()
             cache_key = cls._get_cache_key(task_id)
-            progress_data = cache.get(cache_key)
+            progress_data = cache_backend.get(cache_key)
 
             if not progress_data:
                 logger.warning(f"Progress task {task_id} not found")
@@ -167,8 +170,9 @@ class BulkNotificationProgress:
             bool: True if successful, False otherwise
         """
         try:
+            cache_backend = cls._get_cache()
             cache_key = cls._get_cache_key(task_id)
-            progress_data = cache.get(cache_key)
+            progress_data = cache_backend.get(cache_key)
 
             if not progress_data:
                 return False
@@ -179,7 +183,7 @@ class BulkNotificationProgress:
                 'updated_at': timezone.now().isoformat(),
             })
 
-            cache.set(cache_key, progress_data, timeout=cls.CACHE_TIMEOUT)
+            cache_backend.set(cache_key, progress_data, timeout=cls.CACHE_TIMEOUT)
             logger.error(f"Marked task {task_id} as failed: {error_message}")
             return True
 
@@ -199,8 +203,9 @@ class BulkNotificationProgress:
             bool: True if successful, False otherwise
         """
         try:
+            cache_backend = cls._get_cache()
             cache_key = cls._get_cache_key(task_id)
-            cache.delete(cache_key)
+            cache_backend.delete(cache_key)
             logger.info(f"Cleaned up progress task {task_id}")
             return True
 
@@ -212,6 +217,17 @@ class BulkNotificationProgress:
     def _get_cache_key(cls, task_id: str) -> str:
         """Get cache key for task ID"""
         return f"bulk_notification_progress_{task_id}"
+
+    @classmethod
+    def _get_cache(cls):
+        """
+        Return the notifications cache if configured; fall back to default cache.
+        """
+        try:
+            return caches['notifications']
+        except Exception as e:
+            logger.warning(f"Notifications cache unavailable, falling back to default: {e}")
+            return cache
 
 
 def create_progress_callback(task_id: str):

@@ -166,13 +166,34 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Caching configuration for progress tracking
-# Use in‑memory cache to ensure BulkNotificationProgress works reliably in dev
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'edupulse-cache',
+# Use shared Redis cache when available so multi-worker progress polling stays consistent.
+REDIS_CACHE_URL = os.getenv('REDIS_CACHE_URL') or os.getenv('REDIS_URL')
+DEFAULT_CACHE_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', '300'))
+
+if REDIS_CACHE_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'edupulse-cache',
+        },
+        'notifications': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_CACHE_URL,
+            'TIMEOUT': DEFAULT_CACHE_TIMEOUT,
+        },
     }
-}
+else:
+    # Fallback to in-memory cache (suitable for single-worker dev only)
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'edupulse-cache',
+        },
+        'notifications': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'edupulse-notifications-cache',
+        },
+    }
 
 # Redis / RQ queue settings for async notifications
 REDIS_URL = os.getenv('REDIS_URL')
