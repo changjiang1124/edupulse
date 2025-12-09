@@ -86,3 +86,11 @@ python manage.py migrate
     - 自动将选中的、未开始的 Class 日期**向后**移动到最近一次目标 weekday（不会早于原始日期）；
     - 如有 Class 被移动到 `end_date` 之后，会在前端给管理员提示。
 - 现有 `repeat_pattern` 为 daily/monthly 的课程仍然保留原有行为，但不鼓励新建。
+
+
+## 批量通知进度缓存调整 (2025-12-09)
+
+- 为 `BulkNotificationProgress` 配置统一的 Redis 缓存：
+  - 新增逻辑：如果没有显式的 `REDIS_CACHE_URL`/`REDIS_URL`，会从 `REDIS_HOST`/`REDIS_PORT`/`REDIS_DB` 自动拼出 `redis://host:port/db`。
+  - `CACHES['notifications']` 始终指向 Redis，而不是多进程各自独立的本地内存缓存。
+- 目的：确保在 Gunicorn 多 worker 下，Student 列表的批量通知进度轮询始终能读到同一份数据，不再出现前端卡在 “Preparing/Starting...” 但邮件已发送完成的情况。
