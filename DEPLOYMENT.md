@@ -149,7 +149,28 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-### 9. Collect Static Files (Production)
+### 9. Bootstrap and Frontend Assets
+
+The project includes local copies of Bootstrap CSS/JS in the `static/` directory as fallbacks:
+- `static/css/bootstrap.min.css` (227KB)
+- `static/css/bootstrap.min.css.map` (source map for debugging)
+- `static/js/bootstrap.bundle.min.js` (90KB)
+
+These files ensure the frontend works even if CDN is blocked or offline.
+
+**Important**: Ensure these files are present before deployment:
+```bash
+# Verify Bootstrap files exist
+ls -lh static/css/bootstrap.min.css
+ls -lh static/js/bootstrap.bundle.min.js
+
+# If missing, download from CDN:
+curl -o static/css/bootstrap.min.css https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css
+curl -o static/css/bootstrap.min.css.map https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css.map
+curl -o static/js/bootstrap.bundle.min.js https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js
+```
+
+### 10. Collect Static Files (Production)
 ```bash
 python manage.py collectstatic --noinput
 ```

@@ -74,6 +74,20 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
         ).exclude(
             pk=self.object.pk
         ).select_related('course')[:5]
+
+        # Pre-calc price adjustment need for pending enrollments to drive UX hints
+        if self.object.status == 'pending':
+            try:
+                from core.services.early_bird_pricing_service import EarlyBirdPricingService
+                price_summary = EarlyBirdPricingService.get_price_adjustment_summary(self.object)
+                context['price_adjustment_needed'] = bool(price_summary.get('needs_adjustment'))
+                context['price_adjustment_summary'] = price_summary
+            except Exception:
+                context['price_adjustment_needed'] = False
+                context['price_adjustment_summary'] = {}
+        else:
+            context['price_adjustment_needed'] = False
+            context['price_adjustment_summary'] = {}
         
         return context
     
@@ -84,19 +98,11 @@ class EnrollmentDetailView(LoginRequiredMixin, DetailView):
         action = request.POST.get('action')
 
         if action == 'confirm' and self.object.status == 'pending':
-            # Check if price adjustment is needed before confirming
-            price_check = EarlyBirdPricingService.check_price_adjustment_needed(self.object)
-
-            if price_check['needs_adjustment']:
-                # Return JSON response indicating price adjustment is needed
-                return JsonResponse({
-                    'needs_price_adjustment': True,
-                    'enrollment_id': self.object.id,
-                    'price_check_data': EarlyBirdPricingService.get_price_adjustment_summary(self.object),
-                    'message': 'Price adjustment required before confirmation'
-                })
-
-            # Proceed with normal confirmation if no price adjustment needed
+            # Note: Price adjustment warning is shown via the yellow banner on the detail page
+            # but we allow staff to confirm enrollment based on their judgment.
+            # Staff may choose to honor early bird pricing or adjust it before/after confirmation.
+            
+            # Proceed with confirmation
             self.object.status = 'confirmed'
             self.object.save()
 
