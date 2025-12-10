@@ -196,9 +196,8 @@ class BulkNotificationForm(forms.Form):
     """Form for sending bulk notifications to students"""
     
     NOTIFICATION_TYPE_CHOICES = [
-        ('email', 'Email'),
-        ('sms', 'SMS'),
-        ('both', 'Both Email & SMS'),
+        ('email', 'Email Only'),
+        ('sms', 'SMS Only'),
     ]
     
     MESSAGE_TYPE_CHOICES = [
@@ -249,8 +248,10 @@ class BulkNotificationForm(forms.Form):
         choices=NOTIFICATION_TYPE_CHOICES,
         label='Notification Type',
         widget=forms.Select(attrs={
-            'class': 'form-select'
-        })
+            'class': 'form-select',
+            'onchange': 'handleNotificationTypeChange(this.value)'
+        }),
+        initial='email'
     )
     
     # Message categorization
@@ -275,22 +276,38 @@ class BulkNotificationForm(forms.Form):
         required=False
     )
     
-    # Message content
-    message = forms.CharField(
-        label='Message Content',
+    # Email content with TinyMCE (for email)
+    email_content = forms.CharField(
+        label='Email Content',
+        widget=forms.Textarea(attrs={
+            'class': 'tinymce-editor',
+            'rows': 15,
+        }),
+        required=False,
+        help_text='Rich HTML content for email with images and formatting'
+    )
+    
+    # SMS content (plain text)
+    sms_content = forms.CharField(
+        label='SMS Message',
+        max_length=160,
         widget=forms.Textarea(attrs={
             'class': 'form-control',
-            'rows': 6,
-            'placeholder': 'Enter your message here...'
+            'rows': 4,
+            'placeholder': 'Enter SMS message (max 160 characters)',
+            'maxlength': '160'
         }),
-        help_text='This content will be used for both email body and SMS text'
+        required=False,
+        help_text='Plain text message for SMS (max 160 characters)'
     )
+    
     
     def clean(self):
         cleaned_data = super().clean()
         notification_type = cleaned_data.get('notification_type')
         subject = cleaned_data.get('subject')
-        message = cleaned_data.get('message')
+        email_content = cleaned_data.get('email_content')
+        sms_content = cleaned_data.get('sms_content')
         student_ids = cleaned_data.get('student_ids')
         send_to = cleaned_data.get('send_to')
         selected_tags = cleaned_data.get('selected_tags')
@@ -314,14 +331,22 @@ class BulkNotificationForm(forms.Form):
                 errors['selected_tags'] = 'At least one tag must be selected when sending by tag'
         
         # Email specific validation
-        if notification_type in ['email', 'both']:
+        if notification_type == 'email':
             if not subject or not subject.strip():
-                errors['subject'] = 'Email subject is required when sending emails'
+                errors['subject'] = 'Email subject is required for email notifications'
+            if not email_content or not email_content.strip():
+                errors['email_content'] = 'Email content is required for email notifications'
+            # Store email_content as message for backward compatibility
+            cleaned_data['message'] = email_content
         
-        # Message length validation for SMS
-        if notification_type in ['sms', 'both']:
-            if len(message) > 160:
-                errors['message'] = f'SMS message is too long ({len(message)} characters). Maximum 160 characters allowed.'
+        # SMS specific validation
+        elif notification_type == 'sms':
+            if not sms_content or not sms_content.strip():
+                errors['sms_content'] = 'SMS message is required for SMS notifications'
+            if sms_content and len(sms_content) > 160:
+                errors['sms_content'] = f'SMS message is too long ({len(sms_content)} characters). Maximum 160 characters allowed.'
+            # Store sms_content as message for backward compatibility
+            cleaned_data['message'] = sms_content
         
         # Raise all errors at once
         if errors:

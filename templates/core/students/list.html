@@ -590,10 +590,10 @@
                         <div class="col-md-12">
                             <div class="mb-3">
                                 <label for="notificationType" class="form-label">Notification Type</label>
-                                <select class="form-select" id="notificationType" name="notification_type" required>
-                                    <option value="email">Email Only</option>
+                                <select class="form-select" id="notificationType" name="notification_type" 
+                                        onchange="handleNotificationTypeChange(this.value)" required>
+                                    <option value="email" selected>Email Only</option>
                                     <option value="sms">SMS Only</option>
-                                    <option value="both">Both Email & SMS</option>
                                 </select>
                             </div>
                         </div>
@@ -602,21 +602,31 @@
                     <!-- Message Type hidden field with default value -->
                     <input type="hidden" id="messageType" name="message_type" value="general">
                     
-                    <div class="mb-3" id="emailSubjectGroup">
-                        <label for="emailSubject" class="form-label">Email Subject</label>
-                        <input type="text" class="form-control" id="emailSubject" name="subject" 
-                               placeholder="Enter email subject">
+                    <!-- Email Fields -->
+                    <div id="emailFieldsGroup">
+                        <div class="mb-3">
+                            <label for="emailSubject" class="form-label">Email Subject</label>
+                            <input type="text" class="form-control" id="emailSubject" name="subject" 
+                                   placeholder="Enter email subject">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="emailContent" class="form-label">Email Content</label>
+                            <textarea class="form-control tinymce-editor" id="emailContent" name="email_content" 
+                                      rows="15"></textarea>
+                            <div class="form-text">Rich HTML content for email with images and formatting</div>
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="messageContent" class="form-label">Message Content</label>
-                        <textarea class="form-control" id="messageContent" name="message" rows="6" 
-                                  placeholder="Enter your message here..." required></textarea>
-                        <div class="form-text">
-                            <span id="messageCounter">0</span> characters
-                            <span id="smsWarning" class="text-warning" style="display: none;">
-                                (SMS messages should be under 160 characters)
-                            </span>
+                    <!-- SMS Fields -->
+                    <div id="smsFieldsGroup" style="display: none;">
+                        <div class="mb-3">
+                            <label for="smsContent" class="form-label">SMS Message</label>
+                            <textarea class="form-control" id="smsContent" name="sms_content" rows="4" 
+                                      maxlength="160" placeholder="Enter SMS message (max 160 characters)"></textarea>
+                            <div class="form-text">
+                                <span id="smsCounter">0</span>/160 characters
+                            </div>
                         </div>
                     </div>
 
@@ -678,9 +688,9 @@
                 <!-- Remove Tags Interface -->
                 <div id="removeTagsInterface" style="display: none;">
                     <div class="mb-3">
-                        <label for="tagSearchInput" class="form-label">Search Existing Tags:</label>
+                        <label for="tagRemoveSearchInput" class="form-label">Search Existing Tags:</label>
                         <div class="position-relative">
-                            <input type="text" class="form-control" id="tagSearchInput"
+                            <input type="text" class="form-control" id="tagRemoveSearchInput"
                                    placeholder="Search for tags to remove..."
                                    autocomplete="off">
                             <div id="tagSearchResults" class="position-absolute bg-white border rounded shadow-sm w-100"
@@ -719,6 +729,9 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- TinyMCE Library -->
+<script src="{% static 'tinymce/tinymce.min.js' %}"></script>
+
 <script>
 let selectedStudents = new Set();
 let availableTags = [];
@@ -1179,61 +1192,72 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const notificationTypeSelect = document.getElementById('notificationType');
-    const emailSubjectGroup = document.getElementById('emailSubjectGroup');
-    const messageContent = document.getElementById('messageContent');
-    const messageCounter = document.getElementById('messageCounter');
-    const smsWarning = document.getElementById('smsWarning');
+    const emailFieldsGroup = document.getElementById('emailFieldsGroup'); // Updated ID
+    const smsContent = document.getElementById('smsContent'); // New ID
+    const smsWarning = document.getElementById('smsWarning'); // Optional warning element
 
-    if (notificationTypeSelect && emailSubjectGroup && messageContent && messageCounter && smsWarning) {
+    // Check if elements exist before proceeding
+    if (notificationTypeSelect && emailFieldsGroup && smsContent) {
+
         function updateFormVisibility() {
             const notificationType = notificationTypeSelect.value;
 
             // Show/hide email subject field
             if (notificationType === 'email' || notificationType === 'both') {
-                emailSubjectGroup.style.display = 'block';
+                emailFieldsGroup.style.display = 'block';
                 document.getElementById('emailSubject').required = true;
+                // TinyMCE might need to be initialized/re-initialized here if it's dynamically shown
             } else {
-                emailSubjectGroup.style.display = 'none';
+                emailFieldsGroup.style.display = 'none';
                 document.getElementById('emailSubject').required = false;
             }
 
             // Show/hide SMS character warning
             if (notificationType === 'sms' || notificationType === 'both') {
-                smsWarning.style.display = 'inline';
+                smsContent.style.display = 'block'; // Assuming smsContent is a textarea or similar
+                if (smsWarning) smsWarning.style.display = 'inline';
             } else {
-                smsWarning.style.display = 'none';
-            }
-        }
-
-        function updateCharacterCount() {
-            const length = messageContent.value.length;
-            messageCounter.textContent = length;
-
-            if (length > 160 && (notificationTypeSelect.value === 'sms' || notificationTypeSelect.value === 'both')) {
-                messageCounter.classList.add('text-danger');
-            } else {
-                messageCounter.classList.remove('text-danger');
+                smsContent.style.display = 'none';
+                if (smsWarning) smsWarning.style.display = 'none';
             }
         }
 
         notificationTypeSelect.addEventListener('change', updateFormVisibility);
-        messageContent.addEventListener('input', updateCharacterCount);
 
         // Initial setup
         updateFormVisibility();
-        updateCharacterCount();
 
         // Handle form submission with progress tracking
         bulkNotificationForm.addEventListener('submit', async function(e) {
             e.preventDefault();
 
             const notificationType = notificationTypeSelect.value;
-            const messageLength = messageContent.value.length;
 
-            // Validate SMS length
-            if ((notificationType === 'sms' || notificationType === 'both') && messageLength > 160) {
-                alert('SMS messages cannot exceed 160 characters. Please shorten your message.');
-                return false;
+            // Validate based on type
+            if (notificationType === 'email') {
+                const subject = document.getElementById('emailSubject').value;
+                const content = tinymce.get('emailContent') ? tinymce.get('emailContent').getContent() : '';
+
+                if (!subject.trim()) {
+                    alert('Please enter an email subject.');
+                    return false;
+                }
+                if (!content.trim()) {
+                    alert('Please enter email content.');
+                    return false;
+                }
+                // Sync TinyMCE content to textarea
+                tinymce.triggerSave();
+            } else if (notificationType === 'sms') {
+                const content = document.getElementById('smsContent').value;
+                if (!content.trim()) {
+                    alert('Please enter SMS message.');
+                    return false;
+                }
+                if (content.length > 160) {
+                    alert('SMS messages cannot exceed 160 characters. Please shorten your message.');
+                    return false;
+                }
             }
 
             // Start progress display
@@ -1253,6 +1277,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Tag search input event listener (RENAMED ID)
+    const tagRemoveSearchInput = document.getElementById('tagRemoveSearchInput'); // Renamed
+    if (tagRemoveSearchInput) {
+        tagRemoveSearchInput.addEventListener('input', handleTagSearch);
+
+        // Hide search results when clicking outside
+        document.addEventListener('click', function(event) {
+            const results = document.getElementById('tagSearchResults');
+            if (results && !tagRemoveSearchInput.contains(event.target) && !results.contains(event.target)) {
+                hideSearchResults();
+            }
+        });
+    }
 });
 
 // Reset interfaces
@@ -1264,7 +1302,8 @@ function resetAddTagsInterface() {
 }
 
 function resetRemoveTagsInterface() {
-    document.getElementById('tagSearchInput').value = '';
+    const input = document.getElementById('tagRemoveSearchInput'); // Renamed ID
+    if (input) input.value = '';
     document.getElementById('selectedRemoveTagsDisplay').innerHTML = '<span class="text-muted">No tags selected</span>';
     hideSearchResults();
     updateSelectedTagsCount();
@@ -1478,7 +1517,7 @@ function selectTagForRemoval(name, colour, id) {
     updateSelectedRemoveTagsDisplay();
 
     // Refresh search results to show selected state
-    const query = document.getElementById('tagSearchInput').value.trim();
+    const query = document.getElementById('tagRemoveSearchInput').value.trim();
     if (query.length >= 2) {
         searchExistingTags(query);
     }
@@ -1514,7 +1553,7 @@ function removeTagFromRemovalSelection(key) {
     updateSelectedRemoveTagsDisplay();
 
     // Refresh search results to show updated state
-    const query = document.getElementById('tagSearchInput').value.trim();
+    const query = document.getElementById('tagRemoveSearchInput').value.trim();
     if (query.length >= 2) {
         searchExistingTags(query);
     }
@@ -1647,9 +1686,13 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Auto-submit search form when tag filter changes
-document.getElementById('tag_filter').addEventListener('change', function() {
-    document.getElementById('searchForm').submit();
-});
+// Legacy tag filter select (guarded to avoid null reference if element is absent)
+const legacyTagFilter = document.getElementById('tag_filter');
+if (legacyTagFilter) {
+    legacyTagFilter.addEventListener('change', function() {
+        document.getElementById('searchForm').submit();
+    });
+}
 
 // Bulk Notification Progress Functions
 function showProgressArea() {
@@ -1802,5 +1845,97 @@ function updateProgressBar(percentage, text) {
         document.getElementById('progressText').textContent = text;
     }
 }
+
+// Notification type toggle handler
+function handleNotificationTypeChange(type) {
+    const emailFieldsGroup = document.getElementById('emailFieldsGroup');
+    const smsFieldsGroup = document.getElementById('smsFieldsGroup');
+    
+    if (type === 'email') {
+        emailFieldsGroup.style.display = 'block';
+        smsFieldsGroup.style.display = 'none';
+        
+        // Make email fields required
+        document.getElementById('emailSubject').required = true;
+        document.getElementById('emailContent').required = true;
+        document.getElementById('smsContent').required = false;
+        
+        // Initialize TinyMCE if not already done
+        // Use setTimeout to ensure it runs after modal is fully shown
+        setTimeout(function() {
+            if (typeof tinymce !== 'undefined' && !tinymce.get('emailContent')) {
+                initializeTinyMCE();
+            }
+        }, 100);
+    } else if (type === 'sms') {
+        emailFieldsGroup.style.display = 'none';
+        smsFieldsGroup.style.display = 'block';
+        
+        // Make SMS fields required
+        document.getElementById('emailSubject').required = false;
+        document.getElementById('emailContent').required = false;
+        document.getElementById('smsContent').required = true;
+    }
+}
+
+// Initialize TinyMCE editor
+function initializeTinyMCE() {
+    tinymce.init({
+        selector: '.tinymce-editor',
+        height: 400,
+        menubar: false,
+        branding: false,
+        promotion: false,
+        plugins: 'lists link image code help wordcount',
+        toolbar: 'undo redo | bold italic underline | bullist numlist | link image | code | help',
+        images_upload_url: '{% url "core:tinymce_upload" %}',
+        automatic_uploads: true,
+        images_reuse_filename: false,
+        file_picker_types: 'image',
+        content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; }',
+        setup: function(editor) {
+            editor.on('change', function() {
+                editor.save();
+            });
+        }
+    });
+}
+
+// SMS character counter
+document.addEventListener('DOMContentLoaded', function() {
+    const smsContent = document.getElementById('smsContent');
+    const smsCounter = document.getElementById('smsCounter');
+    
+    if (smsContent && smsCounter) {
+        smsContent.addEventListener('input', function() {
+            smsCounter.textContent = this.value.length;
+            
+            // Warning if over 160 chars
+            if (this.value.length > 160) {
+                smsCounter.parentElement.classList.add('text-danger');
+            } else {
+                smsCounter.parentElement.classList.remove('text-danger');
+            }
+        });
+    }
+    
+    // Initialize on modal show
+    const bulkNotificationModal = document.getElementById('bulkNotificationModal');
+    if (bulkNotificationModal) {
+        bulkNotificationModal.addEventListener('shown.bs.modal', function () {
+            // Initialize TinyMCE when modal is shown
+            if (typeof tinymce !== 'undefined') {
+                initializeTinyMCE();
+            }
+        });
+        
+        // Clean up TinyMCE when modal is hidden
+        bulkNotificationModal.addEventListener('hidden.bs.modal', function () {
+            if (typeof tinymce !== 'undefined' && tinymce.get('emailContent')) {
+                tinymce.get('emailContent').remove();
+            }
+        });
+    }
+});
 </script>
 {% endblock %}

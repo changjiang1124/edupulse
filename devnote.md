@@ -94,3 +94,16 @@ python manage.py migrate
   - 新增逻辑：如果没有显式的 `REDIS_CACHE_URL`/`REDIS_URL`，会从 `REDIS_HOST`/`REDIS_PORT`/`REDIS_DB` 自动拼出 `redis://host:port/db`。
   - `CACHES['notifications']` 始终指向 Redis，而不是多进程各自独立的本地内存缓存。
 - 目的：确保在 Gunicorn 多 worker 下，Student 列表的批量通知进度轮询始终能读到同一份数据，不再出现前端卡在 “Preparing/Starting...” 但邮件已发送完成的情况。
+
+## Digital Ocean Spaces 配置修复 (2025-12-10)
+
+- 问题: DO Spaces 文件上传和读取失败
+- 原因: `.env` 中的 `AWS_S3_ENDPOINT_URL` 配置错误地包含了 bucket 名称
+  - 错误格式: `https://edupulse.syd1.digitaloceanspaces.com`
+  - 正确格式: `https://syd1.digitaloceanspaces.com`
+- 解决方案:
+  - 修正 `.env` 文件中的 endpoint URL 配置
+  - 在 `settings.py` 中将 `STORAGES['default']` 切换为 `storages.backends.s3boto3.S3Boto3Storage`，确保 `default_storage` 实际写入 DO Spaces（而不是本地 `media/`）
+  - 创建 `test_do_spaces.py` 测试脚本，可用于验证 DO Spaces 配置
+  - TinyMCE 图片上传使用 `default_storage`，上传的邮件图片将写入 `media/email_images/` 前缀，并通过 `https://syd1.digitaloceanspaces.com/edupulse/media/...` 直接公开访问
+- 验证: `core.tests.test_tinymce_upload.TinyMCEUploadTests` 通过，手工 curl 访问 DO URL 返回 200，文件上传和读取功能正常工作

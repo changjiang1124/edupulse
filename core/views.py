@@ -267,45 +267,60 @@ class TimesheetView(LoginRequiredMixin, TemplateView):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@login_required
 def tinymce_upload_image(request):
-    """Handle TinyMCE image uploads"""
+    """Handle TinyMCE image uploads with automatic compression"""
+    from django.core.files.storage import default_storage
+    from core.image_utils import optimize_uploaded_image
+    from datetime import datetime
+    
     try:
         if 'file' not in request.FILES:
             return JsonResponse({'error': 'No file provided'}, status=400)
         
-        file = request.FILES['file']
+        uploaded_file = request.FILES['file']
         
         # Validate file type
-        if not file.content_type.startswith('image/'):
-            return JsonResponse({'error': 'File must be an image'}, status=400)
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if uploaded_file.content_type not in allowed_types:
+            return JsonResponse({
+                'error': f'Invalid file type. Allowed: {", ".join(allowed_types)}'
+            }, status=400)
         
-        # Validate file size (max 5MB)
-        if file.size > 5 * 1024 * 1024:
-            return JsonResponse({'error': 'File size must be less than 5MB'}, status=400)
+        # Validate file size (max 10MB before compression)
+        max_size = 10 * 1024 * 1024  # 10MB
+        if uploaded_file.size > max_size:
+            return JsonResponse({
+                'error': f'File too large. Maximum size: {max_size / 1024 / 1024}MB'
+            }, status=400)
+        
+        # Optimize/compress image automatically
+        original_size = uploaded_file.size
+        optimized_file = optimize_uploaded_image(uploaded_file)
+        compressed_size = optimized_file.size
         
         # Generate unique filename
-        file_ext = os.path.splitext(file.name)[1].lower()
-        unique_filename = f"{uuid.uuid4()}{file_ext}"
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'email_images/{timestamp}_{optimized_file.name}'
         
-        # Create upload directory if it doesn't exist
-        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', 'images')
-        os.makedirs(upload_dir, exist_ok=True)
+        # Save file using default storage (DO Spaces or local)
+        file_path = default_storage.save(filename, optimized_file)
         
-        # Save the file
-        file_path = os.path.join(upload_dir, unique_filename)
-        with open(file_path, 'wb+') as destination:
-            for chunk in file.chunks():
-                destination.write(chunk)
+        # Get full URL
+        file_url = default_storage.url(file_path)
         
-        # Return the URL for TinyMCE
-        file_url = f"/media/uploads/images/{unique_filename}"
+        # Log compression results
+        compression_ratio = (1 - compressed_size / original_size) * 100 if original_size > 0 else 0
+        print(f"Image uploaded: {file_path}")
+        print(f"Size: {original_size / 1024:.1f}KB → {compressed_size / 1024:.1f}KB ({compression_ratio:.1f}% reduction)")
         
         return JsonResponse({
-            'location': request.build_absolute_uri(file_url)
+            'location': file_url
         })
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
 
 
 # Email Configuration Views

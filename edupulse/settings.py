@@ -162,6 +162,52 @@ STATICFILES_DIRS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# DigitalOcean Spaces / S3-compatible storage configuration
+IS_DEVELOPMENT = DEBUG  # Use DEBUG flag to determine environment
+USE_DO_SPACES = os.getenv('USE_DO_SPACES', 'False' if IS_DEVELOPMENT else 'True') == 'True'
+
+if USE_DO_SPACES:
+    # Add storages to installed apps
+    if 'storages' not in INSTALLED_APPS:
+        INSTALLED_APPS.append('storages')
+    
+    # DigitalOcean Spaces configuration
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL')
+    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'sgp1')
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',  # 1 day cache
+    }
+    AWS_LOCATION = 'media'
+    AWS_DEFAULT_ACL = 'public-read'
+    AWS_QUERYSTRING_AUTH = False  # Don't add auth query params to URLs
+    
+    # Use DO Spaces for default file storage (Django 5+: use STORAGES instead of only DEFAULT_FILE_STORAGE)
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+    
+    # Update MEDIA_URL to use DO Spaces
+    # Build MEDIA_URL without duplicating the bucket if endpoint already includes it
+    _endpoint = (AWS_S3_ENDPOINT_URL or '').rstrip('/')
+    _bucket = AWS_STORAGE_BUCKET_NAME
+    _base_media_url = _endpoint if _bucket in _endpoint else f"{_endpoint}/{_bucket}"
+    MEDIA_URL = f'{_base_media_url}/{AWS_LOCATION}/'
+    
+    print(f"📦 Using DigitalOcean Spaces for media storage: {AWS_STORAGE_BUCKET_NAME}")
+else:
+    # Development - use local file storage
+    print("📁 Using local file storage for development")
+
+
 # 默认主键字段类型
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -262,8 +308,12 @@ TINYMCE_DEFAULT_CONFIG = {
     'menubar': False,  # 移除菜单栏避免混乱
     'branding': False,  # 移除"Powered by TinyMCE"
     'promotion': False,  # 移除升级按钮和广告
-    'plugins': 'lists link paste code help wordcount',
-    'toolbar': 'undo redo | bold italic underline | bullist numlist | link | code | help',
+    'plugins': 'lists link image code help wordcount',
+    'toolbar': 'undo redo | bold italic underline | bullist numlist | link image | code | help',
+    'images_upload_url': '/core/tinymce/upload/',  # Custom upload endpoint
+    'automatic_uploads': True,
+    'images_reuse_filename': False,
+    'file_picker_types': 'image',
     # WordPress兼容配置
     'forced_root_block': 'p',
     'force_br_newlines': False,
