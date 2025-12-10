@@ -227,7 +227,9 @@ class NotificationService:
                 'parent_portal_url': f"https://{site_domain}/students/",
                 'contact_email': org_settings.contact_email,
                 'contact_phone': org_settings.contact_phone,
-                'facility_address': enrollment.course.facility.address if enrollment.course.facility else 'TBA'
+                'facility_address': enrollment.course.facility.address if enrollment.course.facility else 'TBA',
+                'recipient_email': recipient_email,
+                'current_year': timezone.now().year,
             }
             
             # Render email templates
