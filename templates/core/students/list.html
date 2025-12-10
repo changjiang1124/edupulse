@@ -587,7 +587,7 @@
                         </div>
                     
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="mb-3">
                                 <label for="notificationType" class="form-label">Notification Type</label>
                                 <select class="form-select" id="notificationType" name="notification_type" required>
@@ -597,19 +597,10 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="messageType" class="form-label">Message Type</label>
-                                <select class="form-select" id="messageType" name="message_type" required>
-                                    <option value="general">General Message</option>
-                                    <option value="course_reminder">Course Reminder</option>
-                                    <option value="attendance_notice">Attendance Notice</option>
-                                    <option value="welcome">Welcome Message</option>
-                                    <option value="enrollment_confirm">Enrollment Confirmation</option>
-                                </select>
-                            </div>
-                        </div>
                     </div>
+                    
+                    <!-- Message Type hidden field with default value -->
+                    <input type="hidden" id="messageType" name="message_type" value="general">
                     
                     <div class="mb-3" id="emailSubjectGroup">
                         <label for="emailSubject" class="form-label">Email Subject</label>

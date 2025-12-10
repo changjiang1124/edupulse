@@ -257,6 +257,7 @@ class BulkNotificationForm(forms.Form):
     message_type = forms.ChoiceField(
         choices=MESSAGE_TYPE_CHOICES,
         label='Message Type',
+        initial='general',  # Default to general message type
         widget=forms.Select(attrs={
             'class': 'form-select'
         }),
