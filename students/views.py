@@ -850,26 +850,15 @@ def bulk_tag_operation(request):
 @csrf_protect
 @require_POST
 def student_tag_management(request, student_id):
-    """Handle individual student tag management (add/remove single tag)"""
+    """Handle individual student tag management (add/remove single tag)
+    
+    Supports both tag_id (for existing tags) and tag_name (for creating new tags).
+    """
     try:
         student = get_object_or_404(Student, id=student_id, is_active=True)
         operation = request.POST.get('operation', '')  # 'add' or 'remove'
         tag_id = request.POST.get('tag_id', '').strip()
-
-        if not operation or not tag_id:
-            return JsonResponse({
-                'success': False,
-                'error': 'Missing required parameters'
-            }, status=400)
-
-        # Parse tag ID
-        try:
-            tag_id = int(tag_id)
-        except ValueError:
-            return JsonResponse({
-                'success': False,
-                'error': 'Invalid tag ID format'
-            }, status=400)
+        tag_name = request.POST.get('tag_name', '').strip()
 
         # Validate operation
         if operation not in ['add', 'remove']:
@@ -878,8 +867,48 @@ def student_tag_management(request, student_id):
                 'error': 'Invalid operation. Must be "add" or "remove"'
             }, status=400)
 
-        # Get tag
-        tag = get_object_or_404(StudentTag, id=tag_id, is_active=True)
+        # Must have either tag_id or tag_name
+        if not tag_id and not tag_name:
+            return JsonResponse({
+                'success': False,
+                'error': 'Missing required parameters: tag_id or tag_name'
+            }, status=400)
+
+        # Get or create tag
+        tag = None
+        created = False
+
+        if tag_id:
+            # Get existing tag by ID
+            try:
+                tag_id_int = int(tag_id)
+                tag = get_object_or_404(StudentTag, id=tag_id_int, is_active=True)
+            except ValueError:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid tag ID format'
+                }, status=400)
+        elif tag_name:
+            if operation == 'add':
+                # For add operation, create tag if it doesn't exist
+                tag, created = StudentTag.get_or_create_by_name(tag_name)
+                if not tag:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Failed to create tag. Please check the tag name format.'
+                    }, status=400)
+            else:
+                # For remove operation, only use existing tags
+                try:
+                    tag = StudentTag.objects.get(
+                        name=tag_name.lower().strip(),
+                        is_active=True
+                    )
+                except StudentTag.DoesNotExist:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'Tag "{tag_name}" does not exist'
+                    }, status=404)
 
         # Perform operation
         if operation == 'add':
@@ -889,7 +918,10 @@ def student_tag_management(request, student_id):
                     'error': f'Student already has tag "{tag.name}"'
                 })
             student.tags.add(tag)
-            message = f'Tag "{tag.name}" added successfully'
+            if created:
+                message = f'Tag "{tag.name}" created and added successfully'
+            else:
+                message = f'Tag "{tag.name}" added successfully'
         else:  # remove
             if not student.tags.filter(id=tag.id).exists():
                 return JsonResponse({
@@ -916,6 +948,7 @@ def student_tag_management(request, student_id):
             'success': True,
             'message': message,
             'operation': operation,
+            'created': created,
             'tag': {
                 'id': tag.id,
                 'name': tag.name,
