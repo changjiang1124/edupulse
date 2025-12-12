@@ -1,0 +1,474 @@
+{% load static %}
+<!-- Unified Send Notification Modal -->
+<div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="notificationModalLabel">Send Notification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" id="notificationForm">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <input type="hidden" name="student_ids" id="notificationStudentIds">
+                    <input type="hidden" name="send_to" value="selected">
+
+                    <!-- Progress Display Area (initially hidden) -->
+                    <div id="notificationProgressArea" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-paper-plane"></i>
+                            <strong>Sending notifications...</strong>
+                        </div>
+                        <div class="progress mb-3">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                 id="notificationProgressBar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center">
+                            <small id="notificationProgressText">Preparing to send notifications...</small>
+                        </div>
+                        <div id="notificationProgressStats" class="mt-2" style="display: none;">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <small class="text-success">Sent: <span id="notificationProgressSent">0</span></small>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-danger">Failed: <span id="notificationProgressFailed">0</span></small>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-info">Total: <span id="notificationProgressTotal">0</span></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Fields Area -->
+                    <div id="notificationFormFieldsArea">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Recipients:</strong> <span id="notificationRecipientCount">0</span> student(s) selected
+                        </div>
+                    
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="mb-3">
+                                    <label for="notificationType" class="form-label">Notification Type</label>
+                                    <select class="form-select" id="notificationType" name="notification_type" 
+                                            onchange="handleNotificationTypeChange(this.value)" required>
+                                        <option value="email" selected>Email Only</option>
+                                        <option value="sms">SMS Only</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Message Type hidden field with default value -->
+                        <input type="hidden" id="notificationMessageType" name="message_type" value="general">
+                        
+                        <!-- Email Fields -->
+                        <div id="notificationEmailFieldsGroup">
+                            <div class="mb-3">
+                                <label for="notificationEmailSubject" class="form-label">Email Subject</label>
+                                <input type="text" class="form-control" id="notificationEmailSubject" name="subject" 
+                                       placeholder="Enter email subject">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="notificationEmailContent" class="form-label">Email Content</label>
+                                <textarea class="form-control notification-tinymce-editor" id="notificationEmailContent" name="email_content" 
+                                          rows="15"></textarea>
+                                <div class="form-text">Rich HTML content for email with images and formatting</div>
+                            </div>
+                        </div>
+                        
+                        <!-- SMS Fields -->
+                        <div id="notificationSmsFieldsGroup" style="display: none;">
+                            <div class="mb-3">
+                                <label for="notificationSmsContent" class="form-label">SMS Message</label>
+                                <textarea class="form-control" id="notificationSmsContent" name="sms_content" rows="4" 
+                                          maxlength="160" placeholder="Enter SMS message (max 160 characters)"></textarea>
+                                <div class="form-text">
+                                    <span id="notificationSmsCounter">0</span>/160 characters
+                                </div>
+                            </div>
+                        </div>
+
+                    </div> <!-- End of notificationFormFieldsArea -->
+                </div>
+                <div class="modal-footer" id="notificationModalFooter">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="notificationCancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="notificationSendBtn">
+                        <i class="fas fa-paper-plane"></i> Send Notification
+                    </button>
+                    <button type="button" class="btn btn-success" style="display: none;" id="notificationDoneBtn" data-bs-dismiss="modal">
+                        <i class="fas fa-check"></i> Done
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================
+// Unified Notification Modal JavaScript
+// ============================================
+
+let notificationTinyMCEInitialized = false;
+
+// Initialize TinyMCE for the notification modal with image upload support
+function initializeNotificationTinyMCE() {
+    if (notificationTinyMCEInitialized) {
+        return;
+    }
+    
+    if (typeof tinymce !== 'undefined') {
+        tinymce.init({
+            selector: '#notificationEmailContent',
+            plugins: 'lists link image code',
+            toolbar: 'undo redo | bold italic underline | bullist numlist | link uploadimage | code',
+            height: 300,
+            menubar: false,
+            statusbar: false,
+            branding: false,
+            promotion: false,
+            license_key: 'gpl',
+            
+            // Image upload configuration
+            images_upload_url: '/core/tinymce/upload/',
+            automatic_uploads: true,
+            images_reuse_filename: false,
+            file_picker_types: 'image',
+            paste_data_images: true, // Enable paste image support
+            
+            // Handle image uploads (paste, drag, or button click)
+            images_upload_handler: function(blobInfo, progress) {
+                return new Promise(function(resolve, reject) {
+                    const xhr = new XMLHttpRequest();
+                    xhr.withCredentials = false;
+                    xhr.open('POST', '/core/tinymce/upload/');
+                    
+                    const formData = new FormData();
+                    formData.append('file', blobInfo.blob(), blobInfo.filename());
+                    
+                    // Add CSRF token
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+                    if (csrfToken) {
+                        formData.append('csrfmiddlewaretoken', csrfToken.value);
+                    }
+                    
+                    xhr.upload.onprogress = function(e) {
+                        progress(e.loaded / e.total * 100);
+                    };
+                    
+                    xhr.onload = function() {
+                        if (xhr.status === 403) {
+                            reject({ message: 'HTTP Error: ' + xhr.status, remove: true });
+                            return;
+                        }
+                        
+                        if (xhr.status < 200 || xhr.status >= 300) {
+                            reject('HTTP Error: ' + xhr.status);
+                            return;
+                        }
+                        
+                        let json;
+                        try {
+                            json = JSON.parse(xhr.responseText);
+                        } catch (e) {
+                            reject('Invalid JSON: ' + xhr.responseText);
+                            return;
+                        }
+                        
+                        if (!json || typeof json.location != 'string') {
+                            reject('Invalid JSON: ' + xhr.responseText);
+                            return;
+                        }
+                        
+                        resolve(json.location);
+                    };
+                    
+                    xhr.onerror = function() {
+                        reject('Image upload failed due to a network error.');
+                    };
+                    
+                    xhr.send(formData);
+                });
+            },
+            
+            // Content styling
+            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; } img { max-width: 100%; height: auto; }',
+            
+            // Custom setup - add direct upload button
+            setup: function(editor) {
+                // Add custom upload image button that triggers file picker directly
+                editor.ui.registry.addButton('uploadimage', {
+                    text: '',
+                    icon: 'image',
+                    tooltip: 'Upload Image',
+                    onAction: function() {
+                        // Create hidden file input
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/*';
+                        input.style.display = 'none';
+                        
+                        input.onchange = function() {
+                            const file = input.files[0];
+                            if (file) {
+                                // Show upload progress
+                                editor.notificationManager.open({
+                                    text: 'Uploading image...',
+                                    type: 'info',
+                                    timeout: 3000
+                                });
+                                
+                                // Upload the file
+                                const formData = new FormData();
+                                formData.append('file', file);
+                                
+                                // Add CSRF token
+                                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+                                if (csrfToken) {
+                                    formData.append('csrfmiddlewaretoken', csrfToken.value);
+                                }
+                                
+                                fetch('/core/tinymce/upload/', {
+                                    method: 'POST',
+                                    body: formData
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.location) {
+                                        // Insert image into editor
+                                        const imgHtml = '<img src="' + data.location + '" alt="' + file.name + '" style="max-width: 100%; height: auto;" />';
+                                        editor.insertContent(imgHtml);
+                                        
+                                        editor.notificationManager.open({
+                                            text: 'Image uploaded successfully!',
+                                            type: 'success',
+                                            timeout: 2000
+                                        });
+                                    } else {
+                                        throw new Error(data.error || 'Upload failed');
+                                    }
+                                })
+                                .catch(error => {
+                                    editor.notificationManager.open({
+                                        text: 'Upload failed: ' + error.message,
+                                        type: 'error',
+                                        timeout: 5000
+                                    });
+                                });
+                            }
+                        };
+                        
+                        // Trigger file selection
+                        document.body.appendChild(input);
+                        input.click();
+                        document.body.removeChild(input);
+                    }
+                });
+                
+                editor.on('init', function() {
+                    notificationTinyMCEInitialized = true;
+                });
+                
+                editor.on('change', function() {
+                    editor.save();
+                });
+            }
+        });
+    }
+}
+
+// Destroy TinyMCE when modal is hidden
+function destroyNotificationTinyMCE() {
+    if (typeof tinymce !== 'undefined' && tinymce.get('notificationEmailContent')) {
+        tinymce.remove('#notificationEmailContent');
+        notificationTinyMCEInitialized = false;
+    }
+}
+
+// Handle notification type change (Email/SMS toggle)
+function handleNotificationTypeChange(type) {
+    const emailFieldsGroup = document.getElementById('notificationEmailFieldsGroup');
+    const smsFieldsGroup = document.getElementById('notificationSmsFieldsGroup');
+    
+    if (type === 'email') {
+        emailFieldsGroup.style.display = 'block';
+        smsFieldsGroup.style.display = 'none';
+        
+        // Make email fields required
+        document.getElementById('notificationEmailSubject').required = true;
+        document.getElementById('notificationSmsContent').required = false;
+        
+        // Initialize TinyMCE if not already
+        setTimeout(function() {
+            initializeNotificationTinyMCE();
+        }, 100);
+    } else if (type === 'sms') {
+        emailFieldsGroup.style.display = 'none';
+        smsFieldsGroup.style.display = 'block';
+        
+        // Make SMS fields required
+        document.getElementById('notificationEmailSubject').required = false;
+        document.getElementById('notificationSmsContent').required = true;
+    }
+}
+
+// Update SMS character counter
+function updateNotificationSmsCounter() {
+    const smsContent = document.getElementById('notificationSmsContent');
+    const counter = document.getElementById('notificationSmsCounter');
+    if (smsContent && counter) {
+        counter.textContent = smsContent.value.length;
+        
+        if (smsContent.value.length > 160) {
+            counter.parentElement.classList.add('text-danger');
+        } else {
+            counter.parentElement.classList.remove('text-danger');
+        }
+    }
+}
+
+// Open notification modal
+function openNotificationModal(studentIds) {
+    if (!studentIds || studentIds.length === 0) {
+        alert('Please select at least one student.');
+        return;
+    }
+    
+    // Set student IDs
+    document.getElementById('notificationStudentIds').value = Array.isArray(studentIds) ? studentIds.join(',') : studentIds;
+    
+    // Update recipient count
+    const count = Array.isArray(studentIds) ? studentIds.length : studentIds.toString().split(',').length;
+    document.getElementById('notificationRecipientCount').textContent = count;
+    
+    // Reset form
+    resetNotificationForm();
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
+    modal.show();
+}
+
+// Reset notification form
+function resetNotificationForm() {
+    const form = document.getElementById('notificationForm');
+    if (form) {
+        form.reset();
+    }
+    
+    // Reset notification type to email
+    const typeSelect = document.getElementById('notificationType');
+    if (typeSelect) {
+        typeSelect.value = 'email';
+        handleNotificationTypeChange('email');
+    }
+    
+    // Reset progress area
+    showNotificationFormFields();
+    
+    // Clear TinyMCE content
+    if (typeof tinymce !== 'undefined' && tinymce.get('notificationEmailContent')) {
+        tinymce.get('notificationEmailContent').setContent('');
+    }
+    
+    // Clear SMS content
+    const smsContent = document.getElementById('notificationSmsContent');
+    if (smsContent) {
+        smsContent.value = '';
+    }
+    updateNotificationSmsCounter();
+}
+
+// Show/hide form fields and progress
+function showNotificationProgressArea() {
+    document.getElementById('notificationFormFieldsArea').style.display = 'none';
+    document.getElementById('notificationProgressArea').style.display = 'block';
+    document.getElementById('notificationProgressStats').style.display = 'block';
+    document.getElementById('notificationSendBtn').style.display = 'none';
+    document.getElementById('notificationCancelBtn').style.display = 'none';
+}
+
+function showNotificationFormFields() {
+    document.getElementById('notificationFormFieldsArea').style.display = 'block';
+    document.getElementById('notificationProgressArea').style.display = 'none';
+    document.getElementById('notificationProgressStats').style.display = 'none';
+    document.getElementById('notificationSendBtn').style.display = 'inline-block';
+    document.getElementById('notificationCancelBtn').style.display = 'inline-block';
+    document.getElementById('notificationDoneBtn').style.display = 'none';
+}
+
+function showNotificationCompletionState() {
+    document.getElementById('notificationDoneBtn').style.display = 'inline-block';
+    document.getElementById('notificationSendBtn').style.display = 'none';
+    document.getElementById('notificationCancelBtn').style.display = 'none';
+}
+
+// Update progress bar
+function updateNotificationProgressBar(percentage, text) {
+    const progressBar = document.getElementById('notificationProgressBar');
+    progressBar.style.width = percentage + '%';
+    progressBar.setAttribute('aria-valuenow', percentage);
+
+    if (text) {
+        document.getElementById('notificationProgressText').textContent = text;
+    }
+}
+
+// Update progress display
+function updateNotificationProgressDisplay(progressData) {
+    const percentage = progressData.percentage || 0;
+    const processed = progressData.processed_emails || 0;
+    const total = progressData.total_emails || 0;
+    const sent = progressData.sent_emails || 0;
+    const failed = progressData.failed_emails || 0;
+
+    // Update progress bar
+    updateNotificationProgressBar(percentage, `Processing ${processed} of ${total} notifications...`);
+
+    // Update stats
+    document.getElementById('notificationProgressSent').textContent = sent;
+    document.getElementById('notificationProgressFailed').textContent = failed;
+    document.getElementById('notificationProgressTotal').textContent = total;
+
+    // Update status text
+    let statusText = '';
+    if (progressData.status === 'starting') {
+        statusText = 'Starting notification process...';
+    } else if (progressData.status === 'sending') {
+        statusText = `Sending notification ${processed} of ${total}...`;
+        if (progressData.current_batch && progressData.total_batches) {
+            statusText += ` (Batch ${progressData.current_batch}/${progressData.total_batches})`;
+        }
+    } else if (progressData.status === 'completed') {
+        statusText = `Completed! Sent ${sent} notifications, ${failed} failed.`;
+    }
+
+    document.getElementById('notificationProgressText').textContent = statusText;
+}
+
+// Event listeners for SMS counter
+document.addEventListener('DOMContentLoaded', function() {
+    const smsContent = document.getElementById('notificationSmsContent');
+    if (smsContent) {
+        smsContent.addEventListener('input', updateNotificationSmsCounter);
+    }
+    
+    // Initialize TinyMCE when modal is shown
+    const notificationModal = document.getElementById('notificationModal');
+    if (notificationModal) {
+        notificationModal.addEventListener('shown.bs.modal', function() {
+            initializeNotificationTinyMCE();
+        });
+        
+        notificationModal.addEventListener('hidden.bs.modal', function() {
+            // Clean up when modal is hidden
+            destroyNotificationTinyMCE();
+            showNotificationFormFields();
+        });
+    }
+});
+</script>
