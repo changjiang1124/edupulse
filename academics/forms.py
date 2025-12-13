@@ -184,15 +184,19 @@ class CourseForm(forms.ModelForm):
         
         # Configure classroom field for dynamic filtering
         from facilities.models import Classroom
-        self.fields['classroom'].queryset = Classroom.objects.filter(is_active=True).select_related('facility')
-        self.fields['classroom'].empty_label = "Select facility first..."
         
-        # If there's an existing facility, filter classrooms accordingly
+        # For existing courses with a facility, show classrooms from that facility
         if self.instance and self.instance.pk and self.instance.facility:
-            self.fields['classroom'].queryset = self.fields['classroom'].queryset.filter(
-                facility=self.instance.facility
-            )
+            self.fields['classroom'].queryset = Classroom.objects.filter(
+                facility=self.instance.facility,
+                is_active=True
+            ).select_related('facility')
             self.fields['classroom'].empty_label = "Select classroom..."
+        else:
+            # For new courses or courses without facility, start with empty queryset
+            # JavaScript will dynamically populate this when facility is selected
+            self.fields['classroom'].queryset = Classroom.objects.none()
+            self.fields['classroom'].empty_label = "Select facility first..."
         
     def clean_featured_image(self):
         """Validate featured image file"""
@@ -402,17 +406,22 @@ class CourseUpdateForm(CourseForm):
                     })
                 )
         
-        # Configure classroom field for dynamic filtering (same as parent but after other setup)
+        # Configure classroom field for dynamic filtering
+        # NOTE: This reconfiguration is necessary because CourseUpdateForm may need different logic
         from facilities.models import Classroom
-        self.fields['classroom'].queryset = Classroom.objects.filter(is_active=True).select_related('facility')
-        self.fields['classroom'].empty_label = "Select facility first..."
         
-        # If there's an existing facility, filter classrooms accordingly
+        # For existing courses with a facility, show classrooms from that facility
         if self.instance and self.instance.pk and self.instance.facility:
-            self.fields['classroom'].queryset = self.fields['classroom'].queryset.filter(
-                facility=self.instance.facility
-            )
+            self.fields['classroom'].queryset = Classroom.objects.filter(
+                facility=self.instance.facility,
+                is_active=True
+            ).select_related('facility')
             self.fields['classroom'].empty_label = "Select classroom..."
+        else:
+            # For courses without facility, start with empty queryset
+            # JavaScript will dynamically populate this when facility is selected
+            self.fields['classroom'].queryset = Classroom.objects.none()
+            self.fields['classroom'].empty_label = "Select facility first..."
     
     def clean(self):
         cleaned_data = super().clean()
@@ -477,26 +486,32 @@ class ClassForm(forms.ModelForm):
         
         # Configure classroom field for dynamic filtering
         from facilities.models import Classroom
-        self.fields['classroom'].queryset = Classroom.objects.filter(is_active=True).select_related('facility')
-        self.fields['classroom'].empty_label = "Select facility first..."
         
-        # If there's an existing facility (for edit mode or pre-filled), filter classrooms accordingly
+        # For existing classes with a facility, show classrooms from that facility
         if self.instance.pk and self.instance.facility:
-            self.fields['classroom'].queryset = self.fields['classroom'].queryset.filter(
-                facility=self.instance.facility
-            )
+            self.fields['classroom'].queryset = Classroom.objects.filter(
+                facility=self.instance.facility,
+                is_active=True
+            ).select_related('facility')
             self.fields['classroom'].empty_label = "Select classroom..."
         elif 'facility' in self.initial and self.initial['facility']:
-            # Handle pre-filled facility from get_initial
+            # Handle pre-filled facility from get_initial (e.g., from URL params)
             try:
                 from facilities.models import Facility
                 facility = Facility.objects.get(pk=self.initial['facility'])
-                self.fields['classroom'].queryset = self.fields['classroom'].queryset.filter(
-                    facility=facility
-                )
+                self.fields['classroom'].queryset = Classroom.objects.filter(
+                    facility=facility,
+                    is_active=True
+                ).select_related('facility')
                 self.fields['classroom'].empty_label = "Select classroom..."
             except Facility.DoesNotExist:
-                pass
+                self.fields['classroom'].queryset = Classroom.objects.none()
+                self.fields['classroom'].empty_label = "Select facility first..."
+        else:
+            # For new classes without facility, start with empty queryset
+            # JavaScript will dynamically populate this when facility is selected
+            self.fields['classroom'].queryset = Classroom.objects.none()
+            self.fields['classroom'].empty_label = "Select facility first..."
     
     def clean(self):
         """Validate form data, including single session course restrictions and facility-classroom matching"""

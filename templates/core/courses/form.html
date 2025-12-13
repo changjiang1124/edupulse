@@ -331,33 +331,40 @@
                     <div class="mb-4">
                         <h6 class="text-muted mb-3">Staff and Facility</h6>
                         
+                        <div class="mb-3">
+                            <label for="{{ form.teacher.id_for_label }}" class="form-label">Teacher</label>
+                            {{ form.teacher }}
+                            {% if form.teacher.errors %}
+                                <div class="invalid-feedback d-block">{{ form.teacher.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="{{ form.teacher.id_for_label }}" class="form-label">Teacher</label>
-                                    {{ form.teacher }}
-                                    {% if form.teacher.errors %}
-                                        <div class="invalid-feedback d-block">{{ form.teacher.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.facility.id_for_label }}" class="form-label">Facility</label>
                                     {{ form.facility }}
+                                    <div class="form-text">Select a facility to see available classrooms</div>
                                     {% if form.facility.errors %}
                                         <div class="invalid-feedback d-block">{{ form.facility.errors.0 }}</div>
                                     {% endif %}
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="{{ form.classroom.id_for_label }}" class="form-label">Classroom</label>
-                            {{ form.classroom }}
-                            {% if form.classroom.errors %}
-                                <div class="invalid-feedback d-block">{{ form.classroom.errors.0 }}</div>
-                            {% endif %}
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.classroom.id_for_label }}" class="form-label">
+                                        Classroom
+                                        <span id="classroomLoadingSpinner" class="spinner-border spinner-border-sm ms-2 text-primary" role="status" style="display: none;">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </span>
+                                    </label>
+                                    {{ form.classroom }}
+                                    <div id="classroomHelpText" class="form-text">Classrooms will load when you select a facility</div>
+                                    {% if form.classroom.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.classroom.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -1070,28 +1077,59 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Facility-Classroom cascading logic
-    const facilityField = document.getElementById('{{ form.facility.id_for_label }}');
-    const classroomField = document.getElementById('{{ form.classroom.id_for_label }}');
+    const facilityField = document.getElementById('id_facility');
+    const classroomField = document.getElementById('id_classroom');
+    const loadingSpinner = document.getElementById('classroomLoadingSpinner');
+    const helpText = document.getElementById('classroomHelpText');
+    
+    console.log('Facility-Classroom cascade init:', { facilityField, classroomField, loadingSpinner, helpText });
     
     if (facilityField && classroomField) {
-        facilityField.addEventListener('change', function() {
-            const facilityId = this.value;
+        // Helper to show/hide spinner
+        function showSpinner(show) {
+            if (loadingSpinner) {
+                loadingSpinner.style.display = show ? 'inline-block' : 'none';
+            }
+        }
+        
+        // Helper to update help text
+        function updateHelpText(text) {
+            if (helpText) {
+                helpText.textContent = text;
+            }
+        }
+        
+        // Load classrooms for facility
+        function loadClassroomsForFacility(facilityId) {
+            console.log('Loading classrooms for facility:', facilityId);
             
             if (!facilityId) {
                 // No facility selected - clear classroom options
                 classroomField.innerHTML = '<option value="">Select facility first...</option>';
                 classroomField.disabled = true;
+                updateHelpText('Classrooms will load when you select a facility');
                 return;
             }
             
             // Show loading state
+            showSpinner(true);
             classroomField.innerHTML = '<option value="">Loading classrooms...</option>';
             classroomField.disabled = true;
+            updateHelpText('Loading classrooms...');
             
             // Fetch classrooms for selected facility
-            fetch(`{% url 'facilities:classroom_api' %}?facility_id=${facilityId}`)
-                .then(response => response.json())
+            const apiUrl = `{% url 'facilities:classroom_api' %}?facility_id=${facilityId}`;
+            console.log('Fetching from:', apiUrl);
+            
+            fetch(apiUrl)
+                .then(response => {
+                    console.log('API response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('API response data:', data);
+                    showSpinner(false);
+                    
                     if (data.success) {
                         // Clear existing options
                         classroomField.innerHTML = '<option value="">Select classroom...</option>';
@@ -1107,6 +1145,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Enable field
                         classroomField.disabled = false;
                         
+                        // Update help text based on results
+                        if (data.classrooms.length === 0) {
+                            updateHelpText('No classrooms available for this facility');
+                        } else {
+                            updateHelpText(`${data.classrooms.length} classroom(s) available`);
+                        }
+                        
                         // If we had a pre-selected classroom, try to restore it
                         const initialClassroom = '{{ form.classroom.value|default:"" }}';
                         if (initialClassroom) {
@@ -1114,19 +1159,37 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     } else {
                         classroomField.innerHTML = '<option value="">Error loading classrooms</option>';
+                        updateHelpText('Failed to load classrooms. Please try again.');
                         console.error('Error fetching classrooms:', data.error);
                     }
                 })
                 .catch(error => {
+                    showSpinner(false);
                     classroomField.innerHTML = '<option value="">Error loading classrooms</option>';
+                    updateHelpText('Network error. Please check your connection.');
                     console.error('Network error fetching classrooms:', error);
                 });
+        }
+        
+        // Listen for facility changes
+        facilityField.addEventListener('change', function() {
+            console.log('Facility changed to:', this.value);
+            loadClassroomsForFacility(this.value);
+        });
+        
+        // Also listen for input event (for some browsers/select implementations)
+        facilityField.addEventListener('input', function() {
+            console.log('Facility input:', this.value);
+            loadClassroomsForFacility(this.value);
         });
         
         // Initialize on page load if facility is pre-selected
         if (facilityField.value) {
-            facilityField.dispatchEvent(new Event('change'));
+            console.log('Facility pre-selected, triggering load:', facilityField.value);
+            loadClassroomsForFacility(facilityField.value);
         }
+    } else {
+        console.warn('Cascade fields not found:', { facilityField: !!facilityField, classroomField: !!classroomField });
     }
 });
 </script>
