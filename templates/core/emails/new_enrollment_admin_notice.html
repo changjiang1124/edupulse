@@ -22,85 +22,110 @@
             overflow: hidden;
         }
         .email-header {
-            background-color: #343a40;
-            padding: 24px 40px;
+            background-color: #ffffff;
+            padding: 32px 40px;
+            border-bottom: 1px solid #dee2e6;
             text-align: left;
         }
         .email-header h1 {
             margin: 0;
-            font-size: 22px;
+            font-size: 26px;
             font-weight: 600;
-            color: #ffffff;
+            letter-spacing: -0.02em;
+            color: #212529;
+        }
+        .email-header p {
+            margin: 12px 0 0;
+            font-size: 15px;
+            color: #6c757d;
         }
         .email-body {
-            padding: 32px 40px;
+            padding: 40px;
         }
         .section-title {
             text-transform: uppercase;
-            font-size: 12px;
+            font-size: 13px;
             letter-spacing: 0.08em;
             font-weight: 600;
-            color: #6c757d;
-            margin-bottom: 8px;
+            color: #495057;
+            margin-bottom: 12px;
         }
         .intro-text {
-            font-size: 15px;
+            font-size: 16px;
             margin-bottom: 24px;
         }
         .card {
             border: 1px solid #dee2e6;
             border-radius: 4px;
-            padding: 20px;
-            margin-bottom: 20px;
-            background-color: #f8f9fa;
+            padding: 24px;
+            margin-bottom: 24px;
+            background-color: #ffffff;
         }
         .detail-table {
             width: 100%;
             border-collapse: collapse;
+            margin-top: 8px;
+        }
+        .detail-table tr {
+            border-bottom: 1px solid #f1f3f5;
         }
         .detail-table td {
-            padding: 8px 0;
-            font-size: 14px;
+            padding: 10px 0;
+            font-size: 15px;
         }
         .detail-table td:first-child {
             font-weight: 600;
-            color: #495057;
+            color: #343a40;
             width: 40%;
         }
         .action-btn {
             display: inline-block;
             padding: 12px 24px;
-            background-color: #0d6efd;
-            color: #ffffff;
+            background-color: #000;
+            color: #ffffff!important;
             text-decoration: none;
             border-radius: 4px;
             font-weight: 600;
             font-size: 14px;
             margin-top: 16px;
         }
+        .status-pill {
+            display: inline-block;
+            padding: 6px 14px;
+            border: 1px solid #adb5bd;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 16px;
+        }
         .email-footer {
             text-align: center;
-            padding: 20px;
-            font-size: 12px;
+            padding: 24px;
+            font-size: 13px;
             color: #868e96;
             border-top: 1px solid #dee2e6;
         }
         @media (max-width: 640px) {
             .email-header,
             .email-body {
+                padding: 24px;
+            }
+            .card {
                 padding: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <div style="padding: 24px 16px; background-color: #f8f9fa;">
+    <div style="padding: 32px 16px; background-color: #f8f9fa;">
         <div class="email-wrapper">
             <div class="email-header">
-                <h1>📋 New Enrolment Submitted</h1>
+                <h1>New Enrolment Submitted</h1>
+                <p>A new enrolment requires your attention.</p>
             </div>
             <div class="email-body">
-                <p class="intro-text">A new enrolment has been submitted via the website and requires your attention.</p>
+                <p class="intro-text">A new enrolment has been submitted via the website. Please review the details below.</p>
 
                 <div class="card">
                     <div class="section-title">Enrolment Details</div>
@@ -111,11 +136,11 @@
                         </tr>
                         <tr>
                             <td>Email</td>
-                            <td>{{ student.contact_email|default:"Not provided" }}</td>
+                            <td><a href="mailto:{{ student.contact_email }}" style="color: #0d6efd; text-decoration: none;">{{ student.contact_email|default:"Not provided" }}</a></td>
                         </tr>
                         <tr>
                             <td>Phone</td>
-                            <td>{{ student.contact_phone|default:"Not provided" }}</td>
+                            <td><a href="tel:{{ student.contact_phone }}" style="color: #212529; text-decoration: none;">{{ student.contact_phone|default:"Not provided" }}</a></td>
                         </tr>
                         <tr>
                             <td>Course</td>
@@ -131,11 +156,11 @@
                         </tr>
                         <tr>
                             <td>Reference</td>
-                            <td><code>{{ enrollment.get_reference_id }}</code></td>
+                            <td><code style="background-color: #f8f9fa; padding: 2px 6px; border-radius: 4px; font-family: monospace;">{{ enrollment.get_reference_id }}</code></td>
                         </tr>
                         <tr>
                             <td>Status</td>
-                            <td><span style="color: #f59e0b; font-weight: 600;">Pending</span></td>
+                            <td><span class="status-pill" style="background-color: #fff3cd; color: #856404; border-color: #ffeeba;">Pending</span></td>
                         </tr>
                     </table>
                 </div>
