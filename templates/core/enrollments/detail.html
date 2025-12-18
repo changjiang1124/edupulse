@@ -338,10 +338,15 @@
                             {% endif %}
 
                             {% if enrollment.status == 'pending' %}
-                            <button type="button" class="btn btn-success w-100" onclick="showConfirmationDialog()">
+                            <button type="button" class="btn btn-success w-100 mb-3" onclick="showConfirmationDialog()">
                                 <i class="fas fa-check me-2"></i>Confirm Enrollment
                             </button>
                             {% endif %}
+                            
+                            <!-- Download Invoice -->
+                            <a href="{% url 'enrollment:enrollment_invoice' enrollment.pk %}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-file-invoice me-2"></i>Download Invoice
+                            </a>
                         </div>
                     </div>
 

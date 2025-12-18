@@ -1,0 +1,26 @@
+New Enrolment Submitted
+=======================
+
+A new enrolment has been submitted via the website and requires your attention.
+
+ENROLMENT DETAILS
+-----------------
+Student:      {{ student.get_full_name }}
+Email:        {{ student.contact_email|default:"Not provided" }}
+Phone:        {{ student.contact_phone|default:"Not provided" }}
+Course:       {{ course.name }}
+Course Fee:   ${{ enrollment.course_fee }}
+Submitted:    {{ enrollment.created_at|date:"d M Y, g:i A" }}
+Reference:    {{ enrollment.get_reference_id }}
+Status:       Pending
+
+ACTION REQUIRED
+---------------
+Please review the enrolment, verify payment when received, and update the status accordingly.
+
+View enrolment details:
+{{ enrollment_url }}
+
+---
+This is an automated notification from EduPulse.
+© {{ current_year }} Perth Art School

@@ -155,3 +155,18 @@ def send_enrollment_welcome_email_task(enrollment_id: int):
     if not sent:
         raise RuntimeError(f"Welcome email failed for {enrollment_id}")
     return True
+
+
+def send_new_enrollment_admin_notification_task(enrollment_id: int):
+    """Background job: notify organisation admins about a new enrollment submission."""
+    from enrollment.models import Enrollment
+
+    enrollment = Enrollment.objects.filter(pk=enrollment_id).first()
+    if not enrollment:
+        logger.error("Enrollment %s not found for admin notification task", enrollment_id)
+        raise RuntimeError(f"Enrollment {enrollment_id} not found")
+
+    sent = NotificationService.send_new_enrollment_admin_notification(enrollment)
+    if not sent:
+        raise RuntimeError(f"Admin notification failed for {enrollment_id}")
+    return True

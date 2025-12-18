@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Enrolment Submitted</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            font-family: 'Montserrat', Arial, sans-serif;
+            color: #212529;
+            line-height: 1.6;
+        }
+        .email-wrapper {
+            max-width: 640px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .email-header {
+            background-color: #343a40;
+            padding: 24px 40px;
+            text-align: left;
+        }
+        .email-header h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        .email-body {
+            padding: 32px 40px;
+        }
+        .section-title {
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+        .intro-text {
+            font-size: 15px;
+            margin-bottom: 24px;
+        }
+        .card {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .detail-table td {
+            padding: 8px 0;
+            font-size: 14px;
+        }
+        .detail-table td:first-child {
+            font-weight: 600;
+            color: #495057;
+            width: 40%;
+        }
+        .action-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #0d6efd;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 16px;
+        }
+        .email-footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #868e96;
+            border-top: 1px solid #dee2e6;
+        }
+        @media (max-width: 640px) {
+            .email-header,
+            .email-body {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div style="padding: 24px 16px; background-color: #f8f9fa;">
+        <div class="email-wrapper">
+            <div class="email-header">
+                <h1>📋 New Enrolment Submitted</h1>
+            </div>
+            <div class="email-body">
+                <p class="intro-text">A new enrolment has been submitted via the website and requires your attention.</p>
+
+                <div class="card">
+                    <div class="section-title">Enrolment Details</div>
+                    <table class="detail-table" role="presentation">
+                        <tr>
+                            <td>Student</td>
+                            <td><strong>{{ student.get_full_name }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Email</td>
+                            <td>{{ student.contact_email|default:"Not provided" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Phone</td>
+                            <td>{{ student.contact_phone|default:"Not provided" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Course</td>
+                            <td><strong>{{ course.name }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Course Fee</td>
+                            <td>${{ enrollment.course_fee }}</td>
+                        </tr>
+                        <tr>
+                            <td>Submitted</td>
+                            <td>{{ enrollment.created_at|date:"d M Y, g:i A" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Reference</td>
+                            <td><code>{{ enrollment.get_reference_id }}</code></td>
+                        </tr>
+                        <tr>
+                            <td>Status</td>
+                            <td><span style="color: #f59e0b; font-weight: 600;">Pending</span></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <p style="font-size: 14px; color: #495057;">Please review the enrolment, verify payment when received, and update the status accordingly.</p>
+
+                <a href="{{ enrollment_url }}" class="action-btn">View Enrolment Details →</a>
+            </div>
+            <div class="email-footer">
+                <p style="margin: 4px 0;">This is an automated notification from EduPulse.</p>
+                <p style="margin: 4px 0;">&copy; {{ current_year }} Perth Art School</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -523,3 +523,72 @@ class NotificationService:
                 'confirmation_sent': False,
                 'welcome_sent': False
             }
+
+    @staticmethod
+    def send_new_enrollment_admin_notification(enrollment):
+        """
+        Send notification email to all organisation admin users when a new enrollment is submitted.
+        This helps admins stay informed about incoming enrollments.
+        """
+        try:
+            from accounts.models import Staff
+            from django.contrib.sites.models import Site
+            
+            # Get all organisation admin users with valid email addresses
+            admin_users = Staff.objects.filter(
+                role='admin',
+                is_active=True,
+                email__isnull=False
+            ).exclude(email='')
+            
+            if not admin_users.exists():
+                logger.warning("No admin users found to notify about enrollment %s", enrollment.id)
+                return False
+            
+            # Prepare email context
+            site = Site.objects.get_current()
+            org_settings = OrganisationSettings.get_instance()
+            enrollment_url = f"https://{site.domain}{reverse('enrollment:enrollment_detail', args=[enrollment.id])}"
+            
+            context = {
+                'enrollment': enrollment,
+                'student': enrollment.student,
+                'course': enrollment.course,
+                'enrollment_url': enrollment_url,
+                'current_year': timezone.now().year,
+            }
+            
+            # Render email templates
+            subject = f"New Enrolment Submitted - {enrollment.student.get_full_name()} for {enrollment.course.name}"
+            html_content = render_to_string('core/emails/new_enrollment_admin_notice.html', context)
+            text_content = render_to_string('core/emails/new_enrollment_admin_notice.txt', context)
+            
+            # Create email with all admins as recipients
+            admin_emails = list(admin_users.values_list('email', flat=True))
+            
+            sender_from, sender_reply = NotificationService._get_sender()
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=sender_from,
+                to=admin_emails,
+                reply_to=[sender_reply],
+            )
+            email.attach_alternative(html_content, "text/html")
+            
+            sent = email.send()
+            
+            if sent:
+                logger.info(
+                    "Admin notification email sent to %d admins for enrollment %s",
+                    len(admin_emails), enrollment.id
+                )
+                return True
+            else:
+                logger.error("Failed to send admin notification email for enrollment %s", enrollment.id)
+                return False
+                
+        except Exception as e:
+            logger.error("Error sending admin notification email for enrollment %s: %s", enrollment.id, str(e))
+            return False
+

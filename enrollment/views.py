@@ -18,6 +18,7 @@ from core.services.notification_queue import (
     enqueue_enrollment_pending_email,
     enqueue_enrollment_confirmation_email,
     enqueue_enrollment_welcome_email,
+    enqueue_new_enrollment_admin_notification,
 )
 
 
@@ -844,6 +845,16 @@ class PublicEnrollmentView(TemplateView):
                                 'recipient': student.get_contact_email()
                             }
                         )
+                    
+                    # Notify organisation admins about the new enrollment
+                    try:
+                        enqueue_new_enrollment_admin_notification(enrollment.id)
+                    except Exception as admin_notify_exc:
+                        # Don't fail the enrollment if admin notification fails
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning("Admin notification failed for enrollment %s: %s", enrollment.id, admin_notify_exc)
+                        
                 except Exception as e:
                     messages.warning(request, f'Enrollment created but notification error: {str(e)}')
                 
@@ -1267,3 +1278,28 @@ class ApplyPriceAdjustmentAPIView(LoginRequiredMixin, View):
             return JsonResponse({
                 'error': 'An unexpected error occurred while applying price adjustment.'
             }, status=500)
+
+
+class DownloadEnrollmentInvoiceView(LoginRequiredMixin, View):
+    """Generate and download PDF invoice for an enrollment."""
+    
+    def get(self, request, pk):
+        from django.http import HttpResponse
+        from core.services.invoice_service import EnrollmentInvoiceService
+        
+        enrollment = get_object_or_404(Enrollment, pk=pk)
+        
+        # Generate invoice PDF using the existing service
+        invoice_data = EnrollmentInvoiceService.generate_invoice_pdf(enrollment)
+        
+        if not invoice_data:
+            messages.error(request, 'Failed to generate invoice PDF. Please try again.')
+            return redirect('enrollment:enrollment_detail', pk=pk)
+        
+        # Return PDF as HTTP response with appropriate headers
+        response = HttpResponse(
+            invoice_data['content'],
+            content_type=invoice_data['mimetype']
+        )
+        response['Content-Disposition'] = f'attachment; filename="{invoice_data["filename"]}"'
+        return response

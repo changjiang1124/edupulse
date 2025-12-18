@@ -135,3 +135,26 @@ def _send_confirmation_email_sync(enrollment_id: int) -> bool:
         logger.error("Enrollment %s not found for confirmation email fallback", enrollment_id)
         return False
     return NotificationService.send_enrollment_confirmation(enrollment)
+
+
+def enqueue_new_enrollment_admin_notification(enrollment_id: int) -> Dict:
+    """Queue admin notification email for new enrollment; fall back to synchronous send."""
+    try:
+        queue = _get_queue()
+        job = queue.enqueue('core.tasks.send_new_enrollment_admin_notification_task', enrollment_id=enrollment_id)
+        return {'queued': True, 'job_id': job.id}
+    except Exception as exc:
+        logger.warning("Queueing admin notification failed, sending synchronously: %s", exc)
+        sent = _send_admin_notification_sync(enrollment_id)
+        return {'queued': False, 'sent': sent, 'error': str(exc)}
+
+
+def _send_admin_notification_sync(enrollment_id: int) -> bool:
+    from enrollment.models import Enrollment
+    from core.services.notification_service import NotificationService
+
+    enrollment = Enrollment.objects.filter(pk=enrollment_id).first()
+    if not enrollment:
+        logger.error("Enrollment %s not found for admin notification fallback", enrollment_id)
+        return False
+    return NotificationService.send_new_enrollment_admin_notification(enrollment)

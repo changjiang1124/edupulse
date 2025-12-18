@@ -107,3 +107,30 @@ python manage.py migrate
   - 创建 `test_do_spaces.py` 测试脚本，可用于验证 DO Spaces 配置
   - TinyMCE 图片上传使用 `default_storage`，上传的邮件图片将写入 `media/email_images/` 前缀，并通过 `https://syd1.digitaloceanspaces.com/edupulse/media/...` 直接公开访问
 - 验证: `core.tests.test_tinymce_upload.TinyMCEUploadTests` 通过，手工 curl 访问 DO URL 返回 200，文件上传和读取功能正常工作
+
+
+## 开发环境开启 redis 
+
+你需要使用以下命令启动 RQ worker 来处理邮件队列:
+
+```bash
+python manage.py rqworker notifications default
+```
+这个命令会启动一个 Django-RQ worker,监听 `notifications` 和 `default` 两个队列。
+
+**在开发环境中,你可以这样操作:**
+
+1. **在一个终端窗口中启动开发服务器:**
+```bash
+   source .venv/bin/activate
+   python manage.py runserver
+```
+2. **在另一个终端窗口中启动 RQ worker:**
+```bash
+   source .venv/bin/activate
+   python manage.py rqworker notifications default
+```
+**注意事项:**
+- RQ worker 需要 Redis 服务器正在运行
+- 确保你的 `.env` 文件中有正确的 Redis 配置(REDIS_HOST, REDIS_PORT 等)
+- worker 会处理异步的邮件发送任务,避免阻塞主进程
