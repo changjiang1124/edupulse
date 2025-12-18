@@ -1,3 +1,55 @@
+## Staff编辑页面Bug修复 (2025-12-18) ✅ 已完成
+
+### 问题描述
+用户报告 `/accounts/staff/29/edit/` 页面存在两个问题：
+1. **保存不生效**：修改staff信息后点击保存，数据不更新
+2. **缺少密码修改**：编辑页面没有修改密码的入口
+
+### 根本原因分析
+
+#### Bug 1: 保存不生效
+**原因**：模板使用 `{% if not form.instance.pk %}` 条件包裹了整个 "Account Information" 块，导致编辑模式下 `username` 字段不渲染。但 `StaffForm` 的 `fields` 中包含 `username`，Django 表单验证时因缺少该字段而静默失败。
+
+#### Bug 2: 缺少密码修改
+**原因**：`StaffForm`（用于编辑）不包含密码字段，编辑页面也没有任何修改密码的入口。
+
+### 修复方案
+
+#### 1. 模板修复 ✅
+**文件**: `templates/core/staff/form.html`
+**修改**:
+- 在编辑模式下显示只读的 username 输入框（禁用状态）
+- 添加隐藏字段提交原始 username 值
+- 添加 "Username cannot be changed after creation." 提示文字
+- 添加 "Change Password" 区块，包含新密码和确认密码字段
+
+#### 2. 视图修复 ✅
+**文件**: `accounts/views.py`
+**修改**:
+- `StaffUpdateView` 添加 `get_context_data` 方法，注入 `AdminPasswordChangeForm`
+- `form_valid` 方法处理密码修改逻辑（可选，留空保持原密码）
+- 添加 `form_invalid` 方法传递密码表单错误
+
+### 技术实现
+```python
+# StaffUpdateView 新增功能
+def get_context_data(self, **kwargs):
+    context = super().get_context_data(**kwargs)
+    if self.object:
+        from django.contrib.admin.forms import AdminPasswordChangeForm
+        context['password_form'] = AdminPasswordChangeForm(self.object)
+    return context
+```
+
+### 验证结果
+- ✅ 编辑页面正常显示所有字段
+- ✅ Username 字段显示为只读，带有说明文字
+- ✅ 密码修改区块正常显示
+- ✅ 表单保存功能正常（已通过浏览器测试验证）
+- ✅ 密码修改功能可选（留空保持原密码）
+
+---
+
 ## 课程在线预订默认设置优化 (2025-09-29) ✅ 已完成
 
 ### 实施目标

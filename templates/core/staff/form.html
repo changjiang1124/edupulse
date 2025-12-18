@@ -26,15 +26,20 @@
                     {% csrf_token %}
                     
                     <!-- Account Information -->
-                    {% if not form.instance.pk %}
                     <div class="mb-4">
                         <h6 class="text-muted mb-3">Account Information</h6>
                         
                         <div class="mb-3">
                             <label for="{{ form.username.id_for_label }}" class="form-label">Username *</label>
+                            {% if form.instance.pk %}
+                            <input type="text" class="form-control" value="{{ form.instance.username }}" disabled>
+                            <input type="hidden" name="username" value="{{ form.instance.username }}">
+                            <small class="form-text text-muted">Username cannot be changed after creation.</small>
+                            {% else %}
                             {{ form.username }}
                             {% if form.username.errors %}
                                 <div class="invalid-feedback d-block">{{ form.username.errors.0 }}</div>
+                            {% endif %}
                             {% endif %}
                         </div>
                         
@@ -60,8 +65,34 @@
                             </div>
                         </div>
                         {% endif %}
+                        
+                        {% if password_form %}
+                        <div class="mt-3 pt-3 border-top">
+                            <h6 class="text-muted mb-3">Change Password</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ password_form.new_password1.id_for_label }}" class="form-label">New Password</label>
+                                        {{ password_form.new_password1 }}
+                                        {% if password_form.new_password1.errors %}
+                                            <div class="invalid-feedback d-block">{{ password_form.new_password1.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ password_form.new_password2.id_for_label }}" class="form-label">Confirm New Password</label>
+                                        {{ password_form.new_password2 }}
+                                        {% if password_form.new_password2.errors %}
+                                            <div class="invalid-feedback d-block">{{ password_form.new_password2.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">Leave blank to keep current password.</small>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
                     
                     <!-- Personal Information -->
                     <div class="mb-4">

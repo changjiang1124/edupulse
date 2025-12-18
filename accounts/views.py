@@ -164,12 +164,57 @@ class StaffUpdateView(AdminRequiredMixin, UpdateView):
     form_class = StaffForm
     template_name = 'core/staff/form.html'
     
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Add password change form for editing existing staff
+        if self.object:
+            from django.contrib.auth.forms import SetPasswordForm
+            if self.request.POST and 'new_password1' in self.request.POST:
+                context['password_form'] = SetPasswordForm(self.object, self.request.POST)
+            else:
+                context['password_form'] = SetPasswordForm(self.object)
+            # Add Bootstrap classes to password form fields
+            for field_name, field in context['password_form'].fields.items():
+                field.widget.attrs.update({'class': 'form-control'})
+        return context
+    
     def get_success_url(self):
         return reverse_lazy('accounts:staff_detail', kwargs={'pk': self.object.pk})
     
     def form_valid(self, form):
-        messages.success(self.request, f'Staff member {form.instance.first_name} {form.instance.last_name} updated successfully!')
-        return super().form_valid(form)
+        # Handle password change if provided
+        password_changed = False
+        if self.request.POST.get('new_password1'):
+            from django.contrib.auth.forms import SetPasswordForm
+            password_form = SetPasswordForm(self.object, self.request.POST)
+            
+            if password_form.is_valid():
+                password_form.save()
+                password_changed = True
+            else:
+                # Add password form errors to messages
+                for field, errors in password_form.errors.items():
+                    for error in errors:
+                        messages.error(self.request, f'Password error: {error}')
+                # Re-render with errors
+                return self.form_invalid(form)
+        
+        # Save the staff form
+        response = super().form_valid(form)
+        
+        # Show success message
+        if password_changed:
+            messages.success(self.request, f'Staff member {form.instance.first_name} {form.instance.last_name} updated and password changed successfully!')
+        else:
+            messages.success(self.request, f'Staff member {form.instance.first_name} {form.instance.last_name} updated successfully!')
+        
+        return response
+    
+    def form_invalid(self, form):
+        # Pass the password form with errors to the template
+        context = self.get_context_data(form=form)
+        return self.render_to_response(context)
+
 
 
 class StaffTimesheetExportView(LoginRequiredMixin, View):
