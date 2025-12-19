@@ -1,3 +1,21 @@
+## Custom 404/403/500 Error Pages (2025-12-18) ✅ Completed
+
+### Implementation Goal
+Create designed custom error pages to improve user experience when errors occur.
+
+### Changes
+1.  **Templates**: Created `404.html`, `403.html`, and `500.html` in `templates/` root.
+    -   `404.html` and `403.html` extend `base.html` to maintain navigation and footer.
+    -   `500.html` is standalone to ensure it renders correctly even if detailed context or base template fails.
+2.  **Verification**: Verified via temporary test URLs. All pages render correctly with Bootstrap styling and responsive design.
+
+### Files Created
+- `templates/404.html`
+- `templates/403.html`
+- `templates/500.html`
+
+---
+
 ## Staff编辑页面Bug修复 (2025-12-18) ✅ 已完成
 
 ### 问题描述
