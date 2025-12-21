@@ -59,9 +59,9 @@
     </a>
 </div>
 
-<div class="d-flex justify-content-between align-items-start mb-4">
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-4">
     <div>
-        <h1 class="display-5 fw-bold mb-2">{{ course.name }}</h1>
+        <h1 class="h3 fw-bold mb-2">{{ course.name }}</h1>
         <div class="d-flex flex-wrap gap-2 align-items-center">
             <span class="badge {% if course.status == 'published' %}bg-success{% elif course.status == 'draft' %}bg-secondary{% else %}bg-warning{% endif %} text-white px-3 py-2 fs-6">
                 <i class="fas fa-{% if course.status == 'published' %}check-circle{% elif course.status == 'draft' %}edit{% else %}clock{% endif %} me-1"></i>{{ course.get_status_display }}
@@ -100,7 +100,7 @@
             {% endif %}
         </div>
     </div>
-    <div class="d-flex flex-column flex-sm-row gap-2">
+    <div class="d-flex flex-column flex-sm-row gap-2 flex-shrink-0">
         {% if course.status == 'published' %}
             <button type="button" class="btn btn-info text-white" onclick="copyEnrollmentUrl()" title="Copy Public Enrollment URL">
                 <i class="fas fa-link me-2"></i>Copy Link
