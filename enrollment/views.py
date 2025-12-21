@@ -669,7 +669,32 @@ class PublicEnrollmentView(TemplateView):
         courses = Course.objects.filter(
             status='published', 
             is_online_bookable=True
-        ).order_by('name')
+        )
+        
+        # Sort courses by name first, then by weekday (Monday=0 to Sunday=6)
+        def get_course_sort_key(course):
+            """Generate sort key for courses: primary by name, secondary by weekday."""
+            name = course.name
+            
+            # Determine weekday for sorting
+            if course.repeat_pattern == 'weekly':
+                # Use repeat_weekday if set, otherwise fall back to start_date weekday
+                if course.repeat_weekday is not None:
+                    weekday = course.repeat_weekday
+                elif course.start_date:
+                    weekday = course.start_date.weekday()
+                else:
+                    weekday = 999
+            elif course.repeat_pattern == 'daily' and course.daily_weekdays:
+                # Use the earliest weekday for daily courses
+                weekday = min(course.daily_weekdays)
+            else:
+                # Single session or monthly courses sort after weekly/daily
+                weekday = 999
+            
+            return (name, weekday)
+        
+        courses = sorted(courses, key=get_course_sort_key)
         context['courses'] = courses
         
         # Handle pre-selected course
@@ -696,7 +721,32 @@ class PublicEnrollmentView(TemplateView):
         course_id = self.kwargs.get('course_id') or request.GET.get('course')
         selected_course = None
         
-        courses = Course.objects.filter(status='published', is_online_bookable=True).order_by('name')
+        courses_qs = Course.objects.filter(status='published', is_online_bookable=True)
+        
+        # Sort courses by name first, then by weekday (Monday=0 to Sunday=6)
+        def get_course_sort_key(course):
+            """Generate sort key for courses: primary by name, secondary by weekday."""
+            name = course.name
+            
+            # Determine weekday for sorting
+            if course.repeat_pattern == 'weekly':
+                # Use repeat_weekday if set, otherwise fall back to start_date weekday
+                if course.repeat_weekday is not None:
+                    weekday = course.repeat_weekday
+                elif course.start_date:
+                    weekday = course.start_date.weekday()
+                else:
+                    weekday = 999
+            elif course.repeat_pattern == 'daily' and course.daily_weekdays:
+                # Use the earliest weekday for daily courses
+                weekday = min(course.daily_weekdays)
+            else:
+                # Single session or monthly courses sort after weekly/daily
+                weekday = 999
+            
+            return (name, weekday)
+        
+        courses = sorted(courses_qs, key=get_course_sort_key)
         
         # Handle pre-selected course
         if course_id:
