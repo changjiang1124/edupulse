@@ -106,6 +106,9 @@
             <i class="fas fa-link me-2"></i>Copy Enrol Link
         </button>
         {% endif %}
+        <a href="{% url 'academics:course_duplicate' course.pk %}" class="btn btn-info text-white" onclick="return confirm('Are you sure you want to duplicate this course?')">
+            <i class="fas fa-copy me-2"></i>Duplicate
+        </a>
         <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-primary">
             <i class="fas fa-edit me-2"></i>Edit Course
         </a>

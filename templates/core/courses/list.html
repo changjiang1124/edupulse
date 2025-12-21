@@ -108,6 +108,7 @@
                                         <div class="btn-group btn-group-sm">
                                             <a href="{% url 'academics:course_detail' course.pk %}" class="btn btn-outline-primary">View</a>
                                             <a href="{% url 'academics:course_edit' course.pk %}" class="btn btn-outline-secondary">Edit</a>
+                                            <a href="{% url 'academics:course_duplicate' course.pk %}" class="btn btn-outline-info" title="Duplicate Course" onclick="return confirm('Are you sure you want to duplicate this course?')">Duplicate</a>
                                         </div>
                                     </td>
                                 </tr>

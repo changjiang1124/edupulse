@@ -13,6 +13,35 @@ from .models import Course, Class
 from .forms import CourseForm, CourseUpdateForm, ClassForm, ClassUpdateForm
 
 
+class CourseDuplicateView(LoginRequiredMixin, View):
+    """
+    Duplicate an existing course.
+    Copies the course with 'Draft' status and redirects to edit form.
+    """
+    def post(self, request, pk):
+        original = get_object_or_404(Course, pk=pk)
+        
+        # Create a copy by setting pk to None
+        original.pk = None
+        original.id = None
+        original._state.adding = True
+        
+        # Update fields for the copy BEFORE saving to prevent unique constraint violation
+        original.name = f"{original.name} (Copy)"
+        original.status = 'draft'
+        original.external_id = None
+        original.woocommerce_last_synced_at = None
+        
+        original.save()
+        
+        messages.success(request, f'Course duplicated successfully as "{original.name}". Please review and publish.')
+        return redirect('academics:course_edit', pk=original.pk)
+
+    def get(self, request, pk):
+        # Allow GET request for easier linking, but ideally should be POST
+        return self.post(request, pk)
+
+
 class CourseListView(LoginRequiredMixin, ListView):
     model = Course
     template_name = 'core/courses/list.html'

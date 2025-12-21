@@ -337,8 +337,9 @@ class CourseUpdateForm(CourseForm):
             if self.instance.start_time:
                 self.initial['start_time'] = self.instance.start_time
         
-        if self.instance and self.instance.pk:
-            # Disable fields that shouldn't be changed in edit mode to avoid complications
+        if self.instance and self.instance.pk and self.instance.status != 'draft':
+            # Disable fields that shouldn't be changed in edit mode for published/active courses
+            # to avoid preventing class schedule inconsistencies. Draft courses remain fully editable.
             readonly_fields = ['repeat_pattern', 'course_type', 'start_date', 'end_date', 'daily_weekdays']
             for field_name in readonly_fields:
                 if field_name in self.fields:
