@@ -263,45 +263,6 @@ class Course(models.Model):
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
     
-    def save(self, *args, **kwargs):
-        """Override save to auto-set repeat configuration"""
-        # Handle empty string values from forms
-        if self.repeat_weekday == '':
-            self.repeat_weekday = None
-        if self.repeat_day_of_month == '':
-            self.repeat_day_of_month = None
-            
-        if self.start_date:
-            # Auto-set weekday for weekly courses
-            if self.repeat_pattern == 'weekly' and not self.repeat_weekday:
-                self.repeat_weekday = self.start_date.weekday()
-            
-            # Auto-set day of month for monthly courses
-            if self.repeat_pattern == 'monthly' and not self.repeat_day_of_month:
-                self.repeat_day_of_month = self.start_date.day
-            
-            # Clear repeat configurations for non-applicable patterns
-            if self.repeat_pattern in ['once', 'daily']:
-                self.repeat_weekday = None
-                self.repeat_day_of_month = None
-            elif self.repeat_pattern == 'weekly':
-                self.repeat_day_of_month = None
-                self.daily_weekdays = None
-            elif self.repeat_pattern == 'monthly':
-                self.repeat_weekday = None
-                self.daily_weekdays = None
-
-            # Handle daily_weekdays for daily pattern
-            if self.repeat_pattern == 'daily':
-                # If daily_weekdays is empty, set default to weekdays (Mon-Fri)
-                if not self.daily_weekdays:
-                    self.daily_weekdays = [0, 1, 2, 3, 4]  # Mon-Fri
-            else:
-                # Clear daily_weekdays for non-daily patterns
-                self.daily_weekdays = None
-                
-        super().save(*args, **kwargs)
-    
     @property
     def is_single_session(self):
         """Check if this is a single session course (workshop style)"""
@@ -458,12 +419,48 @@ class Course(models.Model):
                     })
     
     def save(self, *args, **kwargs):
-        """Enhanced save method with automatic status management"""
+        """Enhanced save method with automatic status management and repeat configuration"""
         from django.utils import timezone
+        
+        # Handle empty string values from forms
+        if self.repeat_weekday == '':
+            self.repeat_weekday = None
+        if self.repeat_day_of_month == '':
+            self.repeat_day_of_month = None
         
         # Auto-set end_date to start_date for single sessions
         if self.repeat_pattern == 'once' and not self.end_date:
             self.end_date = self.start_date
+        
+        # Auto-set repeat configuration based on start_date
+        if self.start_date:
+            # Auto-set weekday for weekly courses
+            if self.repeat_pattern == 'weekly' and not self.repeat_weekday:
+                self.repeat_weekday = self.start_date.weekday()
+            
+            # Auto-set day of month for monthly courses
+            if self.repeat_pattern == 'monthly' and not self.repeat_day_of_month:
+                self.repeat_day_of_month = self.start_date.day
+            
+            # Clear repeat configurations for non-applicable patterns
+            if self.repeat_pattern in ['once', 'daily']:
+                self.repeat_weekday = None
+                self.repeat_day_of_month = None
+            elif self.repeat_pattern == 'weekly':
+                self.repeat_day_of_month = None
+                self.daily_weekdays = None
+            elif self.repeat_pattern == 'monthly':
+                self.repeat_weekday = None
+                self.daily_weekdays = None
+
+            # Handle daily_weekdays for daily pattern
+            if self.repeat_pattern == 'daily':
+                # If daily_weekdays is empty, set default to weekdays (Mon-Fri)
+                if not self.daily_weekdays:
+                    self.daily_weekdays = [0, 1, 2, 3, 4]  # Mon-Fri
+            else:
+                # Clear daily_weekdays for non-daily patterns
+                self.daily_weekdays = None
         
         # Automatic status update based on dates
         if self.status == 'published' and hasattr(self, '_skip_auto_status_update'):
