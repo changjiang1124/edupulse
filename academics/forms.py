@@ -239,8 +239,16 @@ class CourseForm(forms.ModelForm):
         return value
     
     def clean(self):
-        """Validate facility-classroom matching and early bird pricing"""
+        """Validate facility-classroom matching, early bird pricing and repeat configuration"""
         cleaned_data = super().clean()
+
+        # Validate repeat configuration
+        repeat_pattern = cleaned_data.get('repeat_pattern')
+        repeat_weekday = cleaned_data.get('repeat_weekday')
+
+        if repeat_pattern == 'weekly' and repeat_weekday is None:
+            self.add_error('repeat_weekday', 'Please select a day of the week for weekly courses.')
+
         facility = cleaned_data.get('facility')
         classroom = cleaned_data.get('classroom')
         price = cleaned_data.get('price')
@@ -337,9 +345,8 @@ class CourseUpdateForm(CourseForm):
             if self.instance.start_time:
                 self.initial['start_time'] = self.instance.start_time
         
+        # Disable schedule-related fields for non-draft courses to prevent class schedule inconsistencies
         if self.instance and self.instance.pk and self.instance.status != 'draft':
-            # Disable fields that shouldn't be changed in edit mode for published/active courses
-            # to avoid preventing class schedule inconsistencies. Draft courses remain fully editable.
             readonly_fields = ['repeat_pattern', 'course_type', 'start_date', 'end_date', 'daily_weekdays']
             for field_name in readonly_fields:
                 if field_name in self.fields:
@@ -353,8 +360,9 @@ class CourseUpdateForm(CourseForm):
                         self.fields[field_name].help_text = "Cannot be changed after course creation"
                     elif field_name == 'daily_weekdays':
                         self.fields[field_name].help_text = "Cannot be changed after course creation to avoid affecting existing classes"
-            
-            # Add individual class selection field for upcoming classes
+        
+        # Add class update options for ALL existing courses (including Draft) that have upcoming classes
+        if self.instance and self.instance.pk:
             from django.utils import timezone
             now = timezone.localtime()
 
