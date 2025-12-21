@@ -72,7 +72,8 @@ in `next-step.md` file, i will keep it updated as the project goes, indicating w
 ## response rule 
 respond me in simplified Chinese by default, while coding and comments in Australian English, including the user interface text.
 
-after you have done changes, update `plans.md` for any changes, or completion, or revision.
+
+包括生成 implementation plan 的时候，也用简体中文。
 
 ## Style 
 make sure it's align with framework of bootstrap, even the colours and radius are not exactly the same, the layout should be consistent. and review if any other places have such issue.
@@ -114,3 +115,11 @@ Nginx
 Gunicorn
 SSL - Let's Encrypt
 url: https://edupulse.perthartschool.com.au/
+
+## Dev Environment 
+macOS
+with venv as environment in .venv folder. so activate it before make any changes.
+
+the account for test: 
+username: admin
+password: Wasd!234

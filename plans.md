@@ -1,3 +1,24 @@
+## Restrict Course Status Changes (2025-12-21) ✅ Completed
+
+### Implementation Goal
+Prevent courses with enrollments from being reverted to Draft status to protect data integrity, and introduce "Archived" status for soft deletion.
+
+### Changes
+1.  **Course Model**:
+    -   Added `Archived` status to `STATUS_CHOICES`.
+    -   Updated `clean()` method to raise `ValidationError` if changing from 'Published' to 'Draft' when enrollments exist.
+    -   Updated `save()` method to automatically set `bookable_state` to 'closed' when status is 'Archived'.
+    -   Overridden `delete()` method to prevent physical deletion if enrollments exist.
+
+### Verification Results
+-   ✅ Verified 'Archived' status option availability.
+-   ✅ Verified validation error when reverting Published course with enrollments to Draft.
+-   ✅ Verified successful archiving of courses.
+-   ✅ Verified automatic closing of bookable state upon archiving.
+-   ✅ Verified prevention of deleting courses with enrollments.
+
+---
+
 ## Custom 404/403/500 Error Pages (2025-12-18) ✅ Completed
 
 ### Implementation Goal

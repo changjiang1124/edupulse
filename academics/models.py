@@ -36,6 +36,7 @@ class Course(models.Model):
         ('draft', 'Draft'),
         ('published', 'Published'),
         ('expired', 'Expired'),
+        ('archived', 'Archived'),
     ]
     
     BOOKABLE_STATE_CHOICES = [
@@ -445,6 +446,16 @@ class Course(models.Model):
                 raise ValidationError({
                     'early_bird_deadline': 'Early bird deadline must be before the course start date.'
                 })
+        
+        # Validate status change restrictions
+        if self.pk:
+            old_instance = Course.objects.get(pk=self.pk)
+            # Prevent Published -> Draft if enrollments exist
+            if old_instance.status == 'published' and self.status == 'draft':
+                if self.enrollments.exists():
+                    raise ValidationError({
+                        'status': 'Cannot revert to Draft status because this course has existing enrollments. Please use "Archived" instead.'
+                    })
     
     def save(self, *args, **kwargs):
         """Enhanced save method with automatic status management"""
@@ -467,8 +478,22 @@ class Course(models.Model):
                 self.status = 'expired'
                 # Log status change for debugging
                 print(f"Auto-expired course: {self.name} (end date: {end_date})")
+                
+        # Auto-close booking when archived
+        if self.status == 'archived':
+            self.bookable_state = 'closed'
         
         super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        """Prevent physical deletion if enrollments exist"""
+        if self.enrollments.exists():
+            from django.core.exceptions import ValidationError
+            raise ValidationError(
+                "Cannot delete this course because it has existing enrollments. "
+                "Please change status to 'Archived' instead to preserve data integrity."
+            )
+        return super().delete(*args, **kwargs)
     
     def _iter_schedule_dates(self):
         """Yield scheduled class dates based on course configuration."""

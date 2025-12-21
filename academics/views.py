@@ -1,4 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.http import HttpResponseRedirect
+from django.core.exceptions import ValidationError
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
@@ -42,6 +44,111 @@ class CourseDuplicateView(LoginRequiredMixin, View):
         return self.post(request, pk)
 
 
+class CourseArchiveView(LoginRequiredMixin, View):
+    """
+    Archive a published course.
+    """
+    def post(self, request, pk):
+        course = get_object_or_404(Course, pk=pk)
+        if course.status != 'published':
+            messages.error(request, 'Only published courses can be archived.')
+        else:
+            course.status = 'archived'
+            course.save()
+            messages.success(request, f'Course "{course.name}" has been archived.')
+            
+        return redirect('academics:course_list')
+
+    def get(self, request, pk):
+        return self.post(request, pk)
+
+
+class CourseRestoreView(LoginRequiredMixin, View):
+    """
+    Restore an archived course to draft status.
+    """
+    def post(self, request, pk):
+        course = get_object_or_404(Course, pk=pk)
+        if course.status != 'archived':
+            messages.error(request, 'Only archived courses can be restored.')
+        else:
+            course.status = 'draft'
+            course.save()
+            messages.success(request, f'Course "{course.name}" has been restored to Draft status.')
+            
+        return redirect('academics:course_list')
+
+    def get(self, request, pk):
+        return self.post(request, pk)
+
+
+class CourseDeleteView(LoginRequiredMixin, DeleteView):
+    """
+    Delete a draft course.
+    """
+    model = Course
+    template_name = 'core/courses/course_confirm_delete.html'
+    success_url = reverse_lazy('academics:course_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Check if course has enrollments and add to context for template warning
+        context['has_enrollments'] = self.object.enrollments.exists()
+        context['enrollment_count'] = self.object.enrollments.count()
+        return context
+    
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        
+        # Pre-check: if course has enrollments, redirect with friendly message
+        if self.object.enrollments.exists():
+            enrollment_count = self.object.enrollments.count()
+            messages.warning(
+                request,
+                f'Cannot delete course "{self.object.name}" because it has {enrollment_count} enrollment(s). '
+                f'Please change the course status to "Archived" instead to preserve data integrity.'
+            )
+            return redirect('academics:course_detail', pk=self.object.pk)
+        
+        # Pre-check: if course is not draft, redirect with friendly message
+        if self.object.status != 'draft':
+            messages.error(
+                request, 
+                f'Only draft courses can be deleted. Please archive published courses instead.'
+            )
+            return redirect('academics:course_detail', pk=self.object.pk)
+        
+        return super().get(request, *args, **kwargs)
+    
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        
+        # Check if course is not draft
+        if self.object.status != 'draft':
+            messages.error(request, 'Only draft courses can be deleted. Please archive published courses instead.')
+            return redirect('academics:course_list')
+        
+        # Check if course has enrollments
+        if self.object.enrollments.exists():
+            enrollment_count = self.object.enrollments.count()
+            messages.warning(
+                request,
+                f'Cannot delete course "{self.object.name}" because it has {enrollment_count} enrollment(s). '
+                f'Please change the course status to "Archived" instead to preserve data integrity.'
+            )
+            return redirect('academics:course_detail', pk=self.object.pk)
+            
+        try:
+            course_name = self.object.name
+            self.object.delete()
+            messages.success(request, f'Course "{course_name}" has been deleted.')
+            return HttpResponseRedirect(self.get_success_url())
+        except ValidationError as e:
+            # Fallback error handling in case model validation raises an error
+            messages.error(request, ", ".join(e.messages))
+            return redirect('academics:course_detail', pk=self.object.pk)
+
+
 class CourseListView(LoginRequiredMixin, ListView):
     model = Course
     template_name = 'core/courses/list.html'
@@ -51,8 +158,9 @@ class CourseListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = Course.objects.all()
         
-        # Filter by status
-        status_filter = self.request.GET.get('status', 'all')
+        # Filter by status (default to published)
+        status_filter = self.request.GET.get('status', 'published')
+        
         if status_filter != 'all':
             queryset = queryset.filter(status=status_filter)
             
@@ -67,8 +175,28 @@ class CourseListView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['current_status'] = self.request.GET.get('status', 'all')
+        current_status = self.request.GET.get('status', 'published')
+        context['current_status'] = current_status
         context['status_choices'] = Course.STATUS_CHOICES
+        
+        # Calculate counts for tabs
+        base_queryset = Course.objects.all()
+        search = self.request.GET.get('search')
+        if search:
+            base_queryset = base_queryset.filter(
+                Q(name__icontains=search) |
+                Q(description__icontains=search) |
+                Q(short_description__icontains=search)
+            )
+            
+        context['counts'] = {
+            'published': base_queryset.filter(status='published').count(),
+            'draft': base_queryset.filter(status='draft').count(),
+            'archived': base_queryset.filter(status='archived').count(),
+            'expired': base_queryset.filter(status='expired').count(),
+            'all': base_queryset.count(),
+        }
+        
         return context
 
 

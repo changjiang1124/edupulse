@@ -11,6 +11,9 @@ urlpatterns = [
     path('courses/<int:pk>/regenerate-classes/', views.CourseRegenerateClassesView.as_view(), name='course_regenerate_classes'),
     path('courses/<int:pk>/duplicate/', views.CourseDuplicateView.as_view(), name='course_duplicate'),
     path('courses/<int:pk>/edit/', views.CourseUpdateView.as_view(), name='course_edit'),
+    path('courses/<int:pk>/delete/', views.CourseDeleteView.as_view(), name='course_delete'),
+    path('courses/<int:pk>/archive/', views.CourseArchiveView.as_view(), name='course_archive'),
+    path('courses/<int:pk>/restore/', views.CourseRestoreView.as_view(), name='course_restore'),
     
     # Class URLs
     path('classes/', views.ClassListView.as_view(), name='class_list'),
