@@ -185,8 +185,25 @@ class CourseForm(forms.ModelForm):
         # Configure classroom field for dynamic filtering
         from facilities.models import Classroom
         
+        if self.is_bound:
+            # Prefer POST data so facility changes validate correctly.
+            facility_id = self.data.get('facility')
+            if facility_id:
+                try:
+                    facility_id = int(facility_id)
+                    self.fields['classroom'].queryset = Classroom.objects.filter(
+                        facility_id=facility_id,
+                        is_active=True
+                    ).select_related('facility')
+                    self.fields['classroom'].empty_label = "Select classroom..."
+                except (ValueError, TypeError):
+                    self.fields['classroom'].queryset = Classroom.objects.none()
+                    self.fields['classroom'].empty_label = "Select facility first..."
+            else:
+                self.fields['classroom'].queryset = Classroom.objects.none()
+                self.fields['classroom'].empty_label = "Select facility first..."
         # For existing courses with a facility, show classrooms from that facility
-        if self.instance and self.instance.pk and self.instance.facility:
+        elif self.instance and self.instance.pk and self.instance.facility:
             self.fields['classroom'].queryset = Classroom.objects.filter(
                 facility=self.instance.facility,
                 is_active=True
@@ -419,8 +436,25 @@ class CourseUpdateForm(CourseForm):
         # NOTE: This reconfiguration is necessary because CourseUpdateForm may need different logic
         from facilities.models import Classroom
         
+        if self.is_bound:
+            # Prefer POST data so facility changes validate correctly.
+            facility_id = self.data.get('facility')
+            if facility_id:
+                try:
+                    facility_id = int(facility_id)
+                    self.fields['classroom'].queryset = Classroom.objects.filter(
+                        facility_id=facility_id,
+                        is_active=True
+                    ).select_related('facility')
+                    self.fields['classroom'].empty_label = "Select classroom..."
+                except (ValueError, TypeError):
+                    self.fields['classroom'].queryset = Classroom.objects.none()
+                    self.fields['classroom'].empty_label = "Select facility first..."
+            else:
+                self.fields['classroom'].queryset = Classroom.objects.none()
+                self.fields['classroom'].empty_label = "Select facility first..."
         # For existing courses with a facility, show classrooms from that facility
-        if self.instance and self.instance.pk and self.instance.facility:
+        elif self.instance and self.instance.pk and self.instance.facility:
             self.fields['classroom'].queryset = Classroom.objects.filter(
                 facility=self.instance.facility,
                 is_active=True
@@ -496,8 +530,25 @@ class ClassForm(forms.ModelForm):
         # Configure classroom field for dynamic filtering
         from facilities.models import Classroom
         
+        if self.is_bound:
+            # Prefer POST data so facility changes validate correctly.
+            facility_id = self.data.get('facility')
+            if facility_id:
+                try:
+                    facility_id = int(facility_id)
+                    self.fields['classroom'].queryset = Classroom.objects.filter(
+                        facility_id=facility_id,
+                        is_active=True
+                    ).select_related('facility')
+                    self.fields['classroom'].empty_label = "Select classroom..."
+                except (ValueError, TypeError):
+                    self.fields['classroom'].queryset = Classroom.objects.none()
+                    self.fields['classroom'].empty_label = "Select facility first..."
+            else:
+                self.fields['classroom'].queryset = Classroom.objects.none()
+                self.fields['classroom'].empty_label = "Select facility first..."
         # For existing classes with a facility, show classrooms from that facility
-        if self.instance.pk and self.instance.facility:
+        elif self.instance.pk and self.instance.facility:
             self.fields['classroom'].queryset = Classroom.objects.filter(
                 facility=self.instance.facility,
                 is_active=True
