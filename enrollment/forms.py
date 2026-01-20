@@ -548,14 +548,18 @@ class PublicEnrollmentForm(forms.Form):
     course_id = forms.ChoiceField(
         label='Course',
         widget=forms.Select(attrs={
-            'class': 'form-select'
+            'class': 'form-select select2-searchable'
         })
     )
     
     def __init__(self, *args, **kwargs):
+        courses = kwargs.pop('courses', None)
         super().__init__(*args, **kwargs)
+        
         # Populate course choices with pricing information
-        courses = Course.objects.filter(status='published').order_by('name')
+        if courses is None:
+            courses = Course.objects.filter(status='published', is_online_bookable=True).order_by('name')
+            
         course_choices = [('', 'Select a course...')]
         
         for course in courses:

@@ -8,6 +8,7 @@ from django.urls import reverse_lazy, reverse
 from django.db.models import Q
 from django.utils import timezone
 from django.http import JsonResponse
+import re
 
 from .models import Enrollment, Attendance
 from .forms import EnrollmentForm, EnrollmentUpdateForm, PublicEnrollmentForm, StaffEnrollmentForm
@@ -651,6 +652,40 @@ class PublicEnrollmentView(TemplateView):
     """Public enrollment page (no login required)"""
     template_name = 'core/enrollments/public_enrollment.html'
     
+    def _get_course_sort_key(self, course):
+        """
+        Generate sort key for courses: Group -> Weekday -> StartTime -> Name.
+        This ensures courses are grouped by their main name (e.g. "13/17 Yrs - Artisan Studio")
+        and then sorted chronologically (Monday to Sunday) within that group.
+        """
+        DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        name = course.name
+        
+        # Default values
+        group = name
+        weekday = 999
+        
+        # Regex to find the first occurrence of a day name
+        # We look for Day names like "Monday", "Tuesday", etc.
+        pattern = r'(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)'
+        match = re.search(pattern, name, re.IGNORECASE)
+        
+        if match:
+            # Extract day
+            day_str = match.group(1).title()
+            try:
+                weekday = DAYS.index(day_str)
+            except ValueError:
+                pass
+            
+            # Extract Group (everything before the day)
+            start_idx = match.start()
+            group_candidate = name[:start_idx].strip()
+            # Remove trailing separators like " - "
+            group = group_candidate.rstrip(' -')
+            
+        return (group, weekday, name)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         try:
@@ -666,41 +701,19 @@ class PublicEnrollmentView(TemplateView):
         selected_course = None
         
         # Only show published courses that allow online bookings
-        courses = Course.objects.filter(
+        courses_qs = Course.objects.filter(
             status='published', 
             is_online_bookable=True
         )
         
-        # Sort courses by name first, then by weekday (Monday=0 to Sunday=6)
-        def get_course_sort_key(course):
-            """Generate sort key for courses: primary by name, secondary by weekday."""
-            name = course.name
-            
-            # Determine weekday for sorting
-            if course.repeat_pattern == 'weekly':
-                # Use repeat_weekday if set, otherwise fall back to start_date weekday
-                if course.repeat_weekday is not None:
-                    weekday = course.repeat_weekday
-                elif course.start_date:
-                    weekday = course.start_date.weekday()
-                else:
-                    weekday = 999
-            elif course.repeat_pattern == 'daily' and course.daily_weekdays:
-                # Use the earliest weekday for daily courses
-                weekday = min(course.daily_weekdays)
-            else:
-                # Single session or monthly courses sort after weekly/daily
-                weekday = 999
-            
-            return (name, weekday)
-        
-        courses = sorted(courses, key=get_course_sort_key)
+        # Sort courses by Group -> Weekday -> Name using the helper method
+        courses = sorted(courses_qs, key=self._get_course_sort_key)
         context['courses'] = courses
         
         # Handle pre-selected course
         if course_id:
             try:
-                selected_course = courses.get(pk=course_id)
+                selected_course = courses_qs.get(pk=course_id)
                 context['selected_course'] = selected_course
             except Course.DoesNotExist:
                 # If course doesn't exist or isn't bookable, don't pre-select any course
@@ -711,47 +724,26 @@ class PublicEnrollmentView(TemplateView):
         if selected_course:
             initial_data['course_id'] = selected_course.pk
             
-        context['form'] = PublicEnrollmentForm(initial=initial_data)
+        context['form'] = PublicEnrollmentForm(initial=initial_data, courses=courses)
         return context
     
     def post(self, request, *args, **kwargs):
-        form = PublicEnrollmentForm(request.POST)
-        
         # Get course_id from URL path parameter or query parameter
         course_id = self.kwargs.get('course_id') or request.GET.get('course')
         selected_course = None
         
         courses_qs = Course.objects.filter(status='published', is_online_bookable=True)
         
-        # Sort courses by name first, then by weekday (Monday=0 to Sunday=6)
-        def get_course_sort_key(course):
-            """Generate sort key for courses: primary by name, secondary by weekday."""
-            name = course.name
-            
-            # Determine weekday for sorting
-            if course.repeat_pattern == 'weekly':
-                # Use repeat_weekday if set, otherwise fall back to start_date weekday
-                if course.repeat_weekday is not None:
-                    weekday = course.repeat_weekday
-                elif course.start_date:
-                    weekday = course.start_date.weekday()
-                else:
-                    weekday = 999
-            elif course.repeat_pattern == 'daily' and course.daily_weekdays:
-                # Use the earliest weekday for daily courses
-                weekday = min(course.daily_weekdays)
-            else:
-                # Single session or monthly courses sort after weekly/daily
-                weekday = 999
-            
-            return (name, weekday)
+        # Sort courses by Group -> Weekday -> Name using the helper method
+        courses = sorted(courses_qs, key=self._get_course_sort_key)
         
-        courses = sorted(courses_qs, key=get_course_sort_key)
+        # Pass sorted courses to form
+        form = PublicEnrollmentForm(request.POST, courses=courses)
         
         # Handle pre-selected course
         if course_id:
             try:
-                selected_course = courses.get(pk=course_id)
+                selected_course = courses_qs.get(pk=course_id)
             except Course.DoesNotExist:
                 # If course doesn't exist or isn't bookable, add error and continue
                 messages.error(request, 'The selected course is not available for online booking.')
