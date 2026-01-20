@@ -134,6 +134,20 @@ class Enrollment(models.Model):
         verbose_name='Original Form Data',
         help_text='Backup of original enrollment form data for audit purposes'
     )
+
+    # Active window for attendance and class participation
+    active_from = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='Active From',
+        help_text='Start datetime for this enrollment to apply to classes'
+    )
+    active_until = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='Active Until',
+        help_text='End datetime (exclusive) for this enrollment to apply to classes'
+    )
     
     created_at = models.DateTimeField(
         auto_now_add=True,

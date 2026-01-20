@@ -65,6 +65,22 @@ class AttendanceAutomationTests(TestCase):
         rec = Attendance.objects.get(student=self.student, class_instance=self.class_active_1)
         self.assertEqual(rec.status, 'absent')
 
+    def test_attendance_respects_active_from(self):
+        effective_at = self.class_active_2.get_class_datetime()
+        Enrollment.objects.create(
+            student=self.student,
+            course=self.course,
+            status='confirmed',
+            source_channel='website',
+            active_from=effective_at
+        )
+
+        a1 = Attendance.objects.filter(student=self.student, class_instance=self.class_active_1).count()
+        a2 = Attendance.objects.filter(student=self.student, class_instance=self.class_active_2).count()
+
+        self.assertEqual(a1, 0)
+        self.assertEqual(a2, 1)
+
     def test_attendance_created_on_new_active_class(self):
         Enrollment.objects.create(
             student=self.student,

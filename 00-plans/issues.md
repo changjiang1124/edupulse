@@ -1,2 +1,5 @@
 - [x] in current enrolment, student should be searchable rather than dropdown? course should be searchable too? as the current selection could have over long list and bad UX, or what's the best practice for this?
-- [] in public enrolment page, sort by monday - sunday arrangement, and could it use search2 as list in enrolment to present course selection?
+- [x] in public enrolment page, sort by monday - sunday arrangement, and could it use search2 as list in enrolment to present course selection?
+- [] should the student in the class detail, not marked as absent by default? should there be a status for unmarked attendance?
+- [] enrolment in student detail page, should it be clickable to go to the enrolment detail page?
+- [] transfer all enrolments (in batch) of a course to another course. 

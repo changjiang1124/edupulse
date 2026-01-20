@@ -123,3 +123,6 @@ with venv as environment in .venv folder. so activate it before make any changes
 the account for test: 
 username: admin
 password: Wasd!234
+
+## Local Server URL
+http://127.0.0.1:20003/

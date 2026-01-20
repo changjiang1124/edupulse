@@ -6,12 +6,13 @@ from django.views.generic import (
 )
 from django.urls import reverse_lazy, reverse
 from django.db.models import Q
+from django.db import transaction
 from django.utils import timezone
 from django.http import JsonResponse
 import re
 
 from .models import Enrollment, Attendance
-from .forms import EnrollmentForm, EnrollmentUpdateForm, PublicEnrollmentForm, StaffEnrollmentForm
+from .forms import EnrollmentForm, EnrollmentUpdateForm, PublicEnrollmentForm, StaffEnrollmentForm, EnrollmentTransferForm
 from students.models import Student
 from academics.models import Course
 from core.models import OrganisationSettings
@@ -21,6 +22,7 @@ from core.services.notification_queue import (
     enqueue_enrollment_welcome_email,
     enqueue_new_enrollment_admin_notification,
 )
+from .services import EnrollmentAttendanceService
 
 
 class AdminRequiredMixin(UserPassesTestMixin):
@@ -1345,3 +1347,140 @@ class DownloadEnrollmentInvoiceView(LoginRequiredMixin, View):
         )
         response['Content-Disposition'] = f'attachment; filename="{invoice_data["filename"]}"'
         return response
+
+
+class EnrollmentTransferView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """View to handle transferring a student from one course to another"""
+    template_name = 'core/enrollments/transfer.html'
+    
+    def test_func(self):
+        # Only allow staff/admin
+        return self.request.user.is_staff
+        
+    def get(self, request, pk):
+        enrollment = get_object_or_404(Enrollment, pk=pk)
+        
+        # Security check: ensure enrollment is active/pending
+        if enrollment.status == 'cancelled':
+             messages.error(request, 'Cannot transfer a cancelled enrollment.')
+             return redirect('enrollment:enrollment_detail', pk=enrollment.pk)
+             
+        form = EnrollmentTransferForm(current_enrollment=enrollment)
+        
+        return render(request, self.template_name, {
+            'form': form,
+            'enrollment': enrollment,
+            'student': enrollment.student,
+            'current_course': enrollment.course
+        })
+        
+    def post(self, request, pk):
+        enrollment = get_object_or_404(Enrollment, pk=pk)
+        form = EnrollmentTransferForm(request.POST, current_enrollment=enrollment)
+        
+        if form.is_valid():
+            target_course = form.cleaned_data['target_course']
+            price_handling = form.cleaned_data['price_handling']
+            send_confirmation = form.cleaned_data['send_confirmation']
+            transfer_effective_at = form.cleaned_data['transfer_effective_at']
+            
+            try:
+                with transaction.atomic():
+                    # 1. Create New Enrollment
+                    new_enrollment = Enrollment(
+                        student=enrollment.student,
+                        course=target_course,
+                        status='confirmed',
+                        registration_status='transferred',
+                        source_channel='staff',
+                        registration_fee=0,
+                        registration_fee_paid=True,
+                        is_new_student=False,
+                        active_from=transfer_effective_at
+                    )
+                    
+                    # Handle Course Fee logic
+                    if price_handling == 'carry_over':
+                        # Use the original enrollment's fee
+                        new_enrollment.course_fee = enrollment.course_fee
+                    else:
+                        # Use new course's price
+                        new_enrollment.course_fee = target_course.price
+                        
+                    # Copy form data
+                    if enrollment.form_data:
+                        new_enrollment.form_data = enrollment.form_data.copy()
+                        new_enrollment.form_data['transferred_from'] = enrollment.id
+                        new_enrollment.form_data['original_course'] = enrollment.course.name
+                    else:
+                        new_enrollment.form_data = {
+                            'transferred_from': enrollment.id,
+                            'original_course': enrollment.course.name
+                        }
+                    new_enrollment.form_data['transfer_effective_at'] = transfer_effective_at.isoformat()
+                        
+                    new_enrollment.save()
+                    
+                    # 2. Update Old Enrollment window and sync attendance before cancelling
+                    enrollment.form_data = enrollment.form_data or {}
+                    enrollment.form_data['transferred_to'] = new_enrollment.id
+                    enrollment.form_data['target_course'] = target_course.name
+                    enrollment.form_data['transfer_effective_at'] = transfer_effective_at.isoformat()
+                    enrollment.active_until = transfer_effective_at
+                    enrollment.save(update_fields=['form_data', 'active_until', 'updated_at'])
+                    EnrollmentAttendanceService.sync_enrollment_attendance(enrollment)
+                    
+                    # 3. Cancel Old Enrollment
+                    enrollment.status = 'cancelled'
+                    enrollment.save(update_fields=['status', 'updated_at'])
+                    
+                    # 4. Log Activities
+                    from students.models import StudentActivity
+                    StudentActivity.create_activity(
+                        student=enrollment.student,
+                        activity_type='enrollment_cancelled',
+                        title=f'Enrollment transferred to {target_course.name}',
+                        description=f'Student transferred to {target_course.name}. Old enrollment cancelled.',
+                        enrollment=enrollment,
+                        course=enrollment.course,
+                        performed_by=request.user,
+                        metadata={
+                            'transfer_target_id': new_enrollment.id,
+                            'transfer_effective_at': transfer_effective_at.isoformat()
+                        }
+                    )
+                    
+                    StudentActivity.create_activity(
+                        student=enrollment.student,
+                        activity_type='enrollment_created',
+                        title=f'Enrollment transferred from {enrollment.course.name}',
+                        description=f'Transfer enrollment created from {enrollment.course.name}.',
+                        enrollment=new_enrollment,
+                        course=target_course,
+                        performed_by=request.user,
+                        metadata={
+                            'transfer_source_id': enrollment.id,
+                            'transfer_effective_at': transfer_effective_at.isoformat()
+                        }
+                    )
+                    
+                    # 5. Send Notification if requested
+                    if send_confirmation:
+                        transaction.on_commit(
+                            lambda enrollment_id=new_enrollment.id: enqueue_enrollment_confirmation_email(enrollment_id)
+                        )
+                    
+                messages.success(request, f'Successfully transferred student to {target_course.name}.')
+                return redirect('enrollment:enrollment_detail', pk=new_enrollment.pk)
+                
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                messages.error(request, f'Error during transfer: {str(e)}')
+                
+        return render(request, self.template_name, {
+            'form': form,
+            'enrollment': enrollment,
+            'student': enrollment.student,
+            'current_course': enrollment.course
+        })

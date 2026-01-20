@@ -11,6 +11,7 @@ urlpatterns = [
     path('enrollments/staff/create/<int:course_id>/', views.StaffEnrollmentCreateView.as_view(), name='staff_enrollment_create_with_course'),
     path('enrollments/<int:pk>/', views.EnrollmentDetailView.as_view(), name='enrollment_detail'),
     path('enrollments/<int:pk>/edit/', views.EnrollmentUpdateView.as_view(), name='enrollment_update'),
+    path('enrollments/<int:pk>/transfer/', views.EnrollmentTransferView.as_view(), name='enrollment_transfer'),
     path('enrollments/<int:pk>/delete/', views.EnrollmentDeleteView.as_view(), name='enrollment_delete'),
     path('enrollments/<int:pk>/send-email/', views.SendEnrollmentEmailView.as_view(), name='send_enrollment_email'),
     path('enrollments/<int:pk>/invoice/', views.DownloadEnrollmentInvoiceView.as_view(), name='enrollment_invoice'),

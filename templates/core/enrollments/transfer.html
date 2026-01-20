@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Transfer Enrollment - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 0.375rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #dee2e6;
+    }
+    .form-section h6 {
+        color: #495057;
+        margin-bottom: 1rem;
+    }
+    .current-info-card {
+        background-color: #e9ecef;
+        border-left: 4px solid #6c757d;
+    }
+</style>
+
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">Transfer Enrollment</h1>
+                    <p class="text-muted mb-0">Transfer {{ enrollment.student.get_full_name }} to another course</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'enrollment:enrollment_detail' enrollment.pk %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Enrollment
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Main Transfer Form -->
+                <div class="col-lg-8">
+                    <form method="post" novalidate id="enrollmentTransferForm">
+                        {% csrf_token %}
+
+                        <!-- Current Enrollment Summary -->
+                        <div class="card mb-4 current-info-card">
+                            <div class="card-body">
+                                <h6 class="card-title text-muted mb-3">Current Enrollment</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Student:</strong> {{ enrollment.student.get_full_name }}</p>
+                                        <p class="mb-1"><strong>Current Course:</strong> {{ current_course.name }}</p>
+                                        <p class="mb-0"><strong>Current Fee:</strong> ${{ enrollment.course_fee }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Status:</strong> <span class="badge bg-{{ enrollment.status }}">{{ enrollment.get_status_display }}</span></p>
+                                        <p class="mb-1"><strong>Created:</strong> {{ enrollment.created_at|date:"M d, Y" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Target Course Selection -->
+                        <div class="form-section">
+                            <h6 class="fw-bold">
+                                <i class="fas fa-exchange-alt me-2"></i>Transfer Details
+                            </h6>
+                            
+                            <div class="mb-4">
+                                <label for="{{ form.target_course.id_for_label }}" class="form-label">
+                                    Select Target Course <span class="text-danger">*</span>
+                                </label>
+                                {{ form.target_course }}
+                                {% if form.target_course.help_text %}
+                                    <div class="form-text">{{ form.target_course.help_text }}</div>
+                                {% endif %}
+                                {% if form.target_course.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.target_course.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Price Handling -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Price Handling</label>
+                                <div class="card p-3 bg-white">
+                                    {% for radio in form.price_handling %}
+                                        <div class="form-check mb-2">
+                                            {{ radio.tag }}
+                                            <label class="form-check-label" for="{{ radio.id_for_label }}">
+                                                {{ radio.choice_label }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="form-text mt-2">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    "Use New Course Price" will set the fee to the target course's current price.
+                                    "Carry Over" will keep the fee at ${{ enrollment.course_fee }}.
+                                </div>
+                            </div>
+
+                            <!-- Transfer Effective Time -->
+                            <div class="mb-4">
+                                <label for="{{ form.transfer_effective_at.id_for_label }}" class="form-label">
+                                    Transfer Effective From <span class="text-danger">*</span>
+                                </label>
+                                {{ form.transfer_effective_at }}
+                                {% if form.transfer_effective_at.help_text %}
+                                    <div class="form-text">{{ form.transfer_effective_at.help_text }}</div>
+                                {% endif %}
+                                <div class="form-text">
+                                    Classes before this time stay with the current course.
+                                </div>
+                                {% if form.transfer_effective_at.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.transfer_effective_at.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Options -->
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    {{ form.force_transfer }}
+                                    <label class="form-check-label" for="{{ form.force_transfer.id_for_label }}">
+                                        {{ form.force_transfer.label }}
+                                    </label>
+                                    <div class="form-text text-warning">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                        Use only if you need to bypass class capacity limits.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    {{ form.send_confirmation }}
+                                    <label class="form-check-label" for="{{ form.send_confirmation.id_for_label }}">
+                                        {{ form.send_confirmation.label }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-exchange-alt me-2"></i>Confirm Transfer
+                            </button>
+                            <a href="{% url 'enrollment:enrollment_detail' enrollment.pk %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+
+                    </form>
+                </div>
+
+                <!-- Info Sidebar -->
+                <div class="col-lg-4">
+                    <div class="card bg-light border-info">
+                        <div class="card-body">
+                            <h5 class="card-title text-info"><i class="fas fa-info-circle me-2"></i>What happens next?</h5>
+                            <hr>
+                            <ul class="list-unstyled mb-0">
+                                <li class="mb-3">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <strong>Old Enrollment</strong> will be cancelled.
+                                </li>
+                                <li class="mb-3">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <strong>New Enrollment</strong> will be created in the selected course.
+                                </li>
+                                <li class="mb-3">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <strong>Student History</strong> will reflect this transfer in the activity log.
+                                </li>
+                                <li class="mb-0">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <strong>Registration Status</strong> will be marked as 'Transferred'.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Initialize Select2
+        $('.select2-searchable').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Select a course...',
+            allowClear: true
+        });
+    });
+</script>
+{% endblock %}

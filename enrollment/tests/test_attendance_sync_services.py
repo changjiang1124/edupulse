@@ -3,7 +3,7 @@ from datetime import date, time, timedelta
 from students.models import Student
 from academics.models import Course, Class
 from enrollment.models import Enrollment, Attendance
-from enrollment.services import AttendanceSyncService
+from enrollment.services import AttendanceSyncService, EnrollmentAttendanceService
 
 
 class AttendanceSyncServiceTests(TestCase):
@@ -51,3 +51,25 @@ class AttendanceSyncServiceTests(TestCase):
         self.assertEqual(result['status'], 'success')
         self.assertEqual(created_active, 1)
         self.assertFalse(exists_inactive)
+
+    def test_enrollment_sync_respects_active_until(self):
+        future_class = Class.objects.create(
+            course=self.course,
+            date=date.today() + timedelta(days=3),
+            start_time=time(hour=9, minute=0),
+            duration_minutes=60,
+            is_active=True
+        )
+        exists_before = Attendance.objects.filter(student=self.student, class_instance=future_class).exists()
+        self.assertTrue(exists_before)
+
+        self.enrollment.active_until = future_class.get_class_datetime()
+        self.enrollment.save(update_fields=['active_until'])
+
+        result = EnrollmentAttendanceService.sync_enrollment_attendance(self.enrollment)
+        exists_after = Attendance.objects.filter(student=self.student, class_instance=future_class).exists()
+        exists_active = Attendance.objects.filter(student=self.student, class_instance=self.class_active).exists()
+
+        self.assertEqual(result['status'], 'success')
+        self.assertTrue(exists_active)
+        self.assertFalse(exists_after)

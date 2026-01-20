@@ -17,6 +17,23 @@ logger = logging.getLogger(__name__)
 
 class EnrollmentAttendanceService:
     """Service for managing attendance automation related to enrollments"""
+
+    @staticmethod
+    def _is_class_within_window(enrollment, class_instance):
+        class_datetime = class_instance.get_class_datetime()
+        active_from = enrollment.active_from
+        active_until = enrollment.active_until
+
+        if active_from and timezone.is_naive(active_from):
+            active_from = timezone.make_aware(active_from, timezone.get_current_timezone())
+        if active_until and timezone.is_naive(active_until):
+            active_until = timezone.make_aware(active_until, timezone.get_current_timezone())
+
+        if active_from and class_datetime < active_from:
+            return False
+        if active_until and class_datetime >= active_until:
+            return False
+        return True
     
     @staticmethod
     def auto_create_attendance_for_enrollment(enrollment):
@@ -38,12 +55,17 @@ class EnrollmentAttendanceService:
         
         # Get all active classes for this course
         active_classes = enrollment.course.classes.filter(is_active=True)
+        eligible_classes = [
+            class_instance
+            for class_instance in active_classes
+            if EnrollmentAttendanceService._is_class_within_window(enrollment, class_instance)
+        ]
         
-        if not active_classes.exists():
+        if not eligible_classes:
             return {
                 'status': 'success',
                 'created_count': 0,
-                'message': 'No active classes found for course'
+                'message': 'No eligible classes found for course'
             }
         
         created_count = 0
@@ -51,7 +73,7 @@ class EnrollmentAttendanceService:
         
         try:
             with transaction.atomic():
-                for class_instance in active_classes:
+                for class_instance in eligible_classes:
                     try:
                         attendance_record, created = Attendance.objects.get_or_create(
                             student=enrollment.student,
@@ -121,6 +143,12 @@ class EnrollmentAttendanceService:
         
         # Get all active classes for this course
         active_classes = enrollment.course.classes.filter(is_active=True)
+        eligible_classes = []
+        eligible_class_ids = []
+        for class_instance in active_classes:
+            if EnrollmentAttendanceService._is_class_within_window(enrollment, class_instance):
+                eligible_classes.append(class_instance)
+                eligible_class_ids.append(class_instance.id)
         
         # Get existing attendance records for this student in this course
         existing_attendance = Attendance.objects.filter(
@@ -133,8 +161,8 @@ class EnrollmentAttendanceService:
         
         try:
             with transaction.atomic():
-                # Create missing attendance records for active classes
-                for class_instance in active_classes:
+                # Create missing attendance records for eligible classes
+                for class_instance in eligible_classes:
                     attendance_record, created = Attendance.objects.get_or_create(
                         student=enrollment.student,
                         class_instance=class_instance,
@@ -146,12 +174,12 @@ class EnrollmentAttendanceService:
                     if created:
                         created_count += 1
                 
-                # Remove attendance records for inactive classes
-                inactive_attendance = existing_attendance.filter(
-                    class_instance__is_active=False
+                # Remove attendance records outside the active window or for inactive classes
+                attendance_to_remove = existing_attendance.exclude(
+                    class_instance_id__in=eligible_class_ids
                 )
-                removed_count = inactive_attendance.count()
-                inactive_attendance.delete()
+                removed_count = attendance_to_remove.count()
+                attendance_to_remove.delete()
             
             logger.info(
                 f"Synced attendance for {enrollment.student.get_full_name()} "
@@ -211,6 +239,8 @@ class ClassAttendanceService:
         try:
             with transaction.atomic():
                 for enrollment in confirmed_enrollments:
+                    if not EnrollmentAttendanceService._is_class_within_window(enrollment, class_instance):
+                        continue
                     try:
                         attendance_record, created = Attendance.objects.get_or_create(
                             student=enrollment.student,
@@ -280,6 +310,11 @@ class ClassAttendanceService:
         
         # Get all confirmed enrollments for this course
         confirmed_enrollments = class_instance.course.enrollments.filter(status='confirmed')
+        eligible_enrollments = [
+            enrollment
+            for enrollment in confirmed_enrollments
+            if EnrollmentAttendanceService._is_class_within_window(enrollment, class_instance)
+        ]
         
         # Get existing attendance records for this class
         existing_attendance = Attendance.objects.filter(class_instance=class_instance)
@@ -289,8 +324,8 @@ class ClassAttendanceService:
         
         try:
             with transaction.atomic():
-                # Create missing attendance records for confirmed enrollments
-                for enrollment in confirmed_enrollments:
+                # Create missing attendance records for eligible enrollments
+                for enrollment in eligible_enrollments:
                     attendance_record, created = Attendance.objects.get_or_create(
                         student=enrollment.student,
                         class_instance=class_instance,
@@ -302,9 +337,9 @@ class ClassAttendanceService:
                     if created:
                         created_count += 1
                 
-                # Remove attendance records for students who are no longer enrolled
-                confirmed_student_ids = list(confirmed_enrollments.values_list('student_id', flat=True))
-                orphaned_attendance = existing_attendance.exclude(student_id__in=confirmed_student_ids)
+                # Remove attendance records for students who are not eligible for this class
+                eligible_student_ids = [enrollment.student_id for enrollment in eligible_enrollments]
+                orphaned_attendance = existing_attendance.exclude(student_id__in=eligible_student_ids)
                 removed_count = orphaned_attendance.count()
                 orphaned_attendance.delete()
             

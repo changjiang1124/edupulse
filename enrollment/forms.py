@@ -1215,3 +1215,121 @@ class StudentSearchForm(forms.Form):
             })
 
         return results
+
+
+class EnrollmentTransferForm(forms.Form):
+    """Form for transferring a student from one course to another"""
+    
+    target_course = forms.ModelChoiceField(
+        queryset=Course.objects.filter(status='published').order_by('name'),
+        label='Transfer to Course',
+        widget=forms.Select(attrs={
+            'class': 'form-select select2-searchable'
+        }),
+        help_text='Select the course to transfer the student to'
+    )
+    
+    PRICE_HANDLING_CHOICES = [
+        ('new_price', 'Use New Course Price'),
+        ('carry_over', 'Carry Over Original Price'),
+    ]
+    
+    price_handling = forms.ChoiceField(
+        choices=PRICE_HANDLING_CHOICES,
+        initial='new_price',
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-check-input'
+        }),
+        label='Price Handling',
+        help_text='How to handle price difference between courses'
+    )
+
+    transfer_effective_at = forms.DateTimeField(
+        label='Transfer Effective From',
+        widget=forms.DateTimeInput(
+            format='%Y-%m-%dT%H:%M',
+            attrs={
+                'class': 'form-control',
+                'type': 'datetime-local'
+            }
+        ),
+        help_text='Attendance will apply to classes on or after this time'
+    )
+    
+    force_transfer = forms.BooleanField(
+        required=False,
+        label='Force Transfer (Override Vacancy)',
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Check to proceed even if the target course is full'
+    )
+    
+    send_confirmation = forms.BooleanField(
+        required=False,
+        initial=True,
+        label='Send Transfer Confirmation',
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Send email notification to student/guardian about the transfer'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        self.current_enrollment = kwargs.pop('current_enrollment', None)
+        super().__init__(*args, **kwargs)
+
+        if not self.initial.get('transfer_effective_at'):
+            self.initial['transfer_effective_at'] = timezone.localtime(timezone.now())
+
+        if self.current_enrollment:
+            # Exclude current course from choices
+            current_course_id = self.current_enrollment.course.id
+            self.fields['target_course'].queryset = Course.objects.filter(
+                status='published'
+            ).exclude(id=current_course_id).order_by('name')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        target_course = cleaned_data.get('target_course')
+        force_transfer = cleaned_data.get('force_transfer')
+        transfer_effective_at = cleaned_data.get('transfer_effective_at')
+
+        if transfer_effective_at and timezone.is_naive(transfer_effective_at):
+            cleaned_data['transfer_effective_at'] = timezone.make_aware(
+                transfer_effective_at,
+                timezone.get_current_timezone()
+            )
+        
+        if target_course:
+            # Check vacancy - only if force_transfer is NOT checked
+            if not force_transfer:
+                existing_count = Enrollment.objects.filter(
+                    course=target_course,
+                    status='confirmed'
+                ).count()
+                
+                if existing_count >= target_course.vacancy:
+                    # We add error to target_course field
+                    self.add_error('target_course', 
+                         ValidationError(
+                            f'Target course {target_course.name} is full ({existing_count}/{target_course.vacancy}). '
+                            f'Please check "Force Transfer" below to override this check.'
+                        )
+                    )
+        
+            # Check if student is already enrolled in target course
+            if self.current_enrollment:
+                student = self.current_enrollment.student
+                is_enrolled = Enrollment.objects.filter(
+                    student=student,
+                    course=target_course,
+                    status__in=['pending', 'confirmed']
+                ).exists()
+                
+                if is_enrolled:
+                    self.add_error('target_course',
+                        f'Student is already enrolled in {target_course.name}.'
+                    )
+        
+        return cleaned_data

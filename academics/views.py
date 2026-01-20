@@ -625,32 +625,65 @@ class ClassDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Get students for this class - combining enrolled students and manually added ones
+            # Get students for this class - combining enrolled students and manually added ones
         try:
             from enrollment.models import Enrollment, Attendance
             
-            # Get enrolled students from course enrollments
-            enrolled_students = []
-            enrollments = Enrollment.objects.filter(
-                course=self.object.course
-            ).exclude(status='cancelled').select_related('student')
-
+            # Get existing attendance records map
             attendance_map = {
                 attendance.student_id: attendance.status
                 for attendance in Attendance.objects.filter(class_instance=self.object)
             }
             
+            # Get ALL course enrollments (including cancelled) to handle history correctly
+            enrollments = Enrollment.objects.filter(
+                course=self.object.course
+            ).select_related('student')
+            
+            enrolled_students = []
+            from django.utils import timezone
+            class_date = self.object.date
+            
             for enrollment in enrollments:
-                attendance_status = attendance_map.get(enrollment.student_id)
+                student_id = enrollment.student_id
+                
+                # Check 1: Always include if they have an attendance record (they were there)
+                has_attendance = student_id in attendance_map
+                
+                if not has_attendance:
+                    # Check 2: Filter out students who joined AFTER this class
+                    # enrollment.created_at is aware datetime
+                    enrollment_date = timezone.localtime(enrollment.created_at).date()
+                    if enrollment_date > class_date:
+                        continue
+                        
+                    # Check 3: Filter out students who cancelled BEFORE this class
+                    if enrollment.status == 'cancelled':
+                        # Use updated_at as proxy for cancellation date
+                        cancellation_date = timezone.localtime(enrollment.updated_at).date()
+                        if cancellation_date < class_date:
+                            continue
+
+                attendance_status = attendance_map.get(student_id)
                 participation_type = 'enrolled' if enrollment.status == 'confirmed' else 'pending'
                 
+                # For cancelled students who attended or are historically valid, show appropriate status
+                status_display = enrollment.get_status_display()
+                if enrollment.status == 'cancelled':
+                    # If they are in this list, they are historically valid or attended
+                    # We might want to visually indicate they are no longer enrolled in the COURSE
+                    pass
+
                 enrolled_students.append({
                     'student': enrollment.student,
                     'participation_type': participation_type,
                     'attendance_status': attendance_status,
                     'enrollment_status': enrollment.status,
-                    'enrollment_status_display': enrollment.get_status_display(),
+                    'enrollment_status_display': status_display,
                 })
+            
+            # Sort students by name
+            enrolled_students.sort(key=lambda x: (x['student'].first_name, x['student'].last_name))
             
             context['class_students'] = enrolled_students
             
