@@ -1,0 +1,2 @@
+- [x] in current enrolment, student should be searchable rather than dropdown? course should be searchable too? as the current selection could have over long list and bad UX, or what's the best practice for this?
+- [] public enrolment page, sort by monday - sunday arrangement. 

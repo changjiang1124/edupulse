@@ -58,7 +58,7 @@ class EnrollmentListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         # Add filter options
         context['students'] = Student.objects.all().order_by('first_name', 'last_name')
-        context['courses'] = Course.objects.filter(status='published').order_by('name')
+        context['courses'] = Course.objects.filter(status__in=['published', 'expired']).order_by('name')
         return context
 
 

@@ -14,13 +14,13 @@ class EnrollmentForm(forms.ModelForm):
         fields = ['student', 'course', 'class_instance', 'status', 'source_channel']
         widgets = {
             'student': forms.Select(attrs={
-                'class': 'form-select'
+                'class': 'form-select select2-searchable'
             }),
             'course': forms.Select(attrs={
-                'class': 'form-select'
+                'class': 'form-select select2-searchable'
             }),
             'class_instance': forms.Select(attrs={
-                'class': 'form-select'
+                'class': 'form-select select2-searchable'
             }),
             'status': forms.Select(attrs={
                 'class': 'form-select'
@@ -171,6 +171,15 @@ class EnrollmentUpdateForm(forms.ModelForm):
         help_text='Primary email for communications (student or guardian based on age)'
     )
 
+    course = forms.ModelChoiceField(
+        queryset=Course.objects.filter(status='published').order_by('name'),
+        required=False,
+        label='Course',
+        widget=forms.Select(attrs={
+            'class': 'form-select select2-searchable',
+            'placeholder': 'Select Course'
+        })
+    )
     student_phone = forms.CharField(
         required=False,
         max_length=20,
@@ -238,13 +247,13 @@ class EnrollmentUpdateForm(forms.ModelForm):
         fields = ['student', 'course', 'class_instance', 'status', 'registration_status', 'source_channel']
         widgets = {
             'student': forms.Select(attrs={
-                'class': 'form-select'
+                'class': 'form-select select2-searchable'
             }),
             'course': forms.Select(attrs={
-                'class': 'form-select'
+                'class': 'form-select select2-searchable'
             }),
             'class_instance': forms.Select(attrs={
-                'class': 'form-select'
+                'class': 'form-select select2-searchable'
             }),
             'status': forms.Select(attrs={
                 'class': 'form-select'

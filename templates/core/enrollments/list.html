@@ -3,6 +3,18 @@
 
 {% block title %}Enrollments - {{ block.super }}{% endblock %}
 
+{% block extra_css %}
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    
+    <style>
+        .select2-container--bootstrap-5 .select2-selection {
+            min-height: 38px;
+        }
+    </style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-4">
     <div class="row">
@@ -211,4 +223,25 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Initialize Select2 on filter dropdowns
+        $('select[name="student"], select[name="course"]').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Search...',
+            allowClear: true,
+            language: {
+                noResults: function() {
+                    return "No matches found";
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

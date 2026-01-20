@@ -55,6 +55,10 @@
     max-width: 90%;
 }
 </style>
+
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 {% endblock %}
 
 {% block content %}
@@ -299,6 +303,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('id_student_search');
@@ -531,6 +537,15 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 
     // Note: Student creation now handled in separate window via students:student_add URL
+
+    // Initialize Select2
+    $('.select2-searchable').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search...',
+        allowClear: true
+    });
 });
 </script>
+
 {% endblock %}
