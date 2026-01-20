@@ -721,7 +721,7 @@ class BulkAttendanceForm(forms.Form):
                 
                 # Student attendance status field
                 self.fields[field_name] = forms.ChoiceField(
-                    choices=[('', 'Not Set')] + Attendance.STATUS_CHOICES,
+                    choices=[('', 'No change')] + Attendance.STATUS_CHOICES,
                     required=False,
                     label=student.get_full_name(),
                     widget=forms.Select(attrs={

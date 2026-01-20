@@ -79,7 +79,7 @@ class EnrollmentAttendanceService:
                             student=enrollment.student,
                             class_instance=class_instance,
                             defaults={
-                                'status': 'absent',  # Default status
+                                'status': 'unmarked',  # Default status
                                 'attendance_time': class_instance.get_class_datetime()
                             }
                         )
@@ -167,7 +167,7 @@ class EnrollmentAttendanceService:
                         student=enrollment.student,
                         class_instance=class_instance,
                         defaults={
-                            'status': 'absent',
+                            'status': 'unmarked',
                             'attendance_time': class_instance.get_class_datetime()
                         }
                     )
@@ -246,7 +246,7 @@ class ClassAttendanceService:
                             student=enrollment.student,
                             class_instance=class_instance,
                             defaults={
-                                'status': 'absent',  # Default status
+                                'status': 'unmarked',  # Default status
                                 'attendance_time': class_instance.get_class_datetime()
                             }
                         )
@@ -330,7 +330,7 @@ class ClassAttendanceService:
                         student=enrollment.student,
                         class_instance=class_instance,
                         defaults={
-                            'status': 'absent',
+                            'status': 'unmarked',
                             'attendance_time': class_instance.get_class_datetime()
                         }
                     )

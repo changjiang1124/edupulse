@@ -253,6 +253,7 @@ class Attendance(models.Model):
         ('absent', 'Absent'),
         ('late', 'Late'),
         ('early_leave', 'Early Leave'),
+        ('unmarked', 'Unmarked'),
     ]
     
     student = models.ForeignKey(
@@ -270,7 +271,7 @@ class Attendance(models.Model):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='present',
+        default='unmarked',
         verbose_name='Attendance Status'
     )
     attendance_time = models.DateTimeField(

@@ -63,7 +63,7 @@ class AttendanceAutomationTests(TestCase):
         self.assertEqual(a3, 0)
 
         rec = Attendance.objects.get(student=self.student, class_instance=self.class_active_1)
-        self.assertEqual(rec.status, 'absent')
+        self.assertEqual(rec.status, 'unmarked')
 
     def test_attendance_respects_active_from(self):
         effective_at = self.class_active_2.get_class_datetime()

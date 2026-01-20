@@ -878,12 +878,12 @@ def class_add_students(request, pk):
                 enrollment.save()
 
                 
-                # Create attendance record with pending status
+                # Create attendance record with unmarked status
                 Attendance.objects.get_or_create(
                     student=student,
                     class_instance=class_instance,
                     defaults={
-                        'status': 'pending',
+                        'status': 'unmarked',
                         'attendance_time': class_instance.start_time
                     }
                 )

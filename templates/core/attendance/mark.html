@@ -78,6 +78,10 @@
     background-color: #ffeaa7;
     color: #6c5ce7;
 }
+.status-unmarked {
+    background-color: #e5e7eb;
+    color: #374151;
+}
 
 .bulk-actions {
     background: white;
@@ -211,6 +215,7 @@
                         </button>
                     </div>
                 </div>
+                <p class="text-muted small mb-3">Leave "No change" to keep the current status.</p>
 
                 <!-- Students Attendance List -->
                 <div class="attendance-table">
@@ -403,7 +408,7 @@ function initializeFormValidation() {
     
     form.addEventListener('submit', function(e) {
         const hasAnyAttendance = Array.from(document.querySelectorAll('.student-status'))
-            .some(select => select.value);
+            .some(select => select.value && select.value !== 'unmarked');
         
         if (!hasAnyAttendance) {
             e.preventDefault();
@@ -420,7 +425,7 @@ document.addEventListener('change', function(e) {
         const status = e.target.value;
         
         // Remove existing status classes
-        studentRow.classList.remove('status-present', 'status-absent', 'status-late', 'status-early_leave');
+        studentRow.classList.remove('status-present', 'status-absent', 'status-late', 'status-early_leave', 'status-unmarked');
         
         // Add new status class
         if (status) {
@@ -429,7 +434,7 @@ document.addEventListener('change', function(e) {
         
         // Update time field if using default time
         const timeField = studentRow.querySelector('.student-time');
-        if (timeField && !timeField.value) {
+        if (timeField && !timeField.value && status && status !== 'unmarked') {
             const defaultTime = document.getElementById('{{ form.default_time.id_for_label }}').value;
             timeField.value = defaultTime;
         }

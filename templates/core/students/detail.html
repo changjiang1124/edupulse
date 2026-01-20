@@ -351,7 +351,7 @@
                                     </td>
                                     <td>{{ attendance.attendance_time|date:"d/m/Y g:i A" }}</td>
                                     <td>
-                                        <span class="badge {% if attendance.status == 'present' %}bg-success{% elif attendance.status == 'late' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        <span class="badge {% if attendance.status == 'present' %}bg-success{% elif attendance.status == 'late' %}bg-warning{% elif attendance.status == 'unmarked' %}bg-secondary{% else %}bg-danger{% endif %}">
                                             {{ attendance.get_status_display }}
                                         </span>
                                     </td>
