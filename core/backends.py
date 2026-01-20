@@ -138,17 +138,33 @@ class DynamicEmailBackend(EmailBackend):
         try:
             from core.models import EmailLog
             
-            # Determine recipient type
-            recipient_type = 'unknown'
-            recipient_email = message.to[0] if message.to else 'unknown'
-            
-            # Try to identify recipient type based on email patterns
-            if any(email.endswith('@perthartschool.com.au') for email in message.to):
-                recipient_type = 'staff'
-            elif 'enrollment' in message.subject.lower() or 'enrolment' in message.subject.lower():
-                recipient_type = 'student'
-            elif 'guardian' in message.body.lower() or 'parent' in message.body.lower():
-                recipient_type = 'guardian'
+            # Iterate through all recipients to create individual logs
+            if not message.to:
+                # Log even if no recipient (edge case)
+                self._create_single_log(message, 'unknown', 'unknown', status, config, error_message)
+                return
+
+            for recipient_email in message.to:
+                # Determine recipient type for this specific email
+                recipient_type = 'unknown'
+                
+                # Try to identify recipient type based on specific email
+                if recipient_email.endswith('@perthartschool.com.au') or 'admin' in recipient_email:
+                    recipient_type = 'staff'
+                elif 'enrollment' in message.subject.lower() or 'enrolment' in message.subject.lower():
+                    recipient_type = 'student'
+                elif 'guardian' in getattr(message, 'body', '').lower() or 'parent' in getattr(message, 'body', '').lower():
+                    recipient_type = 'guardian'
+                
+                self._create_single_log(message, recipient_email, recipient_type, status, config, error_message)
+        except Exception as e:
+            # Fallback for any top-level errors in logging loop
+            logger.warning(f'Failed to log email activity in loop: {e}')
+
+    def _create_single_log(self, message, recipient_email, recipient_type, status, config, error_message=None):
+        """Helper to create a single log entry"""
+        try:
+            from core.models import EmailLog
             
             # Determine email type based on subject
             email_type = 'general'
@@ -175,7 +191,6 @@ class DynamicEmailBackend(EmailBackend):
                 email_backend=config.get_email_backend_type_display() if config else 'environment',
                 sent_at=timezone.now() if status == 'sent' else None
             )
-            
         except Exception as e:
             # Don't let logging errors break email sending
-            logger.warning(f'Failed to log email activity: {e}')
+            logger.warning(f'Failed to create single email log: {e}')
