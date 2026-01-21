@@ -296,7 +296,9 @@
                                 {% for enrollment in enrollments|slice:":10" %}
                                 <tr>
                                     <td>
-                                        <strong>{{ enrollment.course.name }}</strong>
+                                        <a href="{% url 'enrollment:enrollment_detail' enrollment.pk %}" class="text-decoration-none text-dark">
+                                            <strong>{{ enrollment.course.name }}</strong>
+                                        </a>
                                         <br>
                                         <small class="text-muted">{% load price_tags %}{% price_with_gst_label enrollment.course.price %}</small>
                                     </td>

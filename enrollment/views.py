@@ -1,3 +1,6 @@
+import csv
+import re
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
@@ -8,8 +11,7 @@ from django.urls import reverse_lazy, reverse
 from django.db.models import Q
 from django.db import transaction
 from django.utils import timezone
-from django.http import JsonResponse
-import re
+from django.http import JsonResponse, HttpResponse
 
 from .models import Enrollment, Attendance
 from .forms import EnrollmentForm, EnrollmentUpdateForm, PublicEnrollmentForm, StaffEnrollmentForm, EnrollmentTransferForm
@@ -23,6 +25,7 @@ from core.services.notification_queue import (
     enqueue_new_enrollment_admin_notification,
 )
 from .services import EnrollmentAttendanceService
+
 
 
 class AdminRequiredMixin(UserPassesTestMixin):
@@ -229,6 +232,84 @@ class AttendanceListView(AdminRequiredMixin, ListView):
         ).select_related('course').order_by('date', 'start_time')[:12]
         
         return context
+
+
+class EnrollmentExportView(AdminRequiredMixin, View):
+    """
+    Export enrollments to CSV
+    """
+    def get(self, request, *args, **kwargs):
+        # Create the HttpResponse object with the appropriate CSV header.
+        response = HttpResponse(
+            content_type='text/csv; charset=utf-8',
+            headers={'Content-Disposition': 'attachment; filename="enrollments_export.csv"'},
+        )
+
+        response.write('\ufeff')
+        writer = csv.writer(response)
+        # Write header row
+        writer.writerow([
+            'Enrollment ID', 
+            'Date', 
+            'Student Name', 
+            'Age',
+            'Guardian Name',
+            'Contact Email', 
+            'Contact Phone', 
+            'Course', 
+            'Schedule',
+            'Status', 
+            'Payment Status', 
+            'Total Fee',
+            'Is New Student'
+        ])
+
+        # Filter for published courses as per requirements
+        enrollments = Enrollment.objects.filter(
+            course__status='published'
+        )
+
+        student_id = request.GET.get('student')
+        if student_id:
+            enrollments = enrollments.filter(student_id=student_id)
+
+        course_id = request.GET.get('course')
+        if course_id:
+            enrollments = enrollments.filter(course_id=course_id)
+
+        status = request.GET.get('status')
+        if status:
+            enrollments = enrollments.filter(status=status)
+
+        enrollments = enrollments.select_related('student', 'course').order_by('-created_at')
+
+        for enrollment in enrollments:
+            student = enrollment.student
+            course = enrollment.course
+            
+            # Helper to safely get student attribute
+            student_age = student.get_age() if student.birth_date else 'N/A'
+            
+            # Determine payment status (simplified logic based on model)
+            payment_status = 'Paid' if enrollment.is_fully_paid() else 'Pending'
+            
+            writer.writerow([
+                enrollment.get_reference_id(),
+                enrollment.created_at.strftime('%Y-%m-%d'),
+                student.get_full_name(),
+                student_age,
+                student.guardian_name,
+                student.get_contact_email(),
+                student.get_contact_phone(),
+                course.name,
+                course.schedule_display(),
+                enrollment.get_status_display(),
+                payment_status,
+                enrollment.get_total_fee(),
+                'Yes' if enrollment.is_new_student else 'No'
+            ])
+
+        return response
 
 
 class EnrollmentCreateView(LoginRequiredMixin, CreateView):

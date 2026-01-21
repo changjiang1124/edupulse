@@ -6,6 +6,7 @@ app_name = 'enrollment'
 urlpatterns = [
     # Staff Enrollment Management (require authentication)
     path('enrollments/', views.EnrollmentListView.as_view(), name='enrollment_list'),
+    path('enrollments/export/', views.EnrollmentExportView.as_view(), name='enrollment_export'),
     path('enrollments/create/', views.EnrollmentCreateView.as_view(), name='enrollment_create'),
     path('enrollments/staff/create/', views.StaffEnrollmentCreateView.as_view(), name='staff_enrollment_create'),
     path('enrollments/staff/create/<int:course_id>/', views.StaffEnrollmentCreateView.as_view(), name='staff_enrollment_create_with_course'),
