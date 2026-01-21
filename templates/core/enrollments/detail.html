@@ -134,16 +134,38 @@
                                 <div class="col-sm-9">{{ enrollment.created_at|date:"l, d F Y g:i A" }}</div>
                             </div>
                             <hr>
+                            {% load price_tags %}
                             <div class="row">
-                                <div class="col-sm-3"><strong>Enrollment Price:</strong></div>
+                                <div class="col-sm-3"><strong>Course Fee:</strong></div>
                                 <div class="col-sm-9">
-                                    {% load price_tags %}
-                                    <span class="fs-5 fw-bold text-primary">{% price_with_gst_label enrollment.course_fee %}</span>
+                                    <span class="fw-bold">{% price_with_gst_label enrollment.course_fee %}</span>
                                     <span class="badge {% if enrollment.is_early_bird %}bg-success{% else %}bg-secondary{% endif %} ms-2">
                                         {{ enrollment.is_early_bird|yesno:"Early Bird,Regular" }}
                                     </span>
+                                </div>
+                            </div>
+                            {% if enrollment.registration_fee %}
+                            <hr>
+                            <div class="row">
+                                <div class="col-sm-3"><strong>Registration Fee:</strong></div>
+                                <div class="col-sm-9">
+                                    <span class="fw-bold">{% price_with_gst_label enrollment.registration_fee %}</span>
+                                    <span class="badge {% if enrollment.registration_fee_paid %}bg-success{% else %}bg-warning text-dark{% endif %} ms-2">
+                                        {{ enrollment.registration_fee_paid|yesno:"Paid,Unpaid" }}
+                                    </span>
                                     <div class="small text-muted mt-1">
-                                        This is the amount the student should pay for this enrollment.
+                                        Applies to new students only.
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            <hr>
+                            <div class="row">
+                                <div class="col-sm-3"><strong>Total Fee:</strong></div>
+                                <div class="col-sm-9">
+                                    <span class="fs-5 fw-bold text-primary">{% price_with_gst_label enrollment.get_total_fee %}</span>
+                                    <div class="small text-muted mt-1">
+                                        This is the total amount the student should pay for this enrollment.
                                     </div>
                                 </div>
                             </div>
@@ -472,7 +494,7 @@ function showConfirmationDialog() {
                                         <div class="col-sm-8">{{ enrollment.course.name }}</div>
                                     </div>
                                     <div class="row">
-                                        <div class="col-sm-4"><strong>Enrollment Price:</strong></div>
+                                        <div class="col-sm-4"><strong>Total Fee:</strong></div>
                                         <div class="col-sm-8"><span id="confirmModalPrice"></span></div>
                                     </div>
                                 </div>
@@ -500,7 +522,7 @@ function showConfirmationDialog() {
         // Populate price in modal from enrollment information section
         const priceDisplay = modalEl.querySelector('#confirmModalPrice');
         if (priceDisplay) {
-            priceDisplay.innerHTML = '<span class="fs-5 fw-bold text-primary">{% price_with_gst_label enrollment.course_fee %}</span> <span class="badge {% if enrollment.is_early_bird %}bg-success{% else %}bg-secondary{% endif %} ms-1">{{ enrollment.is_early_bird|yesno:"Early Bird,Regular" }}</span>';
+            priceDisplay.innerHTML = '<span class="fs-5 fw-bold text-primary">{% price_with_gst_label enrollment.get_total_fee %}</span> <span class="badge {% if enrollment.is_early_bird %}bg-success{% else %}bg-secondary{% endif %} ms-1">{{ enrollment.is_early_bird|yesno:"Early Bird,Regular" }}</span>{% if enrollment.registration_fee %}<div class="small text-muted mt-1">Includes registration fee of {% price_with_gst_label enrollment.registration_fee %}.</div>{% endif %}';
         }
         
         const modalInstance = new bootstrap.Modal(modalEl);

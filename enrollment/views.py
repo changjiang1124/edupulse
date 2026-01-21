@@ -721,6 +721,24 @@ class PublicEnrollmentView(TemplateView):
                 # If course doesn't exist or isn't bookable, don't pre-select any course
                 selected_course = None
         
+        # Prepare course fee data for frontend dynamic calculation
+        course_fees_data = {}
+        for course in courses:
+            # Calculate fees
+            applicable_price = course.get_applicable_price()
+            is_early_bird = course.is_early_bird_available()
+            
+            course_fees_data[course.pk] = {
+                'price': float(applicable_price),
+                'registration_fee': float(course.registration_fee or 0),
+                'has_registration_fee': course.has_registration_fee(),
+                'is_early_bird': is_early_bird,
+                'early_bird_savings': float(course.get_early_bird_savings()) if is_early_bird else 0,
+                'price_display': course.get_price_display(show_gst_label=False, show_early_bird_info=False)
+            }
+
+        context['course_fees_data'] = course_fees_data
+        
         # Initialize form with selected course if available
         initial_data = {}
         if selected_course:

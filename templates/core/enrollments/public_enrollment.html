@@ -74,6 +74,9 @@
                                             const courseSelect = document.getElementById('{{ form.course_id.id_for_label }}');
                                             if (courseSelect) {
                                                 courseSelect.value = '{{ selected_course.pk }}';
+                                                // Trigger event to update price
+                                                const event = new Event('change');
+                                                courseSelect.dispatchEvent(event);
                                             }
                                         });
                                     </script>
@@ -94,7 +97,33 @@
                                 </div>
                                 {% endif %}
                             </div>
+
+                            <!-- Fee Summary Section -->
+                            <div id="feeSummary" class="alert alert-light border d-none">
+                                <h6 class="alert-heading fw-bold mb-2">Estimated Fees</h6>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Course Fee:</span>
+                                    <span id="summaryCourseFee">$0.00</span>
+                                </div>
+                                <div id="summaryRegistrationFeeRow" class="d-flex justify-content-between mb-1 d-none">
+                                    <span>Registration Fee (New Students Only):</span>
+                                    <span id="summaryRegistrationFee">$0.00</span>
+                                </div>
+                                <div id="summaryEarlyBirdRow" class="d-flex justify-content-between mb-1 text-success d-none">
+                                    <span>Early Bird Savings (Already Applied):</span>
+                                    <span id="summaryEarlyBirdSavings">-$0.00</span>
+                                </div>
+                                <hr class="my-2">
+                                <div class="d-flex justify-content-between fw-bold">
+                                    <span>Total:</span>
+                                    <span id="summaryTotal">$0.00</span>
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- JSON Data for Fees -->
+                        {{ course_fees_data|json_script:"course-fees-data" }}
+
 
                         <div class="section-separator"></div>
 
@@ -554,6 +583,84 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial check if form has existing data (for form errors/resubmission)
     if (dobField.value) {
         checkAge();
+    }
+
+    // Fee Calculation Logic
+    const courseSelect = document.getElementById('{{ form.course_id.id_for_label }}');
+    const feeSummary = document.getElementById('feeSummary');
+    const summaryCourseFee = document.getElementById('summaryCourseFee');
+    const summaryRegistrationFeeRow = document.getElementById('summaryRegistrationFeeRow');
+    const summaryRegistrationFee = document.getElementById('summaryRegistrationFee');
+    const summaryEarlyBirdRow = document.getElementById('summaryEarlyBirdRow');
+    const summaryEarlyBirdSavings = document.getElementById('summaryEarlyBirdSavings');
+    const summaryTotal = document.getElementById('summaryTotal');
+    
+    // Parse fee data
+    const courseFeesData = JSON.parse(document.getElementById('course-fees-data').textContent);
+
+    function updateFeeSummary() {
+        const courseId = courseSelect.value;
+        const studentStatus = studentStatusField.value; // 'new' or 'returning'
+        
+        if (!courseId) {
+            feeSummary.classList.add('d-none');
+            return;
+        }
+
+        const fees = courseFeesData[courseId];
+        if (!fees) {
+            feeSummary.classList.add('d-none');
+            return;
+        }
+
+        // Determine if registration fee applies
+        // Only applies if status is explicitly 'new' AND course has a registration fee
+        const appliesRegistrationFee = (studentStatus === 'new') && fees.has_registration_fee;
+        
+        // Update Course Fee Display
+        let courseFee = fees.price;
+        summaryCourseFee.textContent = `$${courseFee.toFixed(2)}`;
+
+        // Update Registration Fee Display
+        if (appliesRegistrationFee) {
+            summaryRegistrationFeeRow.classList.remove('d-none');
+            summaryRegistrationFee.textContent = `$${fees.registration_fee.toFixed(2)}`;
+        } else {
+            summaryRegistrationFeeRow.classList.add('d-none');
+        }
+
+        // Update Early Bird Display
+        if (fees.is_early_bird) {
+            summaryEarlyBirdRow.classList.remove('d-none');
+            summaryEarlyBirdSavings.textContent = `-$${fees.early_bird_savings.toFixed(2)}`;
+        } else {
+            summaryEarlyBirdRow.classList.add('d-none');
+        }
+
+        // Calculate Total
+        let total = courseFee;
+        if (appliesRegistrationFee) {
+            total += fees.registration_fee;
+        }
+        
+        summaryTotal.textContent = `$${total.toFixed(2)}`;
+        feeSummary.classList.remove('d-none');
+    }
+
+    // Listeners for fee calculation
+    if (courseSelect) {
+        $(courseSelect).on('change', updateFeeSummary); // Use jQuery change for select2 support
+        courseSelect.addEventListener('change', updateFeeSummary); // Standard event just in case
+    }
+    
+    if (studentStatusField) {
+        studentStatusField.addEventListener('change', updateFeeSummary);
+    }
+    
+    // Initial calculation if values present
+    if (courseSelect && courseSelect.value) {
+        // Add small delay to ensure select2 might be ready or data loaded
+        setTimeout(updateFeeSummary, 100);
     }
     
 });
