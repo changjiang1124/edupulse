@@ -114,7 +114,7 @@
                 <p class="mb-0">View your clock in/out records and attendance statistics</p>
             </div>
             <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
-                <a href="{% url 'core:teacher_clock' %}" class="btn btn-light btn-lg">
+                <a href="{% url 'clock' %}" class="btn btn-light btn-lg">
                     <i class="fas fa-clock me-2"></i>Clock In/Out
                 </a>
             </div>
@@ -264,7 +264,7 @@
                         <i class="fas fa-clock fa-4x mb-3"></i>
                         <h4>No Attendance Records</h4>
                         <p class="text-muted mb-4">You haven't clocked in or out yet.</p>
-                        <a href="{% url 'core:teacher_clock' %}" class="btn btn-primary btn-lg">
+                        <a href="{% url 'clock' %}" class="btn btn-primary btn-lg">
                             <i class="fas fa-clock me-2"></i>Start Clocking
                         </a>
                     </div>
@@ -323,7 +323,7 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{% url 'core:teacher_clock' %}" class="btn btn-primary">
+                        <a href="{% url 'clock' %}" class="btn btn-primary">
                             <i class="fas fa-clock me-2"></i>Clock In/Out
                         </a>
                         <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary">

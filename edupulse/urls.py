@@ -16,6 +16,9 @@ urlpatterns = [
     path('', core_views.DashboardView.as_view(), name='dashboard'),
     path('dashboard/', core_views.DashboardView.as_view(), name='dashboard_direct'),
     
+    # Clock
+    path('clock/', core_views.TeacherClockView.as_view(), name='clock'),
+    
     # Core application (Dashboard, Clock, etc.)
     path('core/', include('core.urls')),
     

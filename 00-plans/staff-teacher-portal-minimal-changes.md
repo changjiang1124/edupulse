@@ -14,7 +14,7 @@
 - 修复用户下拉菜单中的“Profile”链接（当前 href="#"），指向新加的“我的资料”路由。
 - 在用户下拉菜单中新增“Change Password”链接，指向密码修改页面。
 - 为教师新增入口：
-  - “Clock In/Out” → core:teacher_clock
+  - “Clock In/Out” → clock
   - “My Attendance History” → core:teacher_attendance_history
 具体修改：
 - 替换“Profile”链接为 `{% url 'accounts:profile' %}`。

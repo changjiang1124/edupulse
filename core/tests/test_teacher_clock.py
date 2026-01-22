@@ -70,7 +70,7 @@ class TeacherClockTests(TestCase):
         self.client.login(username='teacher', password='Teacher123!')
 
     def test_clock_page_access(self):
-        url = reverse('core:teacher_clock')
+        url = reverse('clock')
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 200)
 

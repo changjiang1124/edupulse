@@ -98,7 +98,7 @@ EduPulse 是一个集成的管理平台。
 ## 5. 员工与工时管理 (Staff & Timesheets)
 
 ### 员工打卡 (Clock In/Out)
-*   **位置**: `/core/clock/` 或 `/core/attendance/teacher/qr/` (扫码打卡)
+*   **位置**: `/clock/` 或 `/core/attendance/teacher/qr/` (扫码打卡)
 *   **功能**:
     *   员工/老师到校后扫码或点击按钮进行上班打卡，离校时下班打卡。
     *   系统记录打卡时间和位置，并可通过老师手机的 GPS 验证其是否在指定校区内。
@@ -254,7 +254,7 @@ This is the core of academic management, used for setting up courses offered by 
 ## 5. Staff & Timesheet Management
 
 ### Staff Clock In/Out
-*   **Location**: `/core/clock/` or `/core/attendance/teacher/qr/` (QR Code Clock-in)
+*   **Location**: `/clock/` or `/core/attendance/teacher/qr/` (QR Code Clock-in)
 *   **Function**:
     *   Staff/Teachers clock in upon arrival and clock out when leaving by scanning a QR code or clicking a button.
     *   The system records clock-in time and location, and can verify that the teacher is physically at a valid facility using GPS.

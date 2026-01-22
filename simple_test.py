@@ -69,7 +69,7 @@ def test_basic_functionality():
         # Test key URLs
         dashboard_url = reverse('core:dashboard')
         timesheet_url = reverse('core:timesheet_export')
-        teacher_clock_url = reverse('core:teacher_clock')
+        teacher_clock_url = reverse('clock')
         
         print_test_result("URL resolution", True, "All core URLs resolved")
         results.append(('URL Resolution', True))

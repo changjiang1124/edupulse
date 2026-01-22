@@ -124,5 +124,9 @@ the account for test:
 username: admin
 password: Wasd!234
 
+Teacher Test Account:
+username: teacher_test
+password: Test1234!
+
 ## Local Server URL
 http://127.0.0.1:20003/

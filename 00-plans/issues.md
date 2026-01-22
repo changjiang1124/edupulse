@@ -18,3 +18,9 @@ if there is a missing clock out record, e.g. this teacher has clocked in, but ha
 rememebr to detect the distance of the facility from the current location, and only allow clock in if the distance is within reasoanble (system configured) range.
 
 help me review above design, and improve it if needed.
+
+- [] multiple select batch duplicate courses as draft with modal confirmation, with checkbox indicating if existing enrolments should be duplicated as pending as well. and check if all selected courses are all weekly classes. if yes, provide a option to specify the new start date and end date; if no, don't show the option. 
+
+- [] validate the timesheet based on the attendance: 帮我 review 下 timesheet 那边的代码，看是否会有 bug,比如记录错误,记录不上,展示,该有 clock in / out 但是没有(标记老师为 absent),或者有 clock in 但是 没有 clock out,或者其他的问题
+
+- [] in enrolment list page, should be multiple select with filter and with notification function, like in student list page. actually, the logic is exactly the same, the only difference is in enrolment list page, the contacts are extracted from the student info of the enrolment.

@@ -1,344 +1,313 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Teacher Clock In/Out - EduPulse{% endblock %}
+{% block title %}Teacher Attendance - EduPulse{% endblock %}
 
 {% block extra_css %}
 <style>
-.clock-container {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 15px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    text-align: center;
-}
+    /* attendance-panel */
+    .attendance-panel {
+        max-width: 600px;
+        margin: 0 auto;
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    
+    .attendance-header {
+        background: #fff;
+        padding: 2.5rem 2rem 1rem;
+        text-align: center;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .live-clock {
+        font-size: 3.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -1px;
+    }
+    
+    .live-date {
+        color: #6c757d;
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+    }
+    
+    .status-badge.clocked-in {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .status-badge.clocked-out {
+        background-color: #f8f9fa;
+        color: #6c757d;
+        border: 1px solid #dee2e6;
+    }
 
-.clock-time {
-    font-size: 3rem;
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-}
+    .attendance-body {
+        padding: 2rem;
+        background: #fff;
+    }
 
-.clock-date {
-    font-size: 1.2rem;
-    opacity: 0.9;
-}
+    /* Location Indicator */
+    .location-card {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+        transition: all 0.2s;
+    }
 
-.status-card {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-    margin-bottom: 1.5rem;
-}
+    .location-status-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
 
-.location-status {
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-}
+    .status-icon-pending { background: #fff3e0; color: #f57c00; }
+    .status-icon-success { background: #e8f5e9; color: #2e7d32; }
+    .status-icon-error { background: #ffebee; color: #d32f2f; }
 
-.location-pending {
-    background: linear-gradient(45deg, #ffa726 0%, #ff9800 100%);
-    color: white;
-}
+    /* Class Selection */
+    .class-selection-container {
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
 
-.location-verified {
-    background: linear-gradient(45deg, #66bb6a 0%, #4caf50 100%);
-    color: white;
-}
+    .class-item {
+        padding: 0.75rem;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        transition: all 0.2s;
+        cursor: pointer;
+        margin-bottom: 0.5rem;
+        background: #fff;
+    }
+    
+    .class-item:last-child { margin-bottom: 0; }
+    
+    .class-item:hover {
+        background: #f8f9fa;
+        border-color: #e9ecef;
+    }
+    
+    .class-item.selected {
+        background: #e3f2fd;
+        border-color: #90caf9;
+    }
 
-.location-failed {
-    background: linear-gradient(45deg, #ef5350 0%, #f44336 100%);
-    color: white;
-}
+    /* Actions */
+    .action-btn-lg {
+        width: 100%;
+        padding: 1rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 12px;
+        transition: transform 0.1s;
+    }
+    
+    .action-btn-lg:active {
+        transform: scale(0.98);
+    }
 
-.class-card {
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 0.5rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
+    .btn-clock-in {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 15px rgba(56, 239, 125, 0.3);
+    }
 
-.class-card:hover {
-    border-color: #1976d2;
-    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
-}
+    .btn-clock-out {
+        background: linear-gradient(135deg, #cb2d3e 0%, #ef473a 100%);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 15px rgba(239, 71, 58, 0.3);
+    }
 
-.class-card.selected {
-    border-color: #1976d2;
-    background-color: #e3f2fd;
-}
+    .recent-activity-feed {
+        margin-top: 3rem;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
 
-.clock-button {
-    padding: 1rem 2rem;
-    font-size: 1.2rem;
-    border-radius: 8px;
-    margin: 0.5rem;
-    min-width: 150px;
-}
-
-.btn-clock-in {
-    background: linear-gradient(45deg, #4caf50 0%, #45a049 100%);
-    border: none;
-    color: white;
-}
-
-.btn-clock-out {
-    background: linear-gradient(45deg, #f44336 0%, #d32f2f 100%);
-    border: none;
-    color: white;
-}
-
-.recent-record {
-    padding: 1rem;
-    border-left: 4px solid #1976d2;
-    background: #f8f9fa;
-    margin-bottom: 0.5rem;
-    border-radius: 0 8px 8px 0;
-}
-
-.loading-spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 3px solid rgba(255,255,255,.3);
-    border-radius: 50%;
-    border-top-color: #fff;
-    animation: spin 1s ease-in-out infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.gps-indicator {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    margin-right: 0.5rem;
-}
-
-.gps-searching { background-color: #ff9800; }
-.gps-found { background-color: #4caf50; }
-.gps-failed { background-color: #f44336; }
+    .activity-item {
+        padding: 1rem 0;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .activity-item:last-child { border-bottom: none; }
+    
+    .activity-time {
+        width: 80px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .activity-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 1rem;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    {% if error %}
-    <div class="alert alert-danger" role="alert">
-        <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
-    </div>
-    {% else %}
+<div class="container py-4">
     
-    <!-- Clock Display -->
-    <div class="clock-container">
-        <div class="clock-time" id="currentTime">--:--:--</div>
-        <div class="clock-date" id="currentDate">{{ today|date:"l, F d, Y" }}</div>
-        <div class="mt-3">
-            <span class="gps-indicator gps-searching" id="gpsIndicator"></span>
-            <span id="gpsStatus">Getting your location...</span>
-        </div>
-    </div>
-
-    <div class="row">
-        <!-- Main Clock In/Out Panel -->
-        <div class="col-lg-8">
-            <div class="card status-card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-map-marker-alt me-2"></i>Location & Classes
-                    </h5>
+    <!-- Main Attendance Panel -->
+    <div class="attendance-panel bg-white">
+        <!-- Header with Clock -->
+        <div class="attendance-header">
+            {% if is_clocked_in %}
+                <div class="status-badge clocked-in">
+                    <i class="fas fa-check-circle me-2"></i>Currently Clocked In
                 </div>
-                <div class="card-body">
-                    <!-- Missing Clock Out Warning -->
-                    {% if has_overdue_clock_out %}
-                    <div class="alert alert-danger mb-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Action Required:</strong> You didn't clock out on {{ latest_record.timestamp|date:"l, d M" }}.
-                        <div class="small mt-1">Please clock out now to close your previous session.</div>
+            {% else %}
+                <div class="status-badge clocked-out">
+                    <i class="far fa-circle me-2"></i>Currently Clocked Out
+                </div>
+            {% endif %}
+
+            <div class="live-clock" id="liveClock">--:--</div>
+            <div class="live-date">{{ today|date:"l, F jS" }}</div>
+        </div>
+
+        <div class="attendance-body">
+            <!-- Alert Area -->
+            <div id="feedbackAlert" class="alert d-none mb-4" role="alert"></div>
+
+            {% if has_overdue_clock_out %}
+            <div class="alert alert-warning border-0 bg-warning bg-opacity-10 text-warning mb-4">
+                <div class="d-flex">
+                    <i class="fas fa-exclamation-triangle mt-1 me-3"></i>
+                    <div>
+                        <h6 class="alert-heading fw-bold mb-1">Pending Clock Out</h6>
+                        <p class="mb-0 small">You remained clocked in from {{ latest_record.timestamp|date:"l, d M" }}. Please clock out to close usage.</p>
                     </div>
-                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
 
-                    <div id="feedbackAlert" class="alert d-none mb-3" role="alert"></div>
-
-                    <!-- Location Status -->
-                    <div id="locationStatus" class="location-status location-pending">
-                        <div class="d-flex align-items-center">
-                            <div class="loading-spinner me-2"></div>
-                            <span>Verifying your location...</span>
+            <!-- Location Status Card -->
+            <div class="location-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <div id="locationIcon" class="location-status-icon status-icon-pending">
+                            <i class="fas fa-satellite-dish"></i>
+                        </div>
+                        <div>
+                            <div id="locationTitle" class="fw-bold text-dark">Locating...</div>
+                            <div id="locationDesc" class="small text-muted">Waiting for GPS signal</div>
                         </div>
                     </div>
-                    <div class="text-end">
-                        <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="retryLocationBtn" onclick="requestLocation()">
-                            <i class="fas fa-redo me-1"></i>Recheck location
-                        </button>
-                    </div>
+                    <button type="button" class="btn btn-sm btn-light border text-muted" 
+                            id="retryLocationBtn" onclick="requestLocation()" style="display:none;">
+                        <i class="fas fa-redo-alt"></i>
+                    </button>
+                </div>
+            </div>
 
-                    <!-- Classes Section -->
-                    <div id="classesSection" style="display: none;">
-                        <div class="d-flex justify-content-between align-items-center mb-2" id="classesHeader">
-                            <h6 class="mb-0">Select Classes (Optional)</h6>
-                            <div class="btn-group btn-group-sm" role="group" id="classSelectionActions">
-                                <button type="button" class="btn btn-outline-secondary" onclick="selectAllClasses()">Select all</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="clearAllClasses()">Clear</button>
-                            </div>
-                        </div>
-                        <div id="classesList">
-                            <!-- Classes will be loaded here -->
-                        </div>
+            <!-- Class Selection (Hidden by default, shown if classes exist) -->
+            <div id="classesSection" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0">Scheduled Classes</h6>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-link text-decoration-none p-0 me-3 text-muted" onclick="selectAllClasses()">Select All</button>
+                        <button type="button" class="btn btn-link text-decoration-none p-0 text-muted" onclick="clearAllClasses()">Clear</button>
                     </div>
+                </div>
+                <div id="classesList" class="class-selection-container p-2 border-0 bg-light">
+                    <!-- Classes injected via JS -->
+                </div>
+            </div>
 
-                    <!-- Notes Section -->
-                    <div class="mb-3">
-                        <label for="clockNotes" class="form-label">Notes (Optional)</label>
-                        <textarea class="form-control" id="clockNotes" rows="2" 
-                                placeholder="Any additional notes for this clock in/out..."></textarea>
-                    </div>
+            <!-- Notes -->
+            <div class="mb-4">
+                <textarea class="form-control bg-light border-0" id="clockNotes" rows="2" 
+                          placeholder="Add optional notes..." style="resize: none;"></textarea>
+            </div>
 
-                    <!-- Action Buttons -->
-                    <div class="text-center">
-                        <button type="button" class="btn btn-clock-in clock-button" 
-                                id="clockInBtn" disabled onclick="submitClock('clock_in')">
-                            <i class="fas fa-sign-in-alt me-2"></i>Clock In
-                        </button>
-                        <button type="button" class="btn btn-clock-out clock-button" 
-                                id="clockOutBtn" disabled onclick="submitClock('clock_out')">
+            <!-- Action Buttons -->
+            <div class="row g-2">
+                {% if is_clocked_in %}
+                    <div class="col-12">
+                        <button type="button" class="btn btn-clock-out action-btn-lg" 
+                                id="clockOutBtn" onclick="submitClock('clock_out')" disabled>
                             <i class="fas fa-sign-out-alt me-2"></i>Clock Out
                         </button>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sidebar -->
-        <div class="col-lg-4">
-            <!-- Quick Stats -->
-            <div class="card status-card mb-3">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-user me-2"></i>{{ teacher.get_full_name }}
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-6">
-                            <div class="mb-2">
-                                <i class="fas fa-calendar-day fa-2x text-primary"></i>
-                            </div>
-                            <div class="fw-bold">Today</div>
-                            <small class="text-muted">{{ today|date:"d M" }}</small>
-                        </div>
-                        <div class="col-6">
-                            <div class="mb-2">
-                                <i class="fas fa-clock fa-2x text-success"></i>
-                            </div>
-                            <div class="fw-bold" id="currentTimeSmall">--:--</div>
-                            <small class="text-muted">Current Time</small>
-                        </div>
+                {% else %}
+                    <div class="col-12">
+                        <button type="button" class="btn btn-clock-in action-btn-lg" 
+                                id="clockInBtn" onclick="submitClock('clock_in')" disabled>
+                            <i class="fas fa-sign-in-alt me-2"></i>Clock In
+                        </button>
                     </div>
-                </div>
-            </div>
-
-            <!-- Current Status -->
-            <div class="card status-card mb-3">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-signal me-2"></i>Current Status
-                    </h6>
-                </div>
-                <div class="card-body">
-                    {% if latest_record %}
-                        {% if is_clocked_in %}
-                            <div class="d-flex align-items-center mb-2">
-                                <i class="fas fa-circle text-success me-2"></i>
-                                <div class="fw-medium">Clocked in</div>
-                            </div>
-                            <div class="small text-muted">
-                                Since {{ latest_record.timestamp|date:"M d, H:i" }} at {{ latest_record.facility.name }}
-                            </div>
-                        {% else %}
-                            <div class="d-flex align-items-center mb-2">
-                                <i class="fas fa-circle text-danger me-2"></i>
-                                <div class="fw-medium">Clocked out</div>
-                            </div>
-                            <div class="small text-muted">
-                                Last clock out: {{ latest_record.timestamp|date:"M d, H:i" }} at {{ latest_record.facility.name }}
-                            </div>
-                        {% endif %}
-
-                        {% if has_overdue_clock_out %}
-                            <div class="small text-danger mt-2">
-                                Pending clock out since {{ latest_record.timestamp|date:"l, d M" }}.
-                            </div>
-                        {% endif %}
-                    {% else %}
-                        <p class="text-muted mb-0">No attendance records yet.</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Recent Records -->
-            <div class="card status-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">
-                        <i class="fas fa-history me-2"></i>Recent Activity
-                    </h6>
-                    <a href="{% url 'core:teacher_attendance_history' %}" class="btn btn-sm btn-outline-primary">
-                        View All
-                    </a>
-                </div>
-                <div class="card-body">
-                    {% if recent_records %}
-                        {% for record in recent_records %}
-                        <div class="recent-record">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="fw-medium">
-                                        <i class="fas fa-{% if record.clock_type == 'clock_in' %}sign-in-alt text-success{% else %}sign-out-alt text-danger{% endif %} me-1"></i>
-                                        {{ record.get_clock_type_display }}
-                                    </div>
-                                    <small class="text-muted">
-                                        {{ record.facility.name }}<br>
-                                        {{ record.timestamp|date:"M d, H:i" }}
-                                    </small>
-                                </div>
-                                <div class="text-end">
-                                    {% if record.location_verified %}
-                                        <i class="fas fa-check-circle text-success"></i>
-                                    {% else %}
-                                        <i class="fas fa-exclamation-triangle text-warning"></i>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="text-center py-3">
-                            <i class="fas fa-clock fa-2x text-muted mb-2"></i>
-                            <p class="text-muted mb-0">No recent activity</p>
-                        </div>
-                    {% endif %}
-                </div>
+                {% endif %}
             </div>
         </div>
     </div>
-    
-    {% endif %}
+
+    <!-- Recent Activity Simplified -->
+    <div class="recent-activity-feed">
+        <h6 class="text-uppercase text-muted small fw-bold mb-3 ps-2">Recent Activity</h6>
+        <div class="bg-white rounded-4 p-3 shadow-sm border border-light">
+            {% if recent_records %}
+                {% for record in recent_records|slice:":3" %}
+                <div class="activity-item">
+                    <div class="activity-time text-end pe-3">{{ record.timestamp|date:"H:i" }}</div>
+                    <div class="activity-dot {% if record.clock_type == 'clock_in' %}bg-success{% else %}bg-danger{% endif %}"></div>
+                    <div class="flex-grow-1">
+                        <div class="fw-medium text-dark">{{ record.get_clock_type_display }}</div>
+                        <div class="small text-muted">{{ record.facility.name }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+                <div class="text-center mt-2 border-top pt-2">
+                    <a href="{% url 'core:teacher_attendance_history' %}" class="text-decoration-none small text-primary fw-medium">View History</a>
+                </div>
+            {% else %}
+                <p class="text-center text-muted small mb-0 py-2">No recent activity today.</p>
+            {% endif %}
+        </div>
+    </div>
+
 </div>
 
-<!-- Loading Modal -->
-<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content">
+<!-- Loading Overlay/Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-lg">
             <div class="modal-body text-center py-4">
-                <div class="loading-spinner mb-3" style="width: 40px; height: 40px; border-width: 4px;"></div>
-                <div id="loadingMessage">Processing...</div>
+                <div class="spinner-border text-primary mb-3" role="status"></div>
+                <h6 class="mb-0" id="loadingMessage">Processing...</h6>
             </div>
         </div>
     </div>
@@ -352,439 +321,286 @@ let selectedClasses = [];
 let locationVerified = false;
 let facilityData = null;
 let hasClassesAvailable = false;
+// Global state from Django context
 const isClockedIn = {{ is_clocked_in|yesno:"true,false" }};
 const hasOverdueClockOut = {{ has_overdue_clock_out|yesno:"true,false" }};
 const overdueClockOutDate = "{{ overdue_clock_out_date|date:'l, d M'|escapejs }}";
-const locationOptions = {
-    enableHighAccuracy: true,
-    timeout: 15000,
-    maximumAge: 300000 // 5 minutes
-};
 
-// Initialize when page loads
+// Location configuration
+const locationOptions = { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 };
+
 document.addEventListener('DOMContentLoaded', function() {
-    updateClock();
-    setInterval(updateClock, 1000);
-    
+    startClock();
     requestLocation();
-
-    // Initial button state management based on server context
-    updateInitialButtonState();
 });
 
-function updateInitialButtonState() {
-    const clockInBtn = document.getElementById('clockInBtn');
-    const clockOutBtn = document.getElementById('clockOutBtn');
-    
-    if (isClockedIn) {
-        if (clockInBtn) clockInBtn.style.display = 'none';
-        if (clockOutBtn) clockOutBtn.style.display = 'inline-block';
-    } else {
-        if (clockInBtn) clockInBtn.style.display = 'inline-block';
-        if (clockOutBtn) clockOutBtn.style.display = 'none';
-    }
+// --- UI Updates ---
+
+function startClock() {
+    const update = () => {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-AU', {
+            hour12: false, hour: '2-digit', minute: '2-digit' // Removed seconds for cleaner look
+        });
+        document.getElementById('liveClock').textContent = timeString;
+    };
+    update();
+    setInterval(update, 1000);
 }
 
+function updateLocationUI(status, title, desc) {
+    const iconEl = document.getElementById('locationIcon');
+    const titleEl = document.getElementById('locationTitle');
+    const descEl = document.getElementById('locationDesc');
+    const retryBtn = document.getElementById('retryLocationBtn');
+    
+    // Reset classes
+    iconEl.className = 'location-status-icon';
+    titleEl.className = 'fw-bold';
+    retryBtn.style.display = 'none';
+
+    if (status === 'pending') {
+        iconEl.classList.add('status-icon-pending');
+        iconEl.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+    } else if (status === 'success') {
+        iconEl.classList.add('status-icon-success');
+        iconEl.innerHTML = '<i class="fas fa-map-marker-alt"></i>';
+    } else if (status === 'error') {
+        iconEl.classList.add('status-icon-error');
+        iconEl.innerHTML = '<i class="fas fa-times"></i>';
+        retryBtn.style.display = 'block';
+    }
+
+    titleEl.textContent = title;
+    descEl.textContent = desc;
+}
+
+function showFeedback(type, message, autoHide = true) {
+    const alertEl = document.getElementById('feedbackAlert');
+    alertEl.className = `alert alert-${type} border-0 shadow-sm mb-4`;
+    alertEl.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>${message}`;
+    alertEl.classList.remove('d-none');
+    if (autoHide) setTimeout(() => alertEl.classList.add('d-none'), 5000);
+}
+
+// --- Logic ---
+
 function requestLocation() {
-    setRetryButtonVisible(false);
-    clearFeedback();
-    locationVerified = false;
-    facilityData = null;
-    selectedClasses = [];
-    hasClassesAvailable = false;
-
-    const locationStatus = document.getElementById('locationStatus');
-    locationStatus.className = 'location-status location-pending';
-    locationStatus.innerHTML = `
-        <div class="d-flex align-items-center">
-            <div class="loading-spinner me-2"></div>
-            <span>Verifying your location...</span>
-        </div>
-    `;
-
-    const gpsIndicator = document.getElementById('gpsIndicator');
-    const gpsStatus = document.getElementById('gpsStatus');
-    if (gpsIndicator) gpsIndicator.className = 'gps-indicator gps-searching';
-    if (gpsStatus) gpsStatus.textContent = 'Getting your location...';
-
-    const clockInBtn = document.getElementById('clockInBtn');
-    const clockOutBtn = document.getElementById('clockOutBtn');
-    if (clockInBtn) clockInBtn.disabled = true;
-    if (clockOutBtn) clockOutBtn.disabled = true;
-
-    const classesSection = document.getElementById('classesSection');
-    if (classesSection) classesSection.style.display = 'none';
+    updateLocationUI('pending', 'Verifying Location', 'Please wait while we check your position...');
+    setButtonsDisabled(true);
 
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            handleLocationSuccess,
-            handleLocationError,
-            locationOptions
-        );
+        navigator.geolocation.getCurrentPosition(handleLocationSuccess, handleLocationError, locationOptions);
     } else {
         handleLocationError(new Error('Geolocation not supported'));
     }
 }
 
-function setRetryButtonVisible(visible) {
-    const retryBtn = document.getElementById('retryLocationBtn');
-    if (!retryBtn) return;
-    retryBtn.classList.toggle('d-none', !visible);
-}
-
-function showFeedback(type, message, autoHide = true) {
-    const alertEl = document.getElementById('feedbackAlert');
-    if (!alertEl) return;
-    alertEl.className = `alert alert-${type} mb-3`;
-    alertEl.textContent = message;
-    alertEl.classList.remove('d-none');
-
-    if (autoHide) {
-        setTimeout(() => {
-            alertEl.classList.add('d-none');
-        }, 5000);
-    }
-}
-
-function clearFeedback() {
-    const alertEl = document.getElementById('feedbackAlert');
-    if (!alertEl) return;
-    alertEl.classList.add('d-none');
-}
-
-function updateClock() {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-AU', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-    const timeShort = now.toLocaleTimeString('en-AU', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-    
-    document.getElementById('currentTime').textContent = timeString;
-    document.getElementById('currentTimeSmall').textContent = timeShort;
-}
-
 function handleLocationSuccess(position) {
     const lat = position.coords.latitude;
     const lon = position.coords.longitude;
-    
     currentLocation = { latitude: lat, longitude: lon };
-    setRetryButtonVisible(false);
     
-    // Update GPS indicator
-    document.getElementById('gpsIndicator').className = 'gps-indicator gps-found';
-    document.getElementById('gpsStatus').textContent = 'Location found, verifying...';
-    
-    // Verify location with server
-    verifyLocation(lat, lon);
-}
-
-function handleLocationError(error) {
-    console.error('Location error:', error);
-    setRetryButtonVisible(true);
-    
-    document.getElementById('gpsIndicator').className = 'gps-indicator gps-failed';
-    document.getElementById('gpsStatus').textContent = 'Location access failed';
-    
-    const locationStatus = document.getElementById('locationStatus');
-    locationStatus.className = 'location-status location-failed';
-    locationStatus.innerHTML = `
-        <div class="d-flex align-items-center">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            <div>
-                <div class="fw-medium">Location Access Failed</div>
-                <div class="small">Please enable location access and try again.</div>
-            </div>
-        </div>
-    `;
-}
-
-function verifyLocation(lat, lon) {
+    // Send to server for verification
     fetch('{% url "core:teacher_location_verify" %}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCookie('csrftoken'),
         },
-        body: JSON.stringify({
-            latitude: lat,
-            longitude: lon
-        })
+        body: JSON.stringify({ latitude: lat, longitude: lon })
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
-            handleLocationVerified(data);
+            handleVerified(data);
         } else {
-            handleLocationFailed(data.error);
+            handleLocationError({ message: data.error });
         }
     })
-    .catch(error => {
-        console.error('Verification error:', error);
-        handleLocationFailed('Failed to verify location');
-    });
+    .catch(err => handleLocationError({ message: 'Server verification failed' }));
 }
 
-function handleLocationVerified(data) {
+function handleLocationError(error) {
+    console.error("Location Error", error);
+    updateLocationUI('error', 'Location Failed', error.message || 'Could not verify location.');
+    setButtonsDisabled(true); // Keep disabled if location fails
+}
+
+function handleVerified(data) {
     locationVerified = true;
     facilityData = data.facility;
     hasClassesAvailable = !!data.has_classes;
-    setRetryButtonVisible(false);
     
-    // Update GPS status
-    document.getElementById('gpsStatus').textContent = `At ${data.facility.name} (${data.distance}m away)`;
+    updateLocationUI('success', data.facility.name, `Verified • ${data.distance}m away`);
     
-    // Update location status
-    const locationStatus = document.getElementById('locationStatus');
-    locationStatus.className = 'location-status location-verified';
-    locationStatus.innerHTML = `
-        <div class="d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center">
-                <i class="fas fa-check-circle me-2"></i>
-                <div>
-                    <div class="fw-medium">Location Verified</div>
-                    <div class="small">${data.facility.name} • ${data.distance}m away</div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Handle button enabling based on state
-    const clockInBtn = document.getElementById('clockInBtn');
-    const clockOutBtn = document.getElementById('clockOutBtn');
-    const classesSection = document.getElementById('classesSection');
-    const classSelectionActions = document.getElementById('classSelectionActions');
+    // Enable relevant buttons
+    setButtonsDisabled(false);
 
-    if (isClockedIn) {
-        // CLOCKED IN MODE
-        clockOutBtn.disabled = false;
-        
-        // Hide classes section as they shouldn't change classes mid-session usually, 
-        // or keep hidden to simplify interface
-        classesSection.style.display = 'none';
-
-    } else {
-        // CLOCKED OUT MODE - READY TO CLOCK IN
-        
-        const classesHeader = document.getElementById('classesHeader');
-        
-        // Show classes if available
+    // Show classes if any, only if we are ready to clock in (not already clocked in)
+    if (!isClockedIn) {
         if (data.has_classes) {
-            if (classesHeader) classesHeader.style.display = 'flex';
-            displayClasses(data.classes);
-            clockInBtn.disabled = false;
-            if (classSelectionActions) classSelectionActions.style.display = 'inline-flex';
+            renderClasses(data.classes);
         } else {
-            // No classes scheduled (General Attendance Mode)
-            const classesList = document.getElementById('classesList');
-            if (classesHeader) classesHeader.style.display = 'none';
-            
-            classesList.innerHTML = `
-                <div class="alert alert-info mb-0">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>No classes scheduled for you today</strong>
-                    <br>You can still clock in for general attendance.
-                </div>
-            `;
-            classesSection.style.display = 'block';
-            clockInBtn.disabled = false; // Enable for general attendance
-            if (classSelectionActions) classSelectionActions.style.display = 'none';
+            renderNoClasses();
         }
     }
 }
 
-function handleLocationFailed(error) {
-    document.getElementById('gpsIndicator').className = 'gps-indicator gps-failed';
-    document.getElementById('gpsStatus').textContent = 'Location verification failed';
-    const locationStatus = document.getElementById('locationStatus');
-    locationStatus.className = 'location-status location-failed';
-    locationStatus.innerHTML = `
-        <div class="d-flex align-items-center">
-            <i class="fas fa-times-circle me-2"></i>
-            <div>
-                <div class="fw-medium">Location Verification Failed</div>
-                <div class="small">${error}</div>
-            </div>
-        </div>
-    `;
-    setRetryButtonVisible(true);
+function setButtonsDisabled(disabled) {
+    const inBtn = document.getElementById('clockInBtn');
+    const outBtn = document.getElementById('clockOutBtn');
+    if (inBtn) inBtn.disabled = disabled;
+    if (outBtn) outBtn.disabled = disabled;
 }
 
-function displayClasses(classes) {
-    const classesSection = document.getElementById('classesSection');
-    const classesList = document.getElementById('classesList');
+// --- Class Handling ---
+
+function renderClasses(classes) {
+    const section = document.getElementById('classesSection');
+    const container = document.getElementById('classesList');
+    const header = section.querySelector('h6');
+    const actions = section.querySelector('.btn-group');
+    section.style.display = 'block';
+    if (header) {
+        header.textContent = 'Scheduled Classes';
+        header.classList.remove('text-muted');
+    }
+    if (actions) actions.style.display = 'flex';
     
-    if (classes.length === 0) {
-        // This case handled in handleLocationVerified but kept for safety
-        classesList.innerHTML = '<p class="text-muted mb-0">No classes scheduled for today at this location.</p>';
-    } else {
-        selectedClasses = [];
-        let html = '<p class="text-muted small mb-2">All classes are selected by default. Deselect any you are not teaching.</p>';
-        classes.forEach(cls => {
-            html += `
-                <div class="class-card" data-class-id="${cls.id}" onclick="toggleClass(${cls.id})">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="fw-medium">${cls.course_name}</div>
-                            <small class="text-muted">${cls.start_time} • ${cls.duration} minutes • ${cls.classroom}</small>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="class_${cls.id}">
-                        </div>
+    let html = '';
+    classes.forEach(cls => {
+        html += `
+            <div class="class-item d-flex align-items-center justify-content-between" 
+                 onclick="toggleClass(this, ${cls.id})" id="classItem_${cls.id}">
+                <div>
+                    <div class="fw-bold text-dark">${cls.course_name}</div>
+                    <div class="small text-muted">
+                        <i class="far fa-clock me-1"></i>${cls.start_time}
+                        <span class="mx-1">•</span>
+                        ${cls.classroom}
                     </div>
                 </div>
-            `;
-        });
-        classesList.innerHTML = html;
-    }
+                <div class="form-check pointer-events-none">
+                    <input class="form-check-input" type="checkbox" id="check_${cls.id}">
+                </div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
     
-    classesSection.style.display = 'block';
-    if (classes.length > 0) {
-        selectAllClasses();
+    // Auto select all
+    selectAllClasses();
+}
+
+function renderNoClasses() {
+    const section = document.getElementById('classesSection');
+    const container = document.getElementById('classesList');
+    const header = section.querySelector('h6');
+    const actions = section.querySelector('.btn-group');
+    section.style.display = 'block';
+    if (header) {
+        header.textContent = 'No Scheduled Classes';
+        header.classList.add('text-muted');
+    }
+    if (actions) actions.style.display = 'none';
+    selectedClasses = [];
+    container.innerHTML = `
+        <div class="alert alert-info mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            No classes scheduled today. You can still clock in for general attendance.
+        </div>
+    `;
+}
+
+function toggleClass(el, id) {
+    const input = document.getElementById(`check_${id}`);
+    const index = selectedClasses.indexOf(id);
+    
+    if (index === -1) {
+        selectedClasses.push(id);
+        el.classList.add('selected');
+        input.checked = true;
+    } else {
+        selectedClasses.splice(index, 1);
+        el.classList.remove('selected');
+        input.checked = false;
     }
 }
 
 function selectAllClasses() {
+    const inputs = document.querySelectorAll('#classesList input[type="checkbox"]');
     selectedClasses = [];
-    document.querySelectorAll('.class-card').forEach(card => {
-        const classId = parseInt(card.dataset.classId, 10);
-        const checkbox = document.getElementById(`class_${classId}`);
-        if (!Number.isNaN(classId) && checkbox) {
-            selectedClasses.push(classId);
-            card.classList.add('selected');
-            checkbox.checked = true;
-        }
+    inputs.forEach(input => {
+        const id = parseInt(input.id.replace('check_', ''));
+        selectedClasses.push(id);
+        input.checked = true;
+        document.getElementById(`classItem_${id}`).classList.add('selected');
     });
 }
 
 function clearAllClasses() {
     selectedClasses = [];
-    document.querySelectorAll('.class-card').forEach(card => {
-        const classId = parseInt(card.dataset.classId, 10);
-        const checkbox = document.getElementById(`class_${classId}`);
-        if (!Number.isNaN(classId) && checkbox) {
-            card.classList.remove('selected');
-            checkbox.checked = false;
-        }
-    });
+    document.querySelectorAll('#classesList input[type="checkbox"]').forEach(i => i.checked = false);
+    document.querySelectorAll('.class-item').forEach(el => el.classList.remove('selected'));
 }
 
-function toggleClass(classId) {
-    const card = document.querySelector(`[data-class-id="${classId}"]`);
-    const checkbox = document.getElementById(`class_${classId}`);
-    
-    // Prevent toggling if card not found (safety)
-    if(!card || !checkbox) return;
+// --- Submission ---
 
-    if (selectedClasses.includes(classId)) {
-        selectedClasses = selectedClasses.filter(id => id !== classId);
-        card.classList.remove('selected');
-        checkbox.checked = false;
-    } else {
-        selectedClasses.push(classId);
-        card.classList.add('selected');
-        checkbox.checked = true;
-    }
-    
-    // Update Clock In button state - require at least one class? 
-    // Requirement said "you have the following classes", implies just showing them.
-    // But usually you'd want them to confirm which ones.
-    // For now, let's keep it enabled if has_classes was true, regardless of selection,
-    // OR enforce selection. "clock in if the distance is within reasonable... and show the classes"
-    // Let's not enforce selection for now to be flexible, but it's good practice.
-}
-
-function submitClock(clockType) {
-    if (!locationVerified || !currentLocation || !facilityData) {
-        showFeedback('warning', 'Location not verified yet. Please wait for verification.');
+function submitClock(type) {
+    // Validation
+    if (!locationVerified) {
+        showFeedback('warning', 'Please wait for location verification.');
         return;
     }
-
-    if (clockType === 'clock_in' && hasClassesAvailable && selectedClasses.length === 0) {
-        const confirmText = 'No classes selected. Continue in general attendance mode?';
-        if (!confirm(confirmText)) {
-            return;
-        }
+    
+    if (type === 'clock_in' && hasClassesAvailable && selectedClasses.length === 0) {
+        if (!confirm('No classes selected. Continue as General Attendance?')) return;
+    }
+    
+    if (type === 'clock_out' && hasOverdueClockOut) {
+        if (!confirm('You are closing a previous overdue session. Continue?')) return;
     }
 
-    if (clockType === 'clock_out' && hasOverdueClockOut) {
-        const confirmText = overdueClockOutDate
-            ? `You are closing a session from ${overdueClockOutDate}. Continue?`
-            : 'You are closing a previous session. Continue?';
-        if (!confirm(confirmText)) {
-            return;
-        }
-    }
-    
-    const notes = document.getElementById('clockNotes').value.trim();
-    const actionText = clockType === 'clock_in' ? 'Clocking In' : 'Clocking Out';
-    
-    // Show loading modal
-    document.getElementById('loadingMessage').textContent = actionText + '...';
-    let loadingModal = null;
-    try {
-        loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
-        loadingModal.show();
-    } catch(e) {
-        console.error("Bootstrap modal error", e);
-    }
-    
-    const data = {
-        clock_type: clockType,
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
-        facility_id: facilityData.id,
-        class_ids: selectedClasses,
-        notes: notes
-    };
-    
+    // Prepare data
+    const notes = document.getElementById('clockNotes').value;
+    const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
+    document.getElementById('loadingMessage').textContent = type === 'clock_in' ? 'Clocking In...' : 'Clocking Out...';
+    modal.show();
+
     fetch('{% url "core:teacher_clock_submit" %}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken'),
+            'X-CSRFToken': getCookie('csrftoken')
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({
+            clock_type: type,
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+            facility_id: facilityData.id,
+            class_ids: selectedClasses,
+            notes: notes
+        })
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
-        // minimal delay to show processing
-        setTimeout(() => {
+        setTimeout(() => { // minimal UI delay
+            modal.hide();
             if (data.success) {
-                showFeedback('success', data.message, false);
-                window.location.reload();
+                showFeedback('success', 'Success! Refreshing...');
+                location.reload();
             } else {
-                showFeedback('danger', `Error: ${data.error}`);
-                if (loadingModal) {
-                    loadingModal.hide();
-                } else {
-                    const modalEl = document.getElementById('loadingModal');
-                    const modal = bootstrap.Modal.getInstance(modalEl);
-                    if (modal) modal.hide();
-                }
+                showFeedback('danger', data.error || 'Submission failed');
             }
-        }, 500);
+        }, 600);
     })
-    .catch(error => {
-        console.error('Submit error:', error);
-        showFeedback('danger', 'Failed to submit attendance. Please try again.');
-        if (loadingModal) {
-            loadingModal.hide();
-        } else {
-            const modalEl = document.getElementById('loadingModal');
-            const modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal) modal.hide();
-        }
+    .catch(err => {
+        modal.hide();
+        showFeedback('danger', 'Network error occurred.');
     });
 }
 
-// Utility function to get CSRF token
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
