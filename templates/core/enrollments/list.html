@@ -12,6 +12,23 @@
         .select2-container--bootstrap-5 .select2-selection {
             min-height: 38px;
         }
+        
+        /* Bulk actions styles */
+        #bulkActionsCompact {
+            border-left: 1px solid #dee2e6;
+            padding-left: 1rem;
+            white-space: nowrap;
+            align-items: center;
+        }
+
+        #bulkActionsCompact .text-muted {
+            margin-right: 0.5rem;
+            flex-shrink: 0;
+        }
+        
+        .enrollment-checkbox {
+            cursor: pointer;
+        }
     </style>
 {% endblock %}
 
@@ -102,7 +119,29 @@
             <!-- Enrollments Table -->
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Enrollment Records</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-0">
+                        <h5 class="card-title mb-0">Enrollment Records</h5>
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Compact Bulk Actions (initially hidden) -->
+                            <div id="bulkActionsCompact" class="d-flex align-items-center gap-2" style="display: none;">
+                                <span class="text-muted small">
+                                    <span id="selectedCountCompact">0</span> selected
+                                </span>
+                                <select id="bulkActionSelect" class="form-select form-select-sm" style="min-width: 180px;">
+                                    <option value="">Choose action...</option>
+                                    <option value="send_notification">Send Notification</option>
+                                </select>
+                                <button type="button" id="bulkApplyBtn" class="btn btn-sm btn-primary" onclick="handleBulkAction()">
+                                    Apply
+                                </button>
+                            </div>
+                            <!-- Select All Area -->
+                            <div>
+                                <input type="checkbox" class="form-check-input" id="selectAllCheckbox" onchange="toggleAllEnrollments()">
+                                <label class="form-check-label ms-2" for="selectAllCheckbox">Select All</label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     {% if enrollments %}
@@ -110,6 +149,9 @@
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
+                                        <th width="40px">
+                                            <i class="fas fa-check-square text-muted"></i>
+                                        </th>
                                         <th>Student</th>
                                         <th>Course</th>
                                         <th>Status</th>
@@ -120,7 +162,12 @@
                                 </thead>
                                 <tbody>
                                     {% for enrollment in enrollments %}
-                                        <tr>
+                                        <tr id="enrollment-row-{{ enrollment.pk }}">
+                                            <td>
+                                                <input type="checkbox" class="form-check-input enrollment-checkbox"
+                                                       value="{{ enrollment.pk }}" onchange="toggleEnrollmentSelection({{ enrollment.pk }}, this.checked)"
+                                                       onclick="event.stopPropagation()">
+                                            </td>
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div class="ms-2">
@@ -243,12 +290,387 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="bulkNotificationModal" tabindex="-1" aria-labelledby="bulkNotificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkNotificationModalLabel">Send Bulk Notification via Enrollments</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'enrollment:bulk_notification_start' %}" id="bulkNotificationForm">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <input type="hidden" name="enrollment_ids" id="selectedEnrollmentIds">
+                    
+                    <!-- Progress Display Area (initially hidden) -->
+                    <div id="progressArea" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-paper-plane"></i>
+                            <strong>Sending notifications...</strong>
+                        </div>
+                        <div class="progress mb-3">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                 id="progressBar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center">
+                            <small id="progressText">Preparing to send notifications...</small>
+                        </div>
+                        <div id="progressStats" class="mt-2" style="display: none;">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <small class="text-success">Sent: <span id="progressSent">0</span></small>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-danger">Failed: <span id="progressFailed">0</span></small>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-info">Total: <span id="progressTotal">0</span></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Fields Area -->
+                    <div id="formFieldsArea">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Recipients:</strong> <span id="recipientCount">0</span> enrollments selected
+                            <div class="small mt-1 text-muted">A notification will be sent to the contact associated with each selected enrollment.</div>
+                        </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="notificationType" class="form-label">Notification Type</label>
+                                <select class="form-select" id="notificationType" name="notification_type" 
+                                        onchange="handleNotificationTypeChange(this.value)" required>
+                                    <option value="email" selected>Email Only</option>
+                                    <option value="sms">SMS Only</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Message Type hidden field with default value -->
+                    <input type="hidden" id="messageType" name="message_type" value="general">
+                    
+                    <!-- Email Fields -->
+                    <div id="emailFieldsGroup">
+                        <div class="mb-3">
+                            <label for="emailSubject" class="form-label">Email Subject</label>
+                            <input type="text" class="form-control" id="emailSubject" name="subject" 
+                                   placeholder="Enter email subject">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="emailContent" class="form-label">Email Content</label>
+                            <textarea class="form-control tinymce-editor" id="emailContent" name="email_content" 
+                                      rows="15"></textarea>
+                            <div class="form-text">Rich HTML content for email with images and formatting</div>
+                        </div>
+                    </div>
+                    
+                    <!-- SMS Fields -->
+                    <div id="smsFieldsGroup" style="display: none;">
+                        <div class="mb-3">
+                            <label for="smsContent" class="form-label">SMS Message</label>
+                            <textarea class="form-control" id="smsContent" name="sms_content" rows="4" 
+                                      maxlength="160" placeholder="Enter SMS message (max 160 characters)"></textarea>
+                            <div class="form-text">
+                                <span id="smsCounter">0</span>/160 characters
+                            </div>
+                        </div>
+                    </div>
+
+                </div> <!-- End of formFieldsArea -->
+                <div class="modal-footer" id="modalFooter">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="sendBtn">
+                        <i class="fas fa-paper-plane"></i> Send Notification
+                    </button>
+                    <button type="button" class="btn btn-success" style="display: none;" id="doneBtn" data-bs-dismiss="modal">
+                        <i class="fas fa-check"></i> Done
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!-- TinyMCE Library -->
+<script src="{% static 'tinymce/tinymce.min.js' %}"></script>
+
 <script>
+    let selectedEnrollments = new Set();
+    
+    // --- Selection Logic ---
+
+    function toggleEnrollmentSelection(enrollmentId, checked) {
+        if (checked) {
+            selectedEnrollments.add(enrollmentId);
+        } else {
+            selectedEnrollments.delete(enrollmentId);
+        }
+        updateSelectionUI();
+    }
+
+    function toggleAllEnrollments() {
+        const checkboxes = document.querySelectorAll('.enrollment-checkbox');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        const isChecked = selectAllCheckbox.checked;
+
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+            const enrollmentId = parseInt(checkbox.value);
+            if (isChecked) {
+                selectedEnrollments.add(enrollmentId);
+            } else {
+                selectedEnrollments.delete(enrollmentId);
+            }
+        });
+        updateSelectionUI();
+    }
+
+    function updateSelectionUI() {
+        const count = selectedEnrollments.size;
+        
+        // Update selection count text
+        document.getElementById('selectedCountCompact').textContent = count;
+        document.getElementById('recipientCount').textContent = count;
+        
+        // Handle Select All checkbox state
+        const checkboxes = document.querySelectorAll('.enrollment-checkbox');
+        if (checkboxes.length > 0) {
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+            
+            const selectAllCb = document.getElementById('selectAllCheckbox');
+            selectAllCb.checked = allChecked;
+            selectAllCb.indeterminate = someChecked && !allChecked;
+        }
+
+        // Show/hide bulk actions
+        const bulkActions = document.getElementById('bulkActionsCompact');
+        if (count > 0) {
+            bulkActions.style.display = 'flex';
+        } else {
+            bulkActions.style.display = 'none';
+        }
+
+        // Highlight selected rows
+        document.querySelectorAll('tr[id^="enrollment-row-"]').forEach(row => {
+            const enrollmentId = parseInt(row.id.replace('enrollment-row-', ''));
+            if (selectedEnrollments.has(enrollmentId)) {
+                row.classList.add('table-primary');
+            } else {
+                row.classList.remove('table-primary');
+            }
+        });
+    }
+    
+    // --- Bulk Action Logic ---
+    
+    function handleBulkAction() {
+        if (selectedEnrollments.size === 0) {
+            alert('Please select at least one enrollment.');
+            return;
+        }
+        
+        const action = document.getElementById('bulkActionSelect').value;
+        if (!action) {
+            alert('Please select an action.');
+            return;
+        }
+        
+        if (action === 'send_notification') {
+            openNotificationModal();
+        }
+    }
+    
+    function openNotificationModal() {
+        // Reset modal state
+        document.getElementById('bulkNotificationForm').reset();
+        document.getElementById('selectedEnrollmentIds').value = Array.from(selectedEnrollments).join(',');
+        
+        // Reset progress UI
+        document.getElementById('progressArea').style.display = 'none';
+        document.getElementById('formFieldsArea').style.display = 'block';
+        document.getElementById('modalFooter').style.display = 'flex';
+        document.getElementById('sendBtn').style.display = 'inline-block';
+        document.getElementById('cancelBtn').style.display = 'inline-block';
+        document.getElementById('doneBtn').style.display = 'none';
+        
+        // Initialize TinyMCE if needed
+        if (typeof tinymce !== 'undefined' && tinymce.get('emailContent')) {
+             tinymce.get('emailContent').setContent('');
+        } else {
+             initTinyMCE();
+        }
+        
+        // Show modal
+        new bootstrap.Modal(document.getElementById('bulkNotificationModal')).show();
+    }
+    
+    function initTinyMCE() {
+        tinymce.init({
+            selector: '.tinymce-editor',
+            height: 300,
+            menubar: false,
+            plugins: [
+                'advlist autolink lists link image charmap print preview anchor',
+                'searchreplace visualblocks code fullscreen',
+                'insertdatetime media table paste code help wordcount'
+            ],
+            toolbar: 'undo redo | formatselect | ' +
+            'bold italic backcolor | alignleft aligncenter ' +
+            'alignright alignjustify | bullist numlist outdent indent | ' +
+            'removeformat | help',
+            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 14px }'
+        });
+    }
+
+    function handleNotificationTypeChange(type) {
+        if (type === 'email') {
+            document.getElementById('emailFieldsGroup').style.display = 'block';
+            document.getElementById('smsFieldsGroup').style.display = 'none';
+            document.getElementById('emailSubject').required = true;
+            document.getElementById('smsContent').required = false;
+        } else {
+            document.getElementById('emailFieldsGroup').style.display = 'none';
+            document.getElementById('smsFieldsGroup').style.display = 'block';
+            document.getElementById('emailSubject').required = false;
+            document.getElementById('smsContent').required = true;
+        }
+    }
+    
+    // SMS counter
+    document.getElementById('smsContent').addEventListener('input', function() {
+        document.getElementById('smsCounter').textContent = this.value.length;
+    });
+
+    // Handle form submission with AJAX progress tracking
+    document.getElementById('bulkNotificationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Sync TinyMCE content
+        if (typeof tinymce !== 'undefined' && tinymce.get('emailContent')) {
+            tinymce.get('emailContent').save();
+        }
+        
+        const form = this;
+        const formData = new FormData(form);
+        
+        // UI updates
+        document.getElementById('formFieldsArea').style.display = 'none';
+        document.getElementById('modalFooter').style.display = 'none';
+        document.getElementById('progressArea').style.display = 'block';
+        document.getElementById('progressText').textContent = 'Initiating task...';
+        
+        // Start task
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const taskId = data.task_id;
+                document.getElementById('progressText').textContent = 'Starting processing...';
+                
+                // Start polling progress
+                pollProgress(taskId);
+                
+                // Trigger execution (in background or via separate call depending on implementation)
+                // In our implementation, we need to call execute explicitly
+                executeTask(taskId);
+            } else {
+                showError(data.error || 'Failed to start task');
+            }
+        })
+        .catch(error => {
+            showError('An error occurred: ' + error);
+        });
+    });
+    
+    function executeTask(taskId) {
+        fetch(`{% url 'enrollment:bulk_notification_execute' '00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', taskId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Task completed successfully
+                document.getElementById('progressBar').style.width = '100%';
+                document.getElementById('progressBar').classList.remove('progress-bar-animated');
+                document.getElementById('progressBar').classList.add('bg-success');
+                document.getElementById('progressText').textContent = 'Completed!';
+                
+                // Show stats
+                document.getElementById('progressStats').style.display = 'block';
+                document.getElementById('progressSent').textContent = data.stats.sent;
+                document.getElementById('progressFailed').textContent = data.stats.failed;
+                document.getElementById('progressTotal').textContent = data.stats.sent + data.stats.failed;
+                
+                // Show Done button
+                document.getElementById('modalFooter').style.display = 'flex';
+                document.getElementById('sendBtn').style.display = 'none';
+                document.getElementById('cancelBtn').style.display = 'none';
+                document.getElementById('doneBtn').style.display = 'inline-block';
+                
+                // Reload on close/done
+                document.getElementById('doneBtn').onclick = function() {
+                    window.location.reload();
+                };
+            } else {
+                showError(data.error || 'Execution failed');
+            }
+        })
+        .catch(error => {
+             // If execution times out or errors, we might still be polling progress
+             console.error('Execute error:', error);
+        });
+    }
+    
+    function pollProgress(taskId) {
+        const intervalId = setInterval(() => {
+            fetch(`{% url 'enrollment:bulk_notification_progress' '00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', taskId))
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'processing') {
+                    const percent = Math.round((data.processed / data.total) * 100);
+                    document.getElementById('progressBar').style.width = percent + '%';
+                    document.getElementById('progressText').textContent = `Processing: ${data.processed}/${data.total}`;
+                } else if (data.status === 'completed' || data.status === 'failed') {
+                    clearInterval(intervalId);
+                    // Execution call handles the final UI state
+                }
+            })
+            .catch(error => {
+                console.error('Poll error:', error);
+                clearInterval(intervalId);
+            });
+        }, 1000);
+    }
+    
+    function showError(message) {
+        document.getElementById('progressArea').style.display = 'none';
+        document.getElementById('formFieldsArea').style.display = 'block';
+        document.getElementById('modalFooter').style.display = 'flex';
+        alert(message);
+    }
+    
     $(document).ready(function() {
         // Initialize Select2 on filter dropdowns
         $('select[name="student"], select[name="course"]').select2({

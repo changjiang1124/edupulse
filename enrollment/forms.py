@@ -798,6 +798,133 @@ class BulkAttendanceForm(forms.Form):
         return created_count, updated_count
 
 
+class BulkEnrollmentNotificationForm(forms.Form):
+    """Form for sending bulk notifications to students from enrollment list"""
+    
+    NOTIFICATION_TYPE_CHOICES = [
+        ('email', 'Email Only'),
+        ('sms', 'SMS Only'),
+    ]
+    
+    MESSAGE_TYPE_CHOICES = [
+        ('general', 'General Message'),
+        ('course_reminder', 'Course Reminder'),
+        ('attendance_notice', 'Attendance Notice'),
+        ('welcome', 'Welcome Message'),
+        ('enrollment_confirm', 'Enrollment Confirmation'),
+    ]
+    
+    # Enrollment selection (hidden field populated by JavaScript)
+    enrollment_ids = forms.CharField(
+        widget=forms.HiddenInput(),
+        required=True
+    )
+    
+    # Notification type
+    notification_type = forms.ChoiceField(
+        choices=NOTIFICATION_TYPE_CHOICES,
+        label='Notification Type',
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'onchange': 'handleNotificationTypeChange(this.value)'
+        }),
+        initial='email'
+    )
+    
+    # Message categorization
+    message_type = forms.ChoiceField(
+        choices=MESSAGE_TYPE_CHOICES,
+        label='Message Type',
+        initial='general',
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        }),
+        help_text='This helps categorize the message for reporting purposes'
+    )
+    
+    # Email specific fields
+    subject = forms.CharField(
+        max_length=200,
+        label='Email Subject',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter email subject'
+        }),
+        required=False
+    )
+    
+    # Email content with TinyMCE (for email)
+    email_content = forms.CharField(
+        label='Email Content',
+        widget=forms.Textarea(attrs={
+            'class': 'tinymce-editor',
+            'rows': 15,
+        }),
+        required=False,
+        help_text='Rich HTML content for email with images and formatting'
+    )
+    
+    # SMS content (plain text)
+    sms_content = forms.CharField(
+        label='SMS Message',
+        max_length=160,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Enter SMS message (max 160 characters)',
+            'maxlength': '160'
+        }),
+        required=False,
+        help_text='Plain text message for SMS (max 160 characters)'
+    )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        notification_type = cleaned_data.get('notification_type')
+        subject = cleaned_data.get('subject')
+        email_content = cleaned_data.get('email_content')
+        sms_content = cleaned_data.get('sms_content')
+        enrollment_ids = cleaned_data.get('enrollment_ids')
+        
+        errors = {}
+        
+        # Validate enrollment selection
+        if not enrollment_ids or not enrollment_ids.strip():
+            errors['enrollment_ids'] = 'At least one enrollment must be selected'
+        else:
+            try:
+                enrollment_id_list = [int(id.strip()) for id in enrollment_ids.split(',') if id.strip()]
+                if not enrollment_id_list:
+                    errors['enrollment_ids'] = 'At least one enrollment must be selected'
+                cleaned_data['enrollment_id_list'] = enrollment_id_list
+            except ValueError:
+                errors['enrollment_ids'] = 'Invalid enrollment selection'
+        
+        # Email specific validation
+        if notification_type == 'email':
+            if not subject or not subject.strip():
+                errors['subject'] = 'Email subject is required for email notifications'
+            if not email_content or not email_content.strip():
+                errors['email_content'] = 'Email content is required for email notifications'
+            # Store email_content as message for backward compatibility
+            cleaned_data['message'] = email_content
+        
+        # SMS specific validation
+        elif notification_type == 'sms':
+            if not sms_content or not sms_content.strip():
+                errors['sms_content'] = 'SMS message is required for SMS notifications'
+            if sms_content and len(sms_content) > 160:
+                errors['sms_content'] = f'SMS message is too long ({len(sms_content)} characters). Maximum 160 characters allowed.'
+            # Store sms_content as message for backward compatibility
+            cleaned_data['message'] = sms_content
+        
+        # Raise all errors at once
+        if errors:
+            raise ValidationError(errors)
+        
+        return cleaned_data
+
+
 class StaffEnrollmentForm(forms.ModelForm):
     """
     Simplified enrollment form for staff members with student search functionality

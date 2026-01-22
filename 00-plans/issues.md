@@ -25,4 +25,4 @@ help me review above design, and improve it if needed.
 
 - [] in enrolment list page, should be multiple select with filter and with notification function, like in student list page. actually, the logic is exactly the same, the only difference is in enrolment list page, the contacts are extracted from the student info of the enrolment.
 
-- [] enrolment list, add a filter for course status, default showing enrolments of published courses. note: the export function should export the current filtered results
+- [x] enrolment list, add a filter for course status, default showing enrolments of published courses. note: the export function should export the current filtered results

@@ -24,6 +24,11 @@ urlpatterns = [
     path('api/check-price-adjustment/<int:enrollment_id>/', views.CheckPriceAdjustmentAPIView.as_view(), name='check_price_adjustment_api'),
     path('api/price-adjustment/<int:enrollment_id>/', views.ApplyPriceAdjustmentAPIView.as_view(), name='apply_price_adjustment_api'),
     
+    # Bulk Notification
+    path('enrollments/bulk-notification/start/', views.bulk_enrollment_notification_start, name='bulk_notification_start'),
+    path('enrollments/bulk-notification/execute/<uuid:task_id>/', views.bulk_enrollment_notification_execute, name='bulk_notification_execute'),
+    path('enrollments/bulk-notification/progress/<uuid:task_id>/', views.bulk_enrollment_notification_progress, name='bulk_notification_progress'),
+    
     # Public Enrollment (no authentication required)
     path('', views.PublicEnrollmentView.as_view(), name='public_enrollment'),
     path('course/<int:course_id>/', views.PublicEnrollmentView.as_view(), name='public_enrollment_with_course'),
