@@ -182,7 +182,7 @@
 
                     <!-- Classes Section -->
                     <div id="classesSection" style="display: none;">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-2" id="classesHeader">
                             <h6 class="mb-0">Select Classes (Optional)</h6>
                             <div class="btn-group btn-group-sm" role="group" id="classSelectionActions">
                                 <button type="button" class="btn btn-outline-secondary" onclick="selectAllClasses()">Select all</button>
@@ -572,19 +572,24 @@ function handleLocationVerified(data) {
     } else {
         // CLOCKED OUT MODE - READY TO CLOCK IN
         
+        const classesHeader = document.getElementById('classesHeader');
+        
         // Show classes if available
         if (data.has_classes) {
+            if (classesHeader) classesHeader.style.display = 'flex';
             displayClasses(data.classes);
             clockInBtn.disabled = false;
             if (classSelectionActions) classSelectionActions.style.display = 'inline-flex';
         } else {
-            // General Attendance Mode (No classes)
+            // No classes scheduled (General Attendance Mode)
             const classesList = document.getElementById('classesList');
+            if (classesHeader) classesHeader.style.display = 'none';
+            
             classesList.innerHTML = `
                 <div class="alert alert-info mb-0">
                     <i class="fas fa-info-circle me-2"></i>
-                    <strong>General Attendance Mode</strong>
-                    <br>You are clocking in without specific classes.
+                    <strong>No classes scheduled for you today</strong>
+                    <br>You can still clock in for general attendance.
                 </div>
             `;
             classesSection.style.display = 'block';

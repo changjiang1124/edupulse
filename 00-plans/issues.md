@@ -7,7 +7,7 @@
 
 - [x] enrolment list page, should have export funciton, which will export all enrolment details of currently published courses. with enrolmnent status, contacts, student names, course names, etc. so the administrator can chase pending ones and use for roll.
 
-- [] 
+- [x] 
 clock in, should extract if the current teacher has classes today, and show the classes in the clock in page. e.g. 1. "you don't have any classes today, you don't need to clock in". and the clock in button is disabled. 
 2. "you have the following classes today: xxxx" and the clock in button is enabled. 
 
