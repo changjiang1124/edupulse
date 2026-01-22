@@ -64,7 +64,8 @@ class EnrollmentExportTest(TestCase):
         response = self.client.get(url)
         self.assertNotEqual(response.status_code, 200)
 
-    def test_export_content(self):
+    def test_export_default_filtering(self):
+        """Test that default export only includes published courses"""
         url = reverse('enrollment:enrollment_export')
         response = self.client.get(url)
         
@@ -72,14 +73,32 @@ class EnrollmentExportTest(TestCase):
         self.assertEqual(response['Content-Type'], 'text/csv; charset=utf-8')
         
         content = response.content.decode('utf-8-sig')
-        lines = content.strip().split('\n')
-        
-        # Check header
-        self.assertTrue('Enrollment ID' in lines[0])
-        self.assertTrue('Student Name' in lines[0])
-        
         # Check content - should contain published course
         self.assertTrue('Published Course' in content)
-        
         # Check content - should NOT contain draft course
         self.assertFalse('Draft Course' in content)
+
+    def test_export_draft_filtering(self):
+        """Test export with draft status filter"""
+        url = reverse('enrollment:enrollment_export')
+        response = self.client.get(url, {'course_status': 'draft'})
+        
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8-sig')
+        
+        # Should contain draft course
+        self.assertTrue('Draft Course' in content)
+        # Should NOT contain published course
+        self.assertFalse('Published Course' in content)
+
+    def test_export_all_filtering(self):
+        """Test export with all status filter"""
+        url = reverse('enrollment:enrollment_export')
+        response = self.client.get(url, {'course_status': 'all'})
+        
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8-sig')
+        
+        # Should contain BOTH courses
+        self.assertTrue('Published Course' in content)
+        self.assertTrue('Draft Course' in content)

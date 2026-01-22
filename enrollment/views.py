@@ -58,13 +58,22 @@ class EnrollmentListView(LoginRequiredMixin, ListView):
         if status:
             queryset = queryset.filter(status=status)
             
+        # Filter by course status (default to published)
+        course_status = self.request.GET.get('course_status', 'published')
+        if course_status and course_status != 'all':
+            queryset = queryset.filter(course__status=course_status)
+            
         return queryset.order_by('-created_at')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Add filter options
         context['students'] = Student.objects.all().order_by('first_name', 'last_name')
-        context['courses'] = Course.objects.filter(status__in=['published', 'expired']).order_by('name')
+        # Show all courses in the filter dropdown, potentially grouped or indicated by status
+        context['courses'] = Course.objects.all().order_by('name')
+        context['course_status_choices'] = Course.STATUS_CHOICES
+        # Pass current filter for UI state
+        context['current_course_status'] = self.request.GET.get('course_status', 'published')
         return context
 
 
@@ -264,10 +273,14 @@ class EnrollmentExportView(AdminRequiredMixin, View):
             'Is New Student'
         ])
 
-        # Filter for published courses as per requirements
-        enrollments = Enrollment.objects.filter(
-            course__status='published'
-        )
+        # Get course status filter (default to published)
+        course_status = request.GET.get('course_status', 'published')
+        if course_status and course_status != 'all':
+            enrollments = Enrollment.objects.filter(
+                course__status=course_status
+            )
+        else:
+            enrollments = Enrollment.objects.all()
 
         student_id = request.GET.get('student')
         if student_id:

@@ -67,8 +67,20 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Status</label>
+                        <div class="col-md-2">
+                            <label class="form-label">Course Status</label>
+                            <select name="course_status" class="form-select">
+                                <option value="published" {% if current_course_status == 'published' %}selected{% endif %}>Published (Default)</option>
+                                <option value="all" {% if current_course_status == 'all' %}selected{% endif %}>All Statuses</option>
+                                {% for status_code, status_label in course_status_choices %}
+                                    {% if status_code != 'published' %}
+                                    <option value="{{ status_code }}" {% if current_course_status == status_code %}selected{% endif %}>{{ status_label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Enrollment Status</label>
                             <select name="status" class="form-select">
                                 <option value="">All Statuses</option>
                                 <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
@@ -76,7 +88,7 @@
                                 <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">&nbsp;</label>
                             <div class="d-flex gap-2">
                                 <button type="submit" class="btn btn-outline-primary">Filter</button>
@@ -189,7 +201,7 @@
                                     <ul class="pagination pagination-sm mb-0">
                                         {% if page_obj.has_previous %}
                                             <li class="page-item">
-                                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.student %}&student={{ request.GET.student }}{% endif %}{% if request.GET.course %}&course={{ request.GET.course }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a>
+                                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.student %}&student={{ request.GET.student }}{% endif %}{% if request.GET.course %}&course={{ request.GET.course }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.course_status %}&course_status={{ request.GET.course_status }}{% endif %}">Previous</a>
                                             </li>
                                         {% endif %}
 
@@ -200,14 +212,16 @@
                                                 </li>
                                             {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                                                 <li class="page-item">
-                                                    <a class="page-link" href="?page={{ num }}{% if request.GET.student %}&student={{ request.GET.student }}{% endif %}{% if request.GET.course %}&course={{ request.GET.course }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{ num }}</a>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ num }}{% if request.GET.student %}&student={{ request.GET.student }}{% endif %}{% if request.GET.course %}&course={{ request.GET.course }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.course_status %}&course_status={{ request.GET.course_status }}{% endif %}">{{ num }}</a>
                                                 </li>
                                             {% endif %}
                                         {% endfor %}
 
                                         {% if page_obj.has_next %}
                                             <li class="page-item">
-                                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.student %}&student={{ request.GET.student }}{% endif %}{% if request.GET.course %}&course={{ request.GET.course }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.student %}&student={{ request.GET.student }}{% endif %}{% if request.GET.course %}&course={{ request.GET.course }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.course_status %}&course_status={{ request.GET.course_status }}{% endif %}">Next</a>
                                             </li>
                                         {% endif %}
                                     </ul>
