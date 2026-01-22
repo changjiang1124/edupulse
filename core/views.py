@@ -21,7 +21,7 @@ from students.models import Student
 from academics.models import Course, Class
 from facilities.models import Facility, Classroom
 from enrollment.models import Enrollment, Attendance
-from .models import ClockInOut, EmailSettings, SMSSettings, EmailLog, SMSLog, NotificationQuota, TeacherAttendance, OrganisationSettings
+from .models import EmailSettings, SMSSettings, EmailLog, SMSLog, NotificationQuota, TeacherAttendance, OrganisationSettings
 from .forms import EmailSettingsForm, TestEmailForm, SMSSettingsForm, TestSMSForm, NotificationForm, BulkNotificationForm
 from .services.notification_queue import enqueue_email_notification, enqueue_sms_notification
 from .utils.gps_utils import (
@@ -184,48 +184,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class ClockInOutView(LoginRequiredMixin, TemplateView):
-    template_name = 'core/clock/clockinout.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        # Get today's clock records for the current user
-        today = timezone.now().date()
-        context['today_records'] = ClockInOut.objects.filter(
-            staff=self.request.user,
-            timestamp__date=today
-        ).order_by('timestamp')
-        
-        # Check if user is currently clocked in
-        last_record = ClockInOut.objects.filter(
-            staff=self.request.user
-        ).order_by('-timestamp').first()
-        
-        context['is_clocked_in'] = (
-            last_record and last_record.status == 'clock_in' and 
-            last_record.timestamp.date() == today
-        )
-        
-        return context
+# LEGACY VIEW - Deprecated in favor of TeacherClockView
+# class ClockInOutView(LoginRequiredMixin, TemplateView):
+#     template_name = 'core/clock/clockinout.html'
+#     
+#     def get_context_data(self, **kwargs):
+#         ...
+#    
+#     def post(self, request, *args, **kwargs):
+#         ...
 
-    def post(self, request, *args, **kwargs):
-        action = request.POST.get('action')
-        latitude = request.POST.get('latitude')
-        longitude = request.POST.get('longitude')
-        
-        if action in ['clock_in', 'clock_out']:
-            ClockInOut.objects.create(
-                staff=request.user,
-                status=action,
-                latitude=float(latitude) if latitude else None,
-                longitude=float(longitude) if longitude else None
-            )
-            
-            action_text = 'clocked in' if action == 'clock_in' else 'clocked out'
-            messages.success(request, f'Successfully {action_text}!')
-        
-        return redirect('core:clockinout')
 
 
 class TimesheetView(LoginRequiredMixin, TemplateView):
@@ -250,11 +218,11 @@ class TimesheetView(LoginRequiredMixin, TemplateView):
         start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
         end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
         
-        # Get clock records for the date range
-        records = ClockInOut.objects.filter(
-            staff=self.request.user,
+        # Get attendance records for the date range
+        records = TeacherAttendance.objects.filter(
+            teacher=self.request.user,
             timestamp__date__range=[start_date_obj, end_date_obj]
-        ).order_by('timestamp')
+        ).select_related('facility').prefetch_related('classes__course').order_by('timestamp')
         
         context.update({
             'start_date': start_date,
@@ -865,12 +833,11 @@ class TeacherClockView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Ensure user is a teacher
-        if not (self.request.user.is_authenticated and 
-                hasattr(self.request.user, 'role') and 
-                self.request.user.role == 'teacher'):
-            context['error'] = 'Access denied. Teachers only.'
-            return context
+        # Ensure user is authenticated (handled by mixin, but good to be explicit about context safety)
+        # We removed the strict 'teacher' role check as Admins/Owners can also teach.
+        if not self.request.user.is_authenticated:
+             context['error'] = 'Access denied. Please log in.'
+             return context
         
         context['teacher'] = self.request.user
         context['google_maps_api_key'] = getattr(settings, 'GOOGLE_MAPS_API_KEY', '')
@@ -882,6 +849,21 @@ class TeacherClockView(LoginRequiredMixin, TemplateView):
         ).select_related('facility').prefetch_related('classes')[:5]
         context['recent_records'] = recent_records
         
+        # Check current clock status
+        # We look for the absolute latest record
+        latest_record = TeacherAttendance.objects.filter(
+            teacher=self.request.user
+        ).order_by('-timestamp').first()
+        
+        context['latest_record'] = latest_record
+        context['is_clocked_in'] = (latest_record and latest_record.clock_type == 'clock_in')
+        context['has_overdue_clock_out'] = bool(
+            latest_record and latest_record.clock_type == 'clock_in' and not latest_record.is_today
+        )
+        context['overdue_clock_out_date'] = (
+            latest_record.timestamp if context['has_overdue_clock_out'] else None
+        )
+        
         return context
 
 
@@ -891,12 +873,10 @@ class TeacherLocationVerifyView(LoginRequiredMixin, View):
     """
     
     def post(self, request):
-        if not (request.user.is_authenticated and 
-                hasattr(request.user, 'role') and 
-                request.user.role == 'teacher'):
+        if not request.user.is_authenticated:
             return JsonResponse({
                 'success': False,
-                'error': 'Access denied. Teachers only.'
+                'error': 'Access denied. Please log in.'
             }, status=403)
         
         try:
@@ -958,12 +938,10 @@ class TeacherClockSubmitView(LoginRequiredMixin, View):
     """
     
     def post(self, request):
-        if not (request.user.is_authenticated and 
-                hasattr(request.user, 'role') and 
-                request.user.role == 'teacher'):
+        if not request.user.is_authenticated:
             return JsonResponse({
                 'success': False,
-                'error': 'Access denied. Teachers only.'
+                'error': 'Access denied. Please log in.'
             }, status=403)
         
         try:
@@ -1058,10 +1036,9 @@ class TeacherAttendanceHistoryView(LoginRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        if not (self.request.user.is_authenticated and 
-                hasattr(self.request.user, 'role') and 
-                self.request.user.role == 'teacher'):
-            return TeacherAttendance.objects.none()
+        # Allow any authenticated user to see their own history
+        if not self.request.user.is_authenticated:
+             return TeacherAttendance.objects.none()
         
         queryset = TeacherAttendance.objects.filter(
             teacher=self.request.user
@@ -1093,9 +1070,9 @@ class TeacherQRAttendanceView(LoginRequiredMixin, View):
     template_name = 'core/teacher_attendance/qr_attendance.html'
     
     def dispatch(self, request, *args, **kwargs):
-        # Ensure only teachers can access this view
-        if not hasattr(request.user, 'role') or request.user.role != 'teacher':
-            messages.error(request, 'Access denied. This page is for teachers only.')
+        # Allow any authenticated user
+        if not request.user.is_authenticated:
+            messages.error(request, 'Access denied. Please log in.')
             return redirect('core:dashboard')
         return super().dispatch(request, *args, **kwargs)
     

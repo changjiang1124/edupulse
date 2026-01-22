@@ -7,8 +7,9 @@ urlpatterns = [
     # Dashboard
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
     
-    # Clock In/Out - Staff specific functionality
-    path('clock/', views.ClockInOutView.as_view(), name='clockinout'),
+    # Clock In/Out - Unified System
+    path('clock/', views.TeacherClockView.as_view(), name='clockinout'), # Keeping name for reverse compatibility
+
     path('timesheet/', views.TimesheetView.as_view(), name='timesheet'),
     
     # Teacher Attendance System

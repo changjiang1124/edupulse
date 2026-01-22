@@ -40,8 +40,9 @@
                 <th scope="col">Date</th>
                 <th scope="col">Time</th>
                 <th scope="col">Action</th>
-                <th scope="col">Latitude</th>
-                <th scope="col">Longitude</th>
+                <th scope="col">Facility</th>
+                <th scope="col">Classes</th>
+                <th scope="col">Distance (m)</th>
               </tr>
             </thead>
             <tbody>
@@ -49,9 +50,24 @@
                 <tr>
                   <td class="text-nowrap">{{ rec.timestamp|date:"Y-m-d" }}</td>
                   <td class="text-nowrap">{{ rec.timestamp|date:"H:i" }}</td>
-                  <td class="text-capitalize">{{ rec.status|default:rec.get_status_display }}</td>
-                  <td class="text-nowrap">{{ rec.latitude|default:"-" }}</td>
-                  <td class="text-nowrap">{{ rec.longitude|default:"-" }}</td>
+                  <td class="text-capitalize">{{ rec.get_clock_type_display }}</td>
+                  <td class="text-nowrap">{{ rec.facility.name|default:"-" }}</td>
+                  <td>
+                    {% if rec.classes.exists %}
+                      {% for cls in rec.classes.all %}
+                        {{ cls.course.name }}{% if not forloop.last %}, {% endif %}
+                      {% endfor %}
+                    {% else %}
+                      General
+                    {% endif %}
+                  </td>
+                  <td class="text-nowrap">
+                    {% if rec.distance_from_facility %}
+                      {{ rec.distance_from_facility|floatformat:1 }} m
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
                 </tr>
               {% endfor %}
             </tbody>

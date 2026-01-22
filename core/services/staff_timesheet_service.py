@@ -30,7 +30,7 @@ class StaffTimesheetService:
             Dict containing paired records, summary statistics, and raw data
         """
         try:
-            from core.models import TeacherAttendance, ClockInOut
+            from core.models import TeacherAttendance
             
             # Set default date range if not provided
             if not end_date:
@@ -45,16 +45,9 @@ class StaffTimesheetService:
                 timestamp__date__lte=end_date
             ).select_related('facility').prefetch_related('classes__course').order_by('timestamp')
             
-            # Get ClockInOut records (fallback/additional source)
-            clock_records = ClockInOut.objects.filter(
-                staff=staff,
-                timestamp__date__gte=start_date,
-                timestamp__date__lte=end_date
-            ).order_by('timestamp')
-            
             # Process and pair the records
             paired_records = StaffTimesheetService._pair_attendance_records(
-                teacher_attendance, clock_records
+                teacher_attendance
             )
             
             # Calculate summary statistics
@@ -64,7 +57,7 @@ class StaffTimesheetService:
                 'paired_records': paired_records,
                 'summary': summary,
                 'raw_teacher_attendance': list(teacher_attendance),
-                'raw_clock_records': list(clock_records),
+                'raw_clock_records': [],
                 'date_range': {
                     'start_date': start_date,
                     'end_date': end_date
@@ -83,7 +76,7 @@ class StaffTimesheetService:
             }
     
     @staticmethod
-    def _pair_attendance_records(teacher_attendance, clock_records):
+    def _pair_attendance_records(teacher_attendance):
         """
         Pair clock in/out records to create work sessions
         """
@@ -96,20 +89,13 @@ class StaffTimesheetService:
         for record in teacher_attendance:
             date_key = record.timestamp.date()
             if date_key not in records_by_date:
-                records_by_date[date_key] = {'teacher_attendance': [], 'clock_records': []}
+                records_by_date[date_key] = {'teacher_attendance': []}
             records_by_date[date_key]['teacher_attendance'].append(record)
-        
-        # Add ClockInOut records
-        for record in clock_records:
-            date_key = record.timestamp.date()
-            if date_key not in records_by_date:
-                records_by_date[date_key] = {'teacher_attendance': [], 'clock_records': []}
-            records_by_date[date_key]['clock_records'].append(record)
         
         # Process each date
         for date, records in records_by_date.items():
             date_pairs = StaffTimesheetService._pair_records_for_date(
-                date, records['teacher_attendance'], records['clock_records']
+                date, records['teacher_attendance']
             )
             paired_records.extend(date_pairs)
         
@@ -119,7 +105,7 @@ class StaffTimesheetService:
         return paired_records
     
     @staticmethod
-    def _pair_records_for_date(date, teacher_attendance, clock_records):
+    def _pair_records_for_date(date, teacher_attendance):
         """
         Pair records for a specific date
         """
@@ -128,11 +114,6 @@ class StaffTimesheetService:
         # First, try to pair TeacherAttendance records (preferred)
         teacher_pairs = StaffTimesheetService._pair_teacher_attendance(date, teacher_attendance)
         pairs.extend(teacher_pairs)
-        
-        # Then, pair any remaining ClockInOut records not covered by TeacherAttendance
-        if clock_records:
-            clock_pairs = StaffTimesheetService._pair_clock_records(date, clock_records)
-            pairs.extend(clock_pairs)
         
         return pairs
     
@@ -205,62 +186,6 @@ class StaffTimesheetService:
         
         return pairs
     
-    @staticmethod
-    def _pair_clock_records(date, records):
-        """
-        Pair basic ClockInOut records
-        """
-        pairs = []
-        clock_ins = [r for r in records if r.status == 'clock_in']
-        clock_outs = [r for r in records if r.status == 'clock_out']
-        
-        for clock_in in clock_ins:
-            # Find the next clock_out after this clock_in
-            matching_clock_out = None
-            for clock_out in clock_outs:
-                if clock_out.timestamp > clock_in.timestamp:
-                    matching_clock_out = clock_out
-                    break
-            
-            # Calculate duration
-            duration_hours = None
-            if matching_clock_out:
-                duration = matching_clock_out.timestamp - clock_in.timestamp
-                duration_hours = duration.total_seconds() / 3600
-                clock_outs.remove(matching_clock_out)
-            
-            pairs.append({
-                'date': date,
-                'clock_in': clock_in,
-                'clock_out': matching_clock_out,
-                'clock_in_time': clock_in.timestamp.time(),
-                'clock_out_time': matching_clock_out.timestamp.time() if matching_clock_out else None,
-                'duration_hours': duration_hours,
-                'facility': None,  # ClockInOut doesn't have facility
-                'classes': [],     # ClockInOut doesn't have classes
-                'source': 'clock_record',
-                'notes': '',
-                'is_complete': matching_clock_out is not None
-            })
-        
-        # Handle unmatched clock_outs
-        for clock_out in clock_outs:
-            pairs.append({
-                'date': date,
-                'clock_in': None,
-                'clock_out': clock_out,
-                'clock_in_time': None,
-                'clock_out_time': clock_out.timestamp.time(),
-                'duration_hours': None,
-                'facility': None,
-                'classes': [],
-                'source': 'clock_record',
-                'notes': '',
-                'is_complete': False,
-                'anomaly': 'clock_out_without_clock_in'
-            })
-        
-        return pairs
     
     @staticmethod
     def _calculate_summary(paired_records):
@@ -414,3 +339,4 @@ class StaffTimesheetService:
                 },
                 'staff_summaries': []
             }
+

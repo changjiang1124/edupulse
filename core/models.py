@@ -656,8 +656,7 @@ class TeacherAttendance(models.Model):
         Staff,
         on_delete=models.CASCADE,
         related_name='teacher_attendance',
-        verbose_name='Teacher',
-        limit_choices_to={'role': 'teacher'}
+        verbose_name='Teacher'
     )
     clock_type = models.CharField(
         max_length=20,
@@ -733,6 +732,12 @@ class TeacherAttendance(models.Model):
     
     def __str__(self):
         return f"{self.teacher.get_full_name()} - {self.get_clock_type_display()} at {self.facility.name} ({self.timestamp.strftime('%Y-%m-%d %H:%M')})"
+
+    @property
+    def is_today(self):
+        """Check if the record is from today"""
+        from django.utils import timezone
+        return self.timestamp.date() == timezone.now().date()
 
 
 class EmailLog(models.Model):
