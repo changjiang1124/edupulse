@@ -8,8 +8,8 @@ from unittest.mock import patch
 class BulkNotificationFlowTest(TestCase):
     def setUp(self):
         User = get_user_model()
-        self.staff = User.objects.create_user(username='staff', password='pass123')
-        self.client.login(username='staff', password='pass123')
+        self.admin = User.objects.create_user(username='admin', password='pass123', role='admin')
+        self.client.login(username='admin', password='pass123')
 
         # Create two students with contact emails
         self.s1 = Student.objects.create(

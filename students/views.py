@@ -20,6 +20,9 @@ from core.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
+def _user_is_admin(user):
+    return user.is_superuser or getattr(user, 'role', None) == 'admin'
+
 
 class StudentListView(LoginRequiredMixin, ListView):
     model = Student
@@ -156,6 +159,8 @@ def bulk_notification_start(request):
     """Start bulk notification sending and return task ID for progress tracking"""
     if request.method != 'POST':
         return JsonResponse({'error': 'Invalid request method'}, status=405)
+    if not _user_is_admin(request.user):
+        return JsonResponse({'error': 'Access denied'}, status=403)
 
     from core.services.bulk_notification_progress import BulkNotificationProgress
 
@@ -252,6 +257,8 @@ def bulk_notification_execute(request, task_id):
     """Execute the actual bulk notification sending with progress tracking"""
     if request.method != 'POST':
         return JsonResponse({'error': 'Invalid request method'}, status=405)
+    if not _user_is_admin(request.user):
+        return JsonResponse({'error': 'Access denied'}, status=403)
 
     from core.services.bulk_notification_progress import BulkNotificationProgress, create_progress_callback
     from core.services.batch_email_service import BatchEmailService
@@ -391,6 +398,8 @@ def bulk_notification_execute(request, task_id):
 @login_required
 def bulk_notification_progress(request, task_id):
     """Get progress status for a bulk notification task"""
+    if not _user_is_admin(request.user):
+        return JsonResponse({'error': 'Access denied'}, status=403)
     from core.services.bulk_notification_progress import BulkNotificationProgress
 
     progress_data = BulkNotificationProgress.get_progress(task_id)
@@ -406,6 +415,9 @@ def bulk_notification(request):
     """Handle bulk notification sending to students"""
     if request.method != 'POST':
         messages.error(request, 'Invalid request method')
+        return redirect('students:student_list')
+    if not _user_is_admin(request.user):
+        messages.error(request, 'Only administrators can send notifications.')
         return redirect('students:student_list')
     
     form = BulkNotificationForm(request.POST)

@@ -412,7 +412,9 @@
                             <option value="">Choose action...</option>
                             <option value="add_tag">Add Tag</option>
                             <option value="remove_tag">Remove Tag</option>
+                            {% if request.user.role == 'admin' %}
                             <option value="send_notification">Send Notification</option>
+                            {% endif %}
                         </select>
                         <button type="button" id="bulkApplyBtn" class="btn btn-sm btn-primary" onclick="handleBulkAction()">
                             Apply

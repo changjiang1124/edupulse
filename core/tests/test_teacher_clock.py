@@ -74,6 +74,22 @@ class TeacherClockTests(TestCase):
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 200)
 
+    def _submit_clock(self, clock_type):
+        submit_url = reverse('core:teacher_clock_submit')
+        payload = {
+            'clock_type': clock_type,
+            'latitude': 0.0,
+            'longitude': 0.0,
+            'facility_id': self.facility.id,
+            'class_ids': [self.class_instance.id],
+            'notes': f'Test {clock_type}'
+        }
+        return self.client.post(
+            submit_url,
+            data=json.dumps(payload),
+            content_type='application/json'
+        )
+
     def test_location_verify_and_clock_submit(self):
         verify_url = reverse('core:teacher_location_verify')
         payload = {'latitude': 0.0, 'longitude': 0.0}
@@ -98,3 +114,22 @@ class TeacherClockTests(TestCase):
         self.assertEqual(resp2.status_code, 200)
         data2 = resp2.json()
         self.assertTrue(data2.get('success'))
+
+    def test_clock_out_requires_active_clock_in(self):
+        resp = self._submit_clock('clock_out')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('clock in', resp.json().get('error', '').lower())
+
+    def test_double_clock_in_rejected(self):
+        first = self._submit_clock('clock_in')
+        self.assertEqual(first.status_code, 200)
+        second = self._submit_clock('clock_in')
+        self.assertEqual(second.status_code, 400)
+        self.assertIn('already', second.json().get('error', '').lower())
+
+    def test_clock_out_after_clock_in(self):
+        first = self._submit_clock('clock_in')
+        self.assertEqual(first.status_code, 200)
+        second = self._submit_clock('clock_out')
+        self.assertEqual(second.status_code, 200)
+        self.assertTrue(second.json().get('success'))

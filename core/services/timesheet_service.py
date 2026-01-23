@@ -36,8 +36,8 @@ class TimesheetExportService:
             HttpResponse with Excel file
         """
         try:
-            from core.models import TeacherAttendance
             from accounts.models import Staff
+            from core.services.staff_timesheet_service import StaffTimesheetService
             
             # Set default date range if not provided
             if not end_date:
@@ -45,20 +45,26 @@ class TimesheetExportService:
             if not start_date:
                 start_date = end_date - timedelta(days=30)  # Last 30 days
             
-            # Get attendance data
-            queryset = TeacherAttendance.objects.select_related(
-                'teacher', 'facility'
-            ).prefetch_related('classes__course')
-            
-            # Filter by teacher if specified
+            # Get staff list for export
             if teacher:
-                queryset = queryset.filter(teacher=teacher)
-            
-            # Filter by date range
-            queryset = queryset.filter(
-                timestamp__date__gte=start_date,
-                timestamp__date__lte=end_date
-            ).order_by('teacher__first_name', 'teacher__last_name', 'timestamp')
+                staff_queryset = [teacher]
+            else:
+                staff_queryset = list(
+                    Staff.objects.filter(role='teacher', is_active=True)
+                    .order_by('first_name', 'last_name')
+                )
+
+            staff_timesheets = []
+            for staff_member in staff_queryset:
+                timesheet_data = StaffTimesheetService.get_staff_timesheet_data(
+                    staff_member, start_date, end_date
+                )
+                paired_records = timesheet_data.get('paired_records', [])
+                if paired_records or teacher:
+                    staff_timesheets.append({
+                        'staff': staff_member,
+                        'paired_records': paired_records
+                    })
             
             # Create workbook and worksheet
             wb = openpyxl.Workbook()
@@ -70,7 +76,7 @@ class TimesheetExportService:
             
             # Generate the timesheet
             TimesheetExportService._generate_timesheet_worksheet(
-                ws, queryset, start_date, end_date, teacher
+                ws, staff_timesheets, start_date, end_date, teacher
             )
             
             # Prepare response
@@ -94,7 +100,7 @@ class TimesheetExportService:
             raise e
     
     @staticmethod
-    def _generate_timesheet_worksheet(ws, queryset, start_date, end_date, teacher):
+    def _generate_timesheet_worksheet(ws, staff_timesheets, start_date, end_date, teacher):
         """
         Generate the timesheet worksheet with data and formatting
         """
@@ -131,7 +137,7 @@ class TimesheetExportService:
         
         # Column headers
         headers = [
-            'Date', 'Teacher', 'Clock Type', 'Time', 'Facility', 
+            'Date', 'Teacher', 'Clock In', 'Clock Out', 'Facility',
             'Classes', 'Duration (Hours)', 'Notes'
         ]
         
@@ -145,68 +151,70 @@ class TimesheetExportService:
         
         # Data rows
         row = header_row + 1
-        current_teacher = None
         daily_hours = {}  # Track daily hours by teacher and date
-        
-        for attendance in queryset:
-            # Add teacher section header if changed
-            if current_teacher != attendance.teacher:
-                if current_teacher is not None:
-                    # Add teacher summary
-                    row = TimesheetExportService._add_teacher_summary(
-                        ws, row, current_teacher, daily_hours
+
+        for staff_entry in staff_timesheets:
+            staff_member = staff_entry['staff']
+            paired_records = staff_entry.get('paired_records', [])
+            daily_hours[staff_member.id] = {}
+
+            for record in paired_records:
+                duration_hours = record.get('duration_hours')
+
+                date_key = record['date']
+                if date_key not in daily_hours[staff_member.id]:
+                    daily_hours[staff_member.id][date_key] = Decimal('0')
+                if duration_hours is not None:
+                    daily_hours[staff_member.id][date_key] += Decimal(str(duration_hours))
+
+                class_names = ', '.join([
+                    cls.course.name for cls in record.get('classes', [])
+                ]) if record.get('classes') else 'General'
+
+                clock_in_time = (
+                    record.get('clock_in_time').strftime('%H:%M')
+                    if record.get('clock_in_time') else '--'
+                )
+                clock_out_time = (
+                    record.get('clock_out_time').strftime('%H:%M')
+                    if record.get('clock_out_time') else '--'
+                )
+                duration_value = ''
+                if duration_hours is not None:
+                    duration_value = float(
+                        Decimal(str(duration_hours)).quantize(
+                            Decimal('0.01'), rounding=ROUND_HALF_UP
+                        )
                     )
-                    row += 1  # Space between teachers
-                
-                current_teacher = attendance.teacher
-                daily_hours[current_teacher.id] = {}
-            
-            # Calculate duration if this is a clock-in/out pair
-            duration_hours = TimesheetExportService._calculate_attendance_duration(attendance)
-            
-            # Track daily hours
-            date_key = attendance.timestamp.date()
-            if date_key not in daily_hours[current_teacher.id]:
-                daily_hours[current_teacher.id][date_key] = Decimal('0')
-            if duration_hours:
-                daily_hours[current_teacher.id][date_key] += duration_hours
-            
-            # Get class names
-            class_names = ', '.join([
-                cls.course.name for cls in attendance.classes.all()
-            ]) if attendance.classes.exists() else 'General'
-            
-            # Add data row
-            data_row = [
-                attendance.timestamp.strftime('%d/%m/%Y'),
-                attendance.teacher.get_full_name(),
-                attendance.get_clock_type_display(),
-                attendance.timestamp.strftime('%H:%M'),
-                attendance.facility.name if attendance.facility else 'N/A',
-                class_names,
-                float(duration_hours) if duration_hours else '',
-                attendance.notes or ''
-            ]
-            
-            for col, value in enumerate(data_row, 1):
-                cell = ws.cell(row=row, column=col, value=value)
-                cell.border = data_border
-                
-                # Right-align duration column
-                if col == 7 and value:  # Duration column
-                    cell.alignment = Alignment(horizontal='right')
-            
-            row += 1
-        
-        # Add final teacher summary
-        if current_teacher:
+
+                data_row = [
+                    record['date'].strftime('%d/%m/%Y'),
+                    staff_member.get_full_name(),
+                    clock_in_time,
+                    clock_out_time,
+                    record.get('facility').name if record.get('facility') else 'N/A',
+                    class_names,
+                    duration_value,
+                    record.get('notes') or ''
+                ]
+
+                for col, value in enumerate(data_row, 1):
+                    cell = ws.cell(row=row, column=col, value=value)
+                    cell.border = data_border
+
+                    if col == 7 and value != '':  # Duration column
+                        cell.alignment = Alignment(horizontal='right')
+
+                row += 1
+
             row = TimesheetExportService._add_teacher_summary(
-                ws, row, current_teacher, daily_hours
+                ws, row, staff_member, daily_hours
             )
-        
+            row += 1  # Space between teachers
+
         # Add overall summary
-        row += 2
-        TimesheetExportService._add_overall_summary(ws, row, queryset, daily_hours)
+        row += 1
+        TimesheetExportService._add_overall_summary(ws, row, staff_timesheets, daily_hours)
         
         # Adjust column widths
         column_widths = [12, 20, 15, 10, 20, 25, 15, 30]
@@ -267,32 +275,37 @@ class TimesheetExportService:
         return row + 1
     
     @staticmethod
-    def _add_overall_summary(ws, row, queryset, daily_hours):
+    def _add_overall_summary(ws, row, staff_timesheets, daily_hours):
         """
         Add overall summary section
         """
-        from accounts.models import Staff
-        
         # Summary header
         ws[f'A{row}'] = 'SUMMARY'
         ws[f'A{row}'].font = Font(bold=True, size=12)
         row += 2
         
         # Calculate totals
-        total_teachers = len(set(att.teacher.id for att in queryset))
+        total_teachers = len(staff_timesheets)
         total_hours = sum(
             sum(teacher_daily.values(), Decimal('0'))
             for teacher_daily in daily_hours.values()
         )
-        total_clock_ins = queryset.filter(clock_type='clock_in').count()
-        total_clock_outs = queryset.filter(clock_type='clock_out').count()
+        total_sessions = sum(
+            len(entry.get('paired_records', [])) for entry in staff_timesheets
+        )
+        incomplete_sessions = sum(
+            1
+            for entry in staff_timesheets
+            for record in entry.get('paired_records', [])
+            if not record.get('is_complete')
+        )
         
         # Summary data
         summary_data = [
             ('Total Teachers:', total_teachers),
             ('Total Hours:', float(total_hours)),
-            ('Total Clock Ins:', total_clock_ins),
-            ('Total Clock Outs:', total_clock_outs),
+            ('Total Sessions:', total_sessions),
+            ('Incomplete Sessions:', incomplete_sessions),
         ]
         
         for label, value in summary_data:
@@ -307,8 +320,8 @@ class TimesheetExportService:
         Generate monthly summary report for all teachers
         """
         try:
-            from core.models import TeacherAttendance
             from accounts.models import Staff
+            from core.services.staff_timesheet_service import StaffTimesheetService
             from datetime import date
             import calendar
             
@@ -322,32 +335,38 @@ class TimesheetExportService:
             ws = wb.active
             ws.title = f"Monthly Summary {year}-{month:02d}"
             
-            # Get all attendance records for the month
-            attendance_records = TeacherAttendance.objects.filter(
-                timestamp__date__gte=start_date,
-                timestamp__date__lte=end_date
-            ).select_related('teacher', 'facility').order_by('teacher', 'timestamp')
-            
             # Process data
             teacher_data = {}
-            for record in attendance_records:
-                teacher_id = record.teacher.id
-                if teacher_id not in teacher_data:
-                    teacher_data[teacher_id] = {
-                        'teacher': record.teacher,
-                        'total_hours': Decimal('0'),
-                        'days_worked': set(),
-                        'total_sessions': 0
-                    }
-                
-                # Calculate hours for clock-out records
-                if record.clock_type == 'clock_out':
-                    duration = TimesheetExportService._calculate_attendance_duration(record)
-                    if duration:
-                        teacher_data[teacher_id]['total_hours'] += duration
-                        teacher_data[teacher_id]['days_worked'].add(record.timestamp.date())
-                
-                teacher_data[teacher_id]['total_sessions'] += 1
+            staff_queryset = Staff.objects.filter(
+                role='teacher',
+                is_active=True
+            ).order_by('first_name', 'last_name')
+
+            for staff_member in staff_queryset:
+                timesheet_data = StaffTimesheetService.get_staff_timesheet_data(
+                    staff_member, start_date, end_date
+                )
+                paired_records = timesheet_data.get('paired_records', [])
+                if not paired_records:
+                    continue
+
+                total_hours = sum(
+                    Decimal(str(record['duration_hours']))
+                    for record in paired_records
+                    if record.get('duration_hours') is not None
+                )
+                days_worked = {
+                    record['date']
+                    for record in paired_records
+                    if record.get('duration_hours') is not None
+                }
+
+                teacher_data[staff_member.id] = {
+                    'teacher': staff_member,
+                    'total_hours': total_hours,
+                    'days_worked': days_worked,
+                    'total_sessions': len(paired_records)
+                }
             
             # Generate worksheet
             TimesheetExportService._generate_monthly_summary_worksheet(

@@ -196,6 +196,11 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
 
 
+from .services.staff_timesheet_service import StaffTimesheetService
+
+# ... imports ...
+
+
 class TimesheetView(LoginRequiredMixin, TemplateView):
     template_name = 'core/clock/timesheet.html'
     
@@ -206,28 +211,45 @@ class TimesheetView(LoginRequiredMixin, TemplateView):
         start_date = self.request.GET.get('start_date')
         end_date = self.request.GET.get('end_date')
         
+        today = timezone.localdate()
+        
         if not start_date or not end_date:
             # Default to current week
-            today = timezone.now().date()
             start_of_week = today - timedelta(days=today.weekday())
             end_of_week = start_of_week + timedelta(days=6)
-            start_date = start_of_week.strftime('%Y-%m-%d')
-            end_date = end_of_week.strftime('%Y-%m-%d')
+            start_date_obj = start_of_week
+            end_date_obj = end_of_week
+            
+            # Format for template input values
+            start_date_str = start_date_obj.strftime('%Y-%m-%d')
+            end_date_str = end_date_obj.strftime('%Y-%m-%d')
+        else:
+            try:
+                # Parse inputs
+                start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+                start_date_str = start_date
+                end_date_str = end_date
+            except ValueError:
+                # Fallback on error
+                start_date_obj = today - timedelta(days=6)
+                end_date_obj = today
+                start_date_str = start_date_obj.strftime('%Y-%m-%d')
+                end_date_str = end_date_obj.strftime('%Y-%m-%d')
         
-        # Convert string dates back to date objects
-        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
-        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
-        
-        # Get attendance records for the date range
-        records = TeacherAttendance.objects.filter(
-            teacher=self.request.user,
-            timestamp__date__range=[start_date_obj, end_date_obj]
-        ).select_related('facility').prefetch_related('classes__course').order_by('timestamp')
+        # Get processed timesheet data
+        timesheet_data = StaffTimesheetService.get_staff_timesheet_data(
+            staff=self.request.user,
+            start_date=start_date_obj,
+            end_date=end_date_obj
+        )
         
         context.update({
-            'start_date': start_date,
-            'end_date': end_date,
-            'records': records,
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'timesheet_data': timesheet_data,
+            'paired_records': timesheet_data.get('paired_records', []),
+            'summary': timesheet_data.get('summary', {}),
         })
         
         return context
@@ -963,6 +985,22 @@ class TeacherClockSubmitView(LoginRequiredMixin, View):
                 'success': False,
                 'error': f'Invalid data provided: {str(e)}'
             }, status=400)
+
+        latest_record = TeacherAttendance.objects.filter(
+            teacher=request.user
+        ).order_by('-timestamp').first()
+
+        if clock_type == 'clock_in' and latest_record and latest_record.clock_type == 'clock_in':
+            return JsonResponse({
+                'success': False,
+                'error': 'You are already clocked in. Please clock out first.'
+            }, status=400)
+
+        if clock_type == 'clock_out' and (not latest_record or latest_record.clock_type != 'clock_in'):
+            return JsonResponse({
+                'success': False,
+                'error': 'No active clock in found. Please clock in first.'
+            }, status=400)
         
         # Re-verify location (security measure)
         location_result = verify_teacher_location(float(lat), float(lon))
@@ -1128,6 +1166,7 @@ class TeacherQRAttendanceView(LoginRequiredMixin, View):
             })
         
         facility = validation_result['facility']
+        distance_from_facility = 0
         
         # Verify GPS location if provided
         if latitude and longitude:
@@ -1149,6 +1188,8 @@ class TeacherQRAttendanceView(LoginRequiredMixin, View):
                         'success': False,
                         'message': f'GPS location does not match QR code facility. You are at {location_result["facility"].name} but QR code is for {facility.name}'
                     })
+
+                distance_from_facility = location_result['distance']
                     
             except (ValueError, TypeError):
                 return JsonResponse({
@@ -1168,6 +1209,7 @@ class TeacherQRAttendanceView(LoginRequiredMixin, View):
                 clock_type=clock_type,
                 latitude=lat_float,
                 longitude=lon_float,
+                distance_from_facility=distance_from_facility,
                 location_verified=True,
                 ip_address=request.META.get('REMOTE_ADDR', ''),
                 user_agent=request.META.get('HTTP_USER_AGENT', ''),

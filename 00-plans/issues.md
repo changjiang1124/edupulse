@@ -23,6 +23,8 @@ help me review above design, and improve it if needed.
 
 - [] validate the timesheet based on the attendance: 帮我 review 下 timesheet 那边的代码，看是否会有 bug,比如记录错误,记录不上,展示,该有 clock in / out 但是没有(标记老师为 absent),或者有 clock in 但是 没有 clock out,或者其他的问题
 
-- [] in enrolment list page, should be multiple select with filter and with notification function, like in student list page. actually, the logic is exactly the same, the only difference is in enrolment list page, the contacts are extracted from the student info of the enrolment.
+- [x] in enrolment list page, should be multiple select with filter and with notification function, like in student list page. actually, the logic is exactly the same, the only difference is in enrolment list page, the contacts are extracted from the student info of the enrolment.
 
 - [x] enrolment list, add a filter for course status, default showing enrolments of published courses. note: the export function should export the current filtered results
+
+- [] in enrolment list, multiple select action, add a new one called "remind payment", this only affect pending enrolments, which means even there are non-pending enrolments in the selection, they should be ignored. once click apply to proceed the action, a modal will be shown to confirm the action, and the modal should show the number of pending enrolments that will be affected. and ask operator to choose the contact method, email or phone (both checked by default, and can be unchecked), and then send the reminder to the student's contact (email or phone) to remind them to pay for the course. Considering the SMS length limit, the reminder message should be concise (e.g. xxx has been enrolled for xxx course, please pay for it. Bank transfer details: ...), and the email message should be more detailed. 

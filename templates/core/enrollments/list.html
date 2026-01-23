@@ -121,6 +121,7 @@
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center mb-0">
                         <h5 class="card-title mb-0">Enrollment Records</h5>
+                        {% if request.user.role == 'admin' %}
                         <div class="d-flex align-items-center gap-3">
                             <!-- Compact Bulk Actions (initially hidden) -->
                             <div id="bulkActionsCompact" class="d-flex align-items-center gap-2" style="display: none;">
@@ -141,6 +142,7 @@
                                 <label class="form-check-label ms-2" for="selectAllCheckbox">Select All</label>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -149,9 +151,11 @@
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
+                                        {% if request.user.role == 'admin' %}
                                         <th width="40px">
                                             <i class="fas fa-check-square text-muted"></i>
                                         </th>
+                                        {% endif %}
                                         <th>Student</th>
                                         <th>Course</th>
                                         <th>Status</th>
@@ -163,11 +167,13 @@
                                 <tbody>
                                     {% for enrollment in enrollments %}
                                         <tr id="enrollment-row-{{ enrollment.pk }}">
+                                            {% if request.user.role == 'admin' %}
                                             <td>
                                                 <input type="checkbox" class="form-check-input enrollment-checkbox"
                                                        value="{{ enrollment.pk }}" onchange="toggleEnrollmentSelection({{ enrollment.pk }}, this.checked)"
                                                        onclick="event.stopPropagation()">
                                             </td>
+                                            {% endif %}
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div class="ms-2">
@@ -291,6 +297,7 @@
     </div>
 </div>
 
+{% if request.user.role == 'admin' %}
 <div class="modal fade" id="bulkNotificationModal" tabindex="-1" aria-labelledby="bulkNotificationModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -397,15 +404,19 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{% if request.user.role == 'admin' %}
 <!-- TinyMCE Library -->
 <script src="{% static 'tinymce/tinymce.min.js' %}"></script>
+{% endif %}
 
 <script>
+    {% if request.user.role == 'admin' %}
     let selectedEnrollments = new Set();
     
     // --- Selection Logic ---
@@ -670,6 +681,7 @@
         document.getElementById('modalFooter').style.display = 'flex';
         alert(message);
     }
+    {% endif %}
     
     $(document).ready(function() {
         // Initialize Select2 on filter dropdowns

@@ -10,7 +10,8 @@
     </a>
   </div>
 
-  <div class="card shadow-sm mb-3">
+  <!-- Date Filter -->
+  <div class="card shadow-sm mb-4">
     <div class="card-body">
       <form method="get" class="row g-2 align-items-end">
         <div class="col-sm-6 col-md-4">
@@ -30,42 +31,93 @@
     </div>
   </div>
 
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card bg-light h-100">
+        <div class="card-body text-center">
+          <h6 class="text-muted text-uppercase small mb-2">Total Hours</h6>
+          <p class="h2 mb-0 text-primary">{{ summary.total_hours|default:"0" }}h</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-light h-100">
+        <div class="card-body text-center">
+          <h6 class="text-muted text-uppercase small mb-2">Days Worked</h6>
+          <p class="h2 mb-0">{{ summary.total_days|default:"0" }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-light h-100">
+        <div class="card-body text-center">
+          <h6 class="text-muted text-uppercase small mb-2">Completed Sessions</h6>
+          <p class="h2 mb-0">{{ summary.completed_sessions|default:"0" }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timesheet Table -->
   <div class="card shadow-sm">
     <div class="card-body">
-      {% if records %}
+      {% if paired_records %}
         <div class="table-responsive">
           <table class="table table-striped align-middle mb-0">
             <thead>
               <tr>
                 <th scope="col">Date</th>
-                <th scope="col">Time</th>
-                <th scope="col">Action</th>
+                <th scope="col">Session Time</th>
+                <th scope="col">Duration</th>
                 <th scope="col">Facility</th>
-                <th scope="col">Classes</th>
-                <th scope="col">Distance (m)</th>
+                <th scope="col">Activity / Classes</th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody>
-              {% for rec in records %}
+              {% for record in paired_records %}
                 <tr>
-                  <td class="text-nowrap">{{ rec.timestamp|date:"Y-m-d" }}</td>
-                  <td class="text-nowrap">{{ rec.timestamp|date:"H:i" }}</td>
-                  <td class="text-capitalize">{{ rec.get_clock_type_display }}</td>
-                  <td class="text-nowrap">{{ rec.facility.name|default:"-" }}</td>
-                  <td>
-                    {% if rec.classes.exists %}
-                      {% for cls in rec.classes.all %}
-                        {{ cls.course.name }}{% if not forloop.last %}, {% endif %}
-                      {% endfor %}
+                  <td class="text-nowrap">{{ record.date|date:"D, d M" }}</td>
+                  <td class="text-nowrap">
+                    {% if record.clock_in_time %}
+                      {{ record.clock_in_time|date:"H:i" }}
                     {% else %}
-                      General
+                      <span class="text-danger">--:--</span>
+                    {% endif %}
+                     - 
+                    {% if record.clock_out_time %}
+                      {{ record.clock_out_time|date:"H:i" }}
+                    {% else %}
+                      <span class="text-danger">--:--</span>
+                    {% endif %}
+                  </td>
+                  <td class="fw-bold">
+                    {% if record.duration_hours %}
+                      {{ record.duration_hours|floatformat:1 }}h
+                    {% else %}
+                      -
                     {% endif %}
                   </td>
                   <td class="text-nowrap">
-                    {% if rec.distance_from_facility %}
-                      {{ rec.distance_from_facility|floatformat:1 }} m
+                    {{ record.facility.name|default:"-" }}
+                  </td>
+                  <td>
+                    {% if record.classes %}
+                      {% for cls in record.classes %}
+                        <span class="badge bg-secondary mb-1">{{ cls.course.name }}</span>
+                      {% endfor %}
                     {% else %}
-                      -
+                      <span class="text-muted fst-italic">General Work</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if record.is_complete %}
+                      <span class="badge bg-success">Complete</span>
+                    {% else %}
+                      <span class="badge bg-warning text-dark">
+                        {% if not record.clock_in %}Missing In{% elif not record.clock_out %}Active{% endif %}
+                      </span>
                     {% endif %}
                   </td>
                 </tr>
@@ -74,7 +126,10 @@
           </table>
         </div>
       {% else %}
-        <p class="text-muted mb-0">No records found for the selected period.</p>
+        <div class="text-center py-5">
+            <i class="fa-regular fa-clock fa-3x text-muted mb-3"></i>
+            <p class="text-muted mb-0">No records found for the selected period.</p>
+        </div>
       {% endif %}
     </div>
   </div>
