@@ -457,7 +457,7 @@
                 <div class="d-grid gap-2">
                     {% if staff.role == 'teacher' %}
                     <a href="{% url 'clock' %}" class="btn btn-outline-info">Clock In/Out</a>
-                    <a href="{% url 'core:teacher_attendance_history' %}" class="btn btn-outline-success">My Attendance History</a>
+                    <a href="{% url 'teacher_attendance_history' %}" class="btn btn-outline-success">My Attendance History</a>
                     <a href="{% url 'academics:class_list' %}" class="btn btn-outline-secondary">My Classes</a>
                     {% endif %}
                 </div>

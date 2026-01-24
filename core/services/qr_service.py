@@ -63,7 +63,7 @@ class QRCodeService:
                 json.dumps(qr_data).encode('utf-8')
             ).decode('utf-8')
             
-            attendance_url = f"https://{site.domain}{reverse('core:teacher_qr_attendance')}?data={encoded_data}"
+            attendance_url = f"https://{site.domain}{reverse('teacher_qr_attendance')}?data={encoded_data}"
             
             # Generate QR code
             qr = qrcode.QRCode(

@@ -75,7 +75,7 @@ class TeacherClockTests(TestCase):
         self.assertEqual(resp.status_code, 200)
 
     def _submit_clock(self, clock_type):
-        submit_url = reverse('core:teacher_clock_submit')
+        submit_url = reverse('teacher_clock_submit')
         payload = {
             'clock_type': clock_type,
             'latitude': 0.0,
@@ -91,7 +91,7 @@ class TeacherClockTests(TestCase):
         )
 
     def test_location_verify_and_clock_submit(self):
-        verify_url = reverse('core:teacher_location_verify')
+        verify_url = reverse('teacher_location_verify')
         payload = {'latitude': 0.0, 'longitude': 0.0}
         resp = self.client.post(verify_url, data=json.dumps(payload), content_type='application/json')
         self.assertEqual(resp.status_code, 200)
@@ -101,7 +101,7 @@ class TeacherClockTests(TestCase):
         self.assertTrue(data.get('has_classes'))
         facility_id = data['facility']['id']
 
-        submit_url = reverse('core:teacher_clock_submit')
+        submit_url = reverse('teacher_clock_submit')
         submit_payload = {
             'clock_type': 'clock_in',
             'latitude': 0.0,

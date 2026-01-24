@@ -445,7 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
         messageArea.innerHTML = '';
         
         // Submit attendance
-        fetch('{% url "core:teacher_qr_attendance" %}', {
+        fetch('{% url "teacher_qr_attendance" %}', {
             method: 'POST',
             body: formData,
             headers: {
