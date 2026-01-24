@@ -185,7 +185,7 @@ class DynamicEmailBackend(EmailBackend):
                 recipient_type=recipient_type,
                 email_type=email_type,
                 subject=message.subject[:200],  # Truncate if too long
-                content=getattr(message, 'body', '')[:1000],  # Truncate content
+                content=self._get_message_content(message),
                 status=status,
                 error_message=error_message[:500] if error_message else '',
                 email_backend=config.get_email_backend_type_display() if config else 'environment',
@@ -194,3 +194,23 @@ class DynamicEmailBackend(EmailBackend):
         except Exception as e:
             # Don't let logging errors break email sending
             logger.warning(f'Failed to create single email log: {e}')
+
+    def _get_message_content(self, message):
+        """Prefer HTML content when available for preview rendering."""
+        html_content = ''
+        try:
+            if hasattr(message, 'alternatives'):
+                for alternative, mimetype in message.alternatives:
+                    if mimetype == 'text/html':
+                        html_content = alternative
+                        break
+        except Exception:
+            html_content = ''
+
+        if html_content:
+            return html_content
+
+        if getattr(message, 'content_subtype', '') == 'html':
+            return getattr(message, 'body', '') or ''
+
+        return getattr(message, 'body', '') or ''

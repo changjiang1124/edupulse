@@ -42,6 +42,19 @@
     font-weight: 600;
     color: #1f2937;
 }
+.email-rendered-content img {
+    max-width: 100%;
+    height: auto;
+}
+.email-rendered-content.rendered-text {
+    white-space: pre-wrap;
+}
+.email-preview-frame {
+    width: 100%;
+    height: 260px;
+    border: 0;
+    background-color: #ffffff;
+}
 </style>
 {% endblock %}
 
@@ -310,7 +323,8 @@
                     <div class="col-12">
                         <strong>Email Content:</strong>
                         <div class="border p-2 bg-light rounded mt-1" style="max-height: 300px; overflow-y: auto;">
-                            <p id="detail-content" class="mb-0"></p>
+                            <div id="detail-content-text" class="email-rendered-content rendered-text mb-0"></div>
+                            <iframe id="detail-content-frame" class="email-preview-frame d-none" title="Email preview"></iframe>
                         </div>
                     </div>
                 </div>
@@ -345,7 +359,18 @@ function showLogDetails(id, email, subject, type, content, status, error, sentTi
     $('#detail-email').text(email);
     $('#detail-subject').text(subject);
     $('#detail-type').text(type);
-    $('#detail-content').text(content);
+    var textContainer = $('#detail-content-text');
+    var frame = document.getElementById('detail-content-frame');
+    var isHtml = /<!doctype\\s+html|<\\s*(html|head|body|meta|title|style|table|div|span|p|img|br|a|ul|ol|li|strong|em)\\b/i.test(content || '');
+    if (isHtml) {
+        textContainer.addClass('d-none');
+        frame.classList.remove('d-none');
+        frame.srcdoc = sanitizeEmailHtmlDocument(content);
+    } else {
+        frame.classList.add('d-none');
+        frame.srcdoc = '';
+        textContainer.removeClass('d-none').text(content || '');
+    }
     $('#detail-time').text(sentTime || 'Not available');
     $('#detail-backend').text(backend || 'Not specified');
 
@@ -365,6 +390,39 @@ function showLogDetails(id, email, subject, type, content, status, error, sentTi
     }
 
     $('#logDetailsModal').modal('show');
+}
+
+function sanitizeEmailHtmlDocument(rawHtml) {
+    if (!rawHtml) {
+        return '';
+    }
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(rawHtml, 'text/html');
+
+    doc.querySelectorAll('script').forEach(function(node) {
+        node.remove();
+    });
+    doc.querySelectorAll('link[rel=\"stylesheet\"]').forEach(function(node) {
+        node.remove();
+    });
+
+    doc.querySelectorAll('*').forEach(function(node) {
+        Array.from(node.attributes).forEach(function(attr) {
+            var name = attr.name.toLowerCase();
+            var value = (attr.value || '').trim().toLowerCase();
+            if (name.startsWith('on')) {
+                node.removeAttribute(attr.name);
+            }
+            if ((name === 'href' || name === 'src') && value.startsWith('javascript:')) {
+                node.removeAttribute(attr.name);
+            }
+        });
+    });
+
+    var headHtml = doc.head ? doc.head.innerHTML : '';
+    var bodyHtml = doc.body ? doc.body.innerHTML : rawHtml;
+
+    return '<!DOCTYPE html><html><head>' + headHtml + '</head><body>' + bodyHtml + '</body></html>';
 }
 </script>
 {% endblock %}

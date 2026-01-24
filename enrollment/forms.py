@@ -804,11 +804,13 @@ class BulkEnrollmentNotificationForm(forms.Form):
     NOTIFICATION_TYPE_CHOICES = [
         ('email', 'Email Only'),
         ('sms', 'SMS Only'),
+        ('both', 'Both Email & SMS'),
     ]
     
     MESSAGE_TYPE_CHOICES = [
         ('general', 'General Message'),
         ('course_reminder', 'Course Reminder'),
+        ('payment_reminder', 'Payment Reminder'),
         ('attendance_notice', 'Attendance Notice'),
         ('welcome', 'Welcome Message'),
         ('enrollment_confirm', 'Enrollment Confirmation'),
@@ -901,22 +903,24 @@ class BulkEnrollmentNotificationForm(forms.Form):
                 errors['enrollment_ids'] = 'Invalid enrollment selection'
         
         # Email specific validation
-        if notification_type == 'email':
+        if notification_type in ['email', 'both']:
             if not subject or not subject.strip():
                 errors['subject'] = 'Email subject is required for email notifications'
             if not email_content or not email_content.strip():
                 errors['email_content'] = 'Email content is required for email notifications'
-            # Store email_content as message for backward compatibility
-            cleaned_data['message'] = email_content
+            # Store email_content as message for backward compatibility if just email
+            if notification_type == 'email':
+                cleaned_data['message'] = email_content
         
         # SMS specific validation
-        elif notification_type == 'sms':
+        if notification_type in ['sms', 'both']:
             if not sms_content or not sms_content.strip():
                 errors['sms_content'] = 'SMS message is required for SMS notifications'
             if sms_content and len(sms_content) > 160:
                 errors['sms_content'] = f'SMS message is too long ({len(sms_content)} characters). Maximum 160 characters allowed.'
-            # Store sms_content as message for backward compatibility
-            cleaned_data['message'] = sms_content
+            # Store sms_content as message for backward compatibility if just SMS
+            if notification_type == 'sms':
+                cleaned_data['message'] = sms_content
         
         # Raise all errors at once
         if errors:

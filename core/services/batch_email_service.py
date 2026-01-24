@@ -142,7 +142,7 @@ class BatchEmailService:
                 recipient_email=email.to[0] if email.to else 'unknown',
                 recipient_type='student',
                 subject=email.subject,
-                content=email.body,
+                content=self._get_email_log_content(email),
                 email_type='bulk',
                 status='sent',
                 sent_at=timezone.now()
@@ -157,7 +157,7 @@ class BatchEmailService:
                 recipient_email=email.to[0] if email.to else 'unknown',
                 recipient_type='student',
                 subject=email.subject,
-                content=email.body,
+                content=self._get_email_log_content(email),
                 email_type='bulk',
                 status='failed',
                 error_message=error_message,
@@ -165,6 +165,25 @@ class BatchEmailService:
             )
         except Exception as e:
             logger.warning(f"Failed to log email failure: {e}")
+
+    def _get_email_log_content(self, email: EmailMultiAlternatives) -> str:
+        """Prefer HTML content when available for preview rendering."""
+        html_content = ''
+        try:
+            for alternative, mimetype in getattr(email, 'alternatives', []):
+                if mimetype == 'text/html':
+                    html_content = alternative
+                    break
+        except Exception:
+            html_content = ''
+
+        if html_content:
+            return html_content
+
+        if getattr(email, 'content_subtype', '') == 'html':
+            return email.body or ''
+
+        return email.body or ''
 
     def send_bulk_emails(self, email_data_list: List[Dict[str, Any]],
                         template_name: str = None,

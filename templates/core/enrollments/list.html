@@ -131,6 +131,7 @@
                                 <select id="bulkActionSelect" class="form-select form-select-sm" style="min-width: 180px;">
                                     <option value="">Choose action...</option>
                                     <option value="send_notification">Send Notification</option>
+                                    <option value="remind_payment">Remind Payment</option>
                                 </select>
                                 <button type="button" id="bulkApplyBtn" class="btn btn-sm btn-primary" onclick="handleBulkAction()">
                                     Apply
@@ -166,7 +167,7 @@
                                 </thead>
                                 <tbody>
                                     {% for enrollment in enrollments %}
-                                        <tr id="enrollment-row-{{ enrollment.pk }}">
+                                            <tr id="enrollment-row-{{ enrollment.pk }}" data-status="{{ enrollment.status }}">
                                             {% if request.user.role == 'admin' %}
                                             <td>
                                                 <input type="checkbox" class="form-check-input enrollment-checkbox"
@@ -354,6 +355,7 @@
                                         onchange="handleNotificationTypeChange(this.value)" required>
                                     <option value="email" selected>Email Only</option>
                                     <option value="sms">SMS Only</option>
+                                    <option value="both">Both Email & SMS</option>
                                 </select>
                             </div>
                         </div>
@@ -362,6 +364,45 @@
                     <!-- Message Type hidden field with default value -->
                     <input type="hidden" id="messageType" name="message_type" value="general">
                     
+                    <!-- Standard Template UI (Hidden by default) -->
+                    <div id="standardTemplateInfo" class="alert alert-success mb-3" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-file-alt me-2"></i>
+                                <strong>Using Standard Payment Reminder Template</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Reminder Preview Area (Read-Only) -->
+                    <div id="paymentReminderPreview" style="display: none;">
+                        <div class="alert alert-warning border-warning d-flex align-items-start">
+                            <i class="fas fa-lock me-2 mt-1"></i>
+                            <div>
+                                <strong>Standard Templates (Read-Only)</strong>
+                                <div class="small mt-1 text-muted">These are system-managed templates and cannot be edited directly. Please contact the system developer if changes are required.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-3">
+                            <div class="card-header bg-light small text-uppercase fw-bold text-muted">
+                                <i class="fas fa-envelope me-1"></i> Email Preview
+                            </div>
+                            <div class="card-body p-4" id="emailPreviewContent" style="background: #fff; min-height: 100px;">
+                                <!-- Inner HTML populated by JS -->
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light small text-uppercase fw-bold text-muted">
+                                <i class="fas fa-comment-alt me-1"></i> SMS Preview
+                            </div>
+                            <div class="card-body p-3 font-monospace bg-white text-dark" id="smsPreviewContent" style="border: 1px solid #e9ecef;">
+                                <!-- Text content populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Email Fields -->
                     <div id="emailFieldsGroup">
                         <div class="mb-3">
@@ -374,7 +415,7 @@
                             <label for="emailContent" class="form-label">Email Content</label>
                             <textarea class="form-control tinymce-editor" id="emailContent" name="email_content" 
                                       rows="15"></textarea>
-                            <div class="form-text">Rich HTML content for email with images and formatting</div>
+                            <div class="form-text">Rich HTML content. Available placeholders: {% verbatim %}{{student_name}}, {{course_name}}, {{amount_due}}{% endverbatim %}</div>
                         </div>
                     </div>
                     
@@ -385,7 +426,7 @@
                             <textarea class="form-control" id="smsContent" name="sms_content" rows="4" 
                                       maxlength="160" placeholder="Enter SMS message (max 160 characters)"></textarea>
                             <div class="form-text">
-                                <span id="smsCounter">0</span>/160 characters
+                                <span id="smsCounter">0</span>/160 characters. Available placeholders: {% verbatim %}{{student_name}}, {{course_name}}, {{amount_due}}{% endverbatim %}
                             </div>
                         </div>
                     </div>
@@ -499,14 +540,40 @@
         }
         
         if (action === 'send_notification') {
-            openNotificationModal();
+            openNotificationModal(Array.from(selectedEnrollments));
+        } else if (action === 'remind_payment') {
+             // Filter for pending enrolments
+             const pendingEnrollments = [];
+             selectedEnrollments.forEach(id => {
+                const row = document.getElementById('enrollment-row-' + id);
+                if (row && row.dataset.status === 'pending') {
+                    pendingEnrollments.push(id);
+                }
+             });
+             
+             if (pendingEnrollments.length === 0) {
+                 alert('No pending enrollments selected for payment reminder.');
+                 return;
+             }
+             
+             // Setup modal for payment reminder
+             openNotificationModal(pendingEnrollments, 'remind_payment');
         }
     }
     
-    function openNotificationModal() {
+    function openNotificationModal(enrollmentIds, actionType = 'general') {
+        const modalElement = document.getElementById('bulkNotificationModal');
+        const modalTitle = document.getElementById('bulkNotificationModalLabel');
+        const notificationSelect = document.getElementById('notificationType');
+        const messageTypeInput = document.getElementById('messageType');
+        const standardTemplateInfo = document.getElementById('standardTemplateInfo');
+        const emailFieldsGroup = document.getElementById('emailFieldsGroup');
+        const smsFieldsGroup = document.getElementById('smsFieldsGroup');
+        
         // Reset modal state
         document.getElementById('bulkNotificationForm').reset();
-        document.getElementById('selectedEnrollmentIds').value = Array.from(selectedEnrollments).join(',');
+        document.getElementById('recipientCount').textContent = enrollmentIds.length;
+        document.getElementById('selectedEnrollmentIds').value = enrollmentIds.join(',');
         
         // Reset progress UI
         document.getElementById('progressArea').style.display = 'none';
@@ -516,15 +583,74 @@
         document.getElementById('cancelBtn').style.display = 'inline-block';
         document.getElementById('doneBtn').style.display = 'none';
         
-        // Initialize TinyMCE if needed
-        if (typeof tinymce !== 'undefined' && tinymce.get('emailContent')) {
-             tinymce.get('emailContent').setContent('');
+        // Action specific setup
+        if (actionType === 'remind_payment') {
+            modalTitle.textContent = `Send Payment Reminder (${enrollmentIds.length} pending enrollments)`;
+            notificationSelect.value = 'both';
+            messageTypeInput.value = 'payment_reminder';
+            
+            // Show standard template info
+            standardTemplateInfo.style.display = 'block';
+            
+            // Hide standard fields, show preview
+            emailFieldsGroup.style.display = 'none';
+            smsFieldsGroup.style.display = 'none';
+            document.getElementById('paymentReminderPreview').style.display = 'block';
+            
+            // Set predefined content (single backslash for correct JS string literal of Unicode chars)
+            document.getElementById('emailSubject').value = 'Payment Reminder - Perth Art School';
+            
+            // \u007B = { , \u007D = }
+            const smsTemplate = '\u007B\u007Bstudent_name\u007D\u007D has been enrolled for \u007B\u007Bcourse_name\u007D\u007D, please pay for it. Bank transfer details: BSB {{ organisation_settings.bank_bsb|escapejs }} ACC {{ organisation_settings.bank_account_number|escapejs }}. Amount: $\u007B\u007Bamount_due\u007D\u007D';
+            
+            // Populate hidden fields for submission
+            document.getElementById('smsContent').value = smsTemplate;
+            
+            // Populate Preview
+            document.getElementById('smsPreviewContent').textContent = smsTemplate;
+            
+            const emailTemplate = `<p>This is a reminder that payment for <strong>\u007B\u007Bcourse_name\u007D\u007D</strong> is pending.</p>
+<p><strong>Amount Due: $\u007B\u007Bamount_due\u007D\u007D</strong></p>
+<p>Please make payment via Bank Transfer:</p>
+<ul>
+<li>Bank: {{ organisation_settings.bank_account_name|escapejs }}</li>
+<li>BSB: {{ organisation_settings.bank_bsb|escapejs }}</li>
+<li>Account Number: {{ organisation_settings.bank_account_number|escapejs }}</li>
+<li>Account Name: {{ organisation_settings.organisation_name|escapejs }}</li>
+<li>Reference: Student Name / Invoice Number</li>
+</ul>
+<p>If you have already made payment, please ignore this message.</p>`;
+            
+            // Populate hidden field for submission
+            // Note: We don't need Tinymce for hidden submission, just the textarea value
+            document.getElementById('emailContent').value = emailTemplate;
+            
+            // Populate Preview (innerHTML for HTML content)
+            document.getElementById('emailPreviewContent').innerHTML = emailTemplate;
+            
         } else {
-             initTinyMCE();
+            modalTitle.textContent = 'Send Bulk Notification via Enrollments';
+            notificationSelect.value = 'email';
+            messageTypeInput.value = 'general';
+            
+            // Hide standard template info & preview
+            standardTemplateInfo.style.display = 'none';
+            document.getElementById('paymentReminderPreview').style.display = 'none';
+            
+            // Show default editable fields logic handled by change handler
+            if (typeof tinymce !== 'undefined' && tinymce.get('emailContent')) {
+                tinymce.get('emailContent').setContent('');
+            }
+            
+             handleNotificationTypeChange('email');
         }
         
         // Show modal
-        new bootstrap.Modal(document.getElementById('bulkNotificationModal')).show();
+        new bootstrap.Modal(modalElement).show();
+    }
+    
+    function toggleCustomMessage() {
+        // Deprecated
     }
     
     function initTinyMCE() {
@@ -546,16 +672,31 @@
     }
 
     function handleNotificationTypeChange(type) {
+        // If standard template info is visible, don't change field visibility yet
+        if (document.getElementById('standardTemplateInfo').style.display !== 'none') {
+            return;
+        }
+
+        const emailGroup = document.getElementById('emailFieldsGroup');
+        const smsGroup = document.getElementById('smsFieldsGroup');
+        const emailSubject = document.getElementById('emailSubject');
+        const smsContent = document.getElementById('smsContent');
+        
         if (type === 'email') {
-            document.getElementById('emailFieldsGroup').style.display = 'block';
-            document.getElementById('smsFieldsGroup').style.display = 'none';
-            document.getElementById('emailSubject').required = true;
-            document.getElementById('smsContent').required = false;
-        } else {
-            document.getElementById('emailFieldsGroup').style.display = 'none';
-            document.getElementById('smsFieldsGroup').style.display = 'block';
-            document.getElementById('emailSubject').required = false;
-            document.getElementById('smsContent').required = true;
+            emailGroup.style.display = 'block';
+            smsGroup.style.display = 'none';
+            emailSubject.required = true;
+            smsContent.required = false;
+        } else if (type === 'sms') {
+            emailGroup.style.display = 'none';
+            smsGroup.style.display = 'block';
+            emailSubject.required = false;
+            smsContent.required = true;
+        } else if (type === 'both') {
+            emailGroup.style.display = 'block';
+            smsGroup.style.display = 'block';
+            emailSubject.required = true;
+            smsContent.required = true;
         }
     }
     

@@ -70,6 +70,7 @@ class EnrollmentListView(LoginRequiredMixin, ListView):
         return queryset.order_by('-created_at')
     
     def get_context_data(self, **kwargs):
+        from core.models import OrganisationSettings
         context = super().get_context_data(**kwargs)
         # Add filter options
         context['students'] = Student.objects.all().order_by('first_name', 'last_name')
@@ -78,6 +79,8 @@ class EnrollmentListView(LoginRequiredMixin, ListView):
         context['course_status_choices'] = Course.STATUS_CHOICES
         # Pass current filter for UI state
         context['current_course_status'] = self.request.GET.get('course_status', 'published')
+        # Add organisation settings for bank details
+        context['organisation_settings'] = OrganisationSettings.get_instance()
         return context
 
 
@@ -1626,14 +1629,30 @@ def bulk_enrollment_notification_start(request):
     notification_type = cleaned_data['notification_type']
     enrollment_ids = cleaned_data.get('enrollment_id_list', [])
 
-    # Determine recipient students from enrollments
+    # Determine recipient enrollments and students
+    enrollments_data = []
     recipients = []
     
     if enrollment_ids:
-        # Get unique students from selected enrollments
-        enrollments = Enrollment.objects.filter(id__in=enrollment_ids).select_related('student')
-        student_ids = set(e.student_id for e in enrollments if e.student.is_active)
-        recipients = Student.objects.filter(id__in=student_ids)
+        # Get enrollments with related student and course info
+        enrollment_objs = Enrollment.objects.filter(id__in=enrollment_ids).select_related('student', 'course')
+        
+        # Build list of unique active students and store enrollment data for variable substitution
+        seen_student_ids = set()
+        for enrollment in enrollment_objs:
+            if enrollment.student.is_active:
+                if enrollment.student_id not in seen_student_ids:
+                    recipients.append(enrollment.student)
+                    seen_student_ids.add(enrollment.student_id)
+                
+                # Store enrollment info for this student (using the first found enrollment if multiple)
+                # This logic prioritizes one enrollment per student for variable substitution context
+                enrollments_data.append({
+                    'student_id': enrollment.student_id,
+                    'course_name': enrollment.course.name,
+                    'amount_due': str(enrollment.get_total_fee() - enrollment.get_paid_amount() if hasattr(enrollment, 'get_paid_amount') else enrollment.get_total_fee()),  # Simplified calculation
+                    'enrollment_id': enrollment.id
+                })
 
     if not recipients:
         return JsonResponse({'error': 'No active students found for selected enrollments'}, status=400)
@@ -1664,8 +1683,11 @@ def bulk_enrollment_notification_start(request):
         'notification_type': notification_type,
         'message_type': cleaned_data['message_type'],
         'subject': cleaned_data.get('subject', ''),
-        'message': cleaned_data['message'],
+        'message': cleaned_data.get('message', ''),  # Fallback/Legacy
+        'email_content': cleaned_data.get('email_content', ''),
+        'sms_content': cleaned_data.get('sms_content', ''),
         'recipient_ids': [r.id for r in recipients],
+        'enrollments_data': enrollments_data, # Store enrollment context
         'total_recipients': len(recipients)
     }
 
@@ -1689,6 +1711,7 @@ def bulk_enrollment_notification_execute(request, task_id):
     from core.services.batch_email_service import BatchEmailService
     from core.services.notification_service import NotificationService
     from core.models import SMSLog, NotificationQuota
+    from django.template import Template, Context
 
     # Get task data from session
     task_data = request.session.get(f'bulk_task_{task_id}')
@@ -1700,11 +1723,17 @@ def bulk_enrollment_notification_execute(request, task_id):
         # Get recipients
         recipient_ids = task_data['recipient_ids']
         recipients = Student.objects.filter(id__in=recipient_ids, is_active=True)
+        
+        # Index enrollment data by student_id for quick lookup
+        enrollments_map = {item['student_id']: item for item in task_data.get('enrollments_data', [])}
 
         notification_type = task_data['notification_type']
         message_type = task_data['message_type']
-        subject = task_data['subject']
-        message = task_data['message']
+        subject_template = task_data['subject']
+        
+        # Get content based on type availability
+        email_content_template = task_data.get('email_content') or task_data.get('message')
+        sms_content_template = task_data.get('sms_content') or task_data.get('message')
 
         # Create progress callback
         progress_callback = create_progress_callback(task_id)
@@ -1715,23 +1744,46 @@ def bulk_enrollment_notification_execute(request, task_id):
         email_failed = 0
         sms_failed = 0
 
+        # Helper to perform variable substitution
+        def render_content(content_template, context_dict):
+            if not content_template:
+                return ""
+            try:
+                # Use Django template engine for simple variable substitution
+                t = Template(content_template)
+                c = Context(context_dict)
+                return t.render(c)
+            except Exception:
+                return content_template
+
         # Prepare bulk email data if email notifications are needed
         if notification_type in ['email', 'both']:
             email_data_list = []
             for student in recipients:
                 contact_email = student.get_contact_email()
                 if contact_email:
+                    # Prepare context for substitution
+                    enrollment_info = enrollments_map.get(student.id, {})
                     context = {
                         'student': student,
                         'recipient_name': student.guardian_name if student.guardian_name else student.get_full_name(),
-                        'message': message,
-                        'message_type': message_type,
+                        'student_name': student.get_full_name(),
+                        'course_name': enrollment_info.get('course_name', 'Course'),
+                        'amount_due': enrollment_info.get('amount_due', ''),
                         'site_domain': 'edupulse.perthartschool.com.au',  # TODO: Make configurable
                     }
+                    
+                    # Render message and subject
+                    rendered_message = render_content(email_content_template, context)
+                    rendered_subject = render_content(subject_template, context)
+                    
+                    # Update context with the rendered message for the wrapper template
+                    context['message'] = rendered_message
+                    context['message_type'] = message_type
 
                     email_data = {
                         'to': contact_email,
-                        'subject': subject,
+                        'subject': rendered_subject,
                         'context': context,
                         'template_name': 'core/emails/bulk_notification.html'
                     }
@@ -1756,13 +1808,24 @@ def bulk_enrollment_notification_execute(request, task_id):
                 phone = student.get_contact_phone()
                 if phone:
                     try:
-                        success = NotificationService.send_sms_notification(phone, message, 'bulk')
+                        # Prepare context for substitution
+                        enrollment_info = enrollments_map.get(student.id, {})
+                        context = {
+                            'student_name': student.get_full_name(),
+                            'course_name': enrollment_info.get('course_name', 'Course'),
+                            'amount_due': enrollment_info.get('amount_due', ''),
+                        }
+                        
+                        # Render SMS content
+                        rendered_sms = render_content(sms_content_template, context)
+                        
+                        success = NotificationService.send_sms_notification(phone, rendered_sms, 'bulk')
                         if success:
                             sms_sent += 1
                             SMSLog.objects.create(
                                 recipient_phone=phone,
                                 recipient_type='student',
-                                content=message,
+                                content=rendered_sms,
                                 sms_type='bulk',
                                 status='sent',
                                 sent_at=timezone.now()
@@ -1772,7 +1835,7 @@ def bulk_enrollment_notification_execute(request, task_id):
                             SMSLog.objects.create(
                                 recipient_phone=phone,
                                 recipient_type='student',
-                                content=message,
+                                content=rendered_sms,
                                 sms_type='bulk',
                                 status='failed',
                                 error_message='SMS sending failed',
@@ -1783,7 +1846,7 @@ def bulk_enrollment_notification_execute(request, task_id):
                         SMSLog.objects.create(
                             recipient_phone=phone,
                             recipient_type='student',
-                            content=message,
+                            content=sms_content_template, # Log original if rendering fails
                             sms_type='bulk',
                             status='failed',
                             error_message=str(e),
