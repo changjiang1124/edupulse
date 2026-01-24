@@ -22,10 +22,6 @@
            class="btn btn-outline-success">
             <i class="fas fa-file-excel me-1"></i>Excel
         </a>
-        <a href="{% url 'accounts:staff_timesheet_overview_export' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&format=csv" 
-           class="btn btn-outline-info">
-            <i class="fas fa-file-csv me-1"></i>CSV
-        </a>
     </div>
 </div>
 
@@ -263,30 +259,8 @@ function setOverviewDateRange(period) {
     }
 }
 
-// Enhanced export functionality
+// Auto-submit form when dates change
 document.addEventListener('DOMContentLoaded', function() {
-    const exportButtons = document.querySelectorAll('a[href*="export"]');
-    
-    exportButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            // Add loading state
-            const originalText = this.innerHTML;
-            const originalClass = this.className;
-            
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            this.className = originalClass.replace('btn-outline-', 'btn-');
-            this.style.pointerEvents = 'none';
-            
-            // Reset button state after a timeout
-            setTimeout(() => {
-                this.innerHTML = originalText;
-                this.className = originalClass;
-                this.style.pointerEvents = 'auto';
-            }, 3000);
-        });
-    });
-    
-    // Auto-submit form when dates change
     const startDateInput = document.getElementById('overview_start_date');
     const endDateInput = document.getElementById('overview_end_date');
     const form = document.getElementById('timesheetOverviewFilterForm');

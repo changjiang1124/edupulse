@@ -130,9 +130,9 @@
             <a href="{% url 'academics:course_restore' course.pk %}" class="btn btn-warning text-dark" onclick="return confirm('Restore this course to Draft?')">
                 <i class="fas fa-undo me-2"></i>Restore
             </a>
-            <a href="{% url 'academics:course_duplicate' course.pk %}" class="btn btn-outline-secondary" onclick="return confirm('Duplicate this course?')">
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#duplicateCourseModal">
                 <i class="fas fa-copy me-2"></i>Duplicate
-            </a>
+            </button>
         {% else %}
             <!-- Expired or other status -->
              <div class="btn-group">
@@ -558,6 +558,49 @@
         </div>
         <div class="toast-body">
             Enrollment URL copied to clipboard!
+        </div>
+    </div>
+</div>
+
+<!-- Duplicate Course Modal -->
+<div class="modal fade" id="duplicateCourseModal" tabindex="-1" aria-labelledby="duplicateCourseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="duplicateCourseModalLabel">
+                    <i class="fas fa-copy me-2"></i>Duplicate Course
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="duplicateCourseForm" method="post" action="{% url 'academics:course_duplicate' course.pk %}">
+                    {% csrf_token %}
+                    <p>Are you sure you want to duplicate the course <strong>{{ course.name }}</strong>?</p>
+                    <p class="text-muted small">A new course will be created in <strong>Draft</strong> status.</p>
+                    
+                    {% if enrollments.exists %}
+                    <div id="enrollmentOptionSection" class="mt-3 p-3 bg-light rounded border">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="include_enrollments" id="includeEnrollments">
+                            <label class="form-check-label fw-medium" for="includeEnrollments">
+                                Include existing enrollments as 'Pending'?
+                            </label>
+                        </div>
+                        <div class="form-text mt-1 text-primary">
+                            <span>{{ enrollments.count }}</span> existing enrollments will be copied to the new course.
+                        </div>
+                        <div class="alert alert-info mt-2 mb-0 py-2 small">
+                            <i class="fas fa-info-circle me-1"></i> 
+                            Prices for new enrollments will be recalculated based on the new course's pricing settings.
+                        </div>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="duplicateCourseForm" class="btn btn-primary">Duplicate Course</button>
+            </div>
         </div>
     </div>
 </div>

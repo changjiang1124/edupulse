@@ -305,10 +305,6 @@
                        class="btn btn-outline-success">
                         <i class="fas fa-file-excel me-1"></i>Excel
                     </a>
-                    <a href="{% url 'accounts:staff_timesheet_export' staff.pk %}?start_date={{ timesheet_start_date|date:'Y-m-d' }}&end_date={{ timesheet_end_date|date:'Y-m-d' }}&format=csv" 
-                       class="btn btn-outline-info">
-                        <i class="fas fa-file-csv me-1"></i>CSV
-                    </a>
                 </div>
             </div>
             <div class="card-body">
@@ -368,7 +364,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for record in timesheet_data.paired_records %}
+                            {% for record in timesheet_data.paired_records|slice:"-50:" %}
                             <tr>
                                 <td class="text-nowrap">{{ record.date|date:"d/m/Y" }}</td>
                                 <td class="text-nowrap">
@@ -423,7 +419,7 @@
                     </table>
                 </div>
                 
-                {% if timesheet_data.paired_records|length > 10 %}
+                {% if timesheet_data.paired_records|length > 50 %}
                 <div class="text-center mt-3">
                     <small class="text-muted">Showing latest 50 records. Use date filter for specific ranges.</small>
                 </div>

@@ -148,6 +148,7 @@
                             </div>
                         </div>
 
+
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
@@ -544,11 +545,36 @@
 
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'academics:course_list' %}" class="btn btn-outline-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary" id="submitButton">
+                        <button type="submit" class="btn btn-primary" id="submitButton" {% if pending_enrollment_count > 0 %}onclick="return checkPendingEnrollments(event)"{% endif %}>
                             {% if form.instance.pk %}Update Course{% else %}Create Course{% endif %}
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Enrollment Confirmation Modal -->
+<div class="modal fade" id="pendingEnrollmentConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-warning">
+            <div class="modal-header bg-warning bg-opacity-10">
+                <h5 class="modal-title text-warning-emphasis">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Review Pending Enrollments
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="fw-medium">This course has <span class="fw-bold">{{ pending_enrollment_count }}</span> pending enrollment(s).</p>
+                <p>You are about to update this course. Please note that these pending enrollments will <strong>NOT</strong> automatically inherit the new fees or schedule changes.</p>
+                <p class="text-muted small mb-0"><i class="fas fa-info-circle me-1"></i>You may need to manually update their details after saving.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitCourseForm()">
+                    Proceed & Save
+                </button>
             </div>
         </div>
     </div>
@@ -588,6 +614,27 @@
         </div>
     </div>
 </div>
+
+<script>
+    function checkPendingEnrollments(event) {
+        event.preventDefault();
+        const modal = new bootstrap.Modal(document.getElementById('pendingEnrollmentConfirmModal'));
+        modal.show();
+        return false;
+    }
+
+    function submitCourseForm() {
+        const form = document.querySelector('form.needs-validation');
+        const modalEl = document.getElementById('pendingEnrollmentConfirmModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        
+        modal.hide();
+        // Remove the onclick handler to prevent loops logic and submit directly
+        const btn = document.getElementById('submitButton');
+        btn.removeAttribute('onclick');
+        btn.click();
+    }
+</script>
 {% endblock %}
 
 {% block extra_js %}

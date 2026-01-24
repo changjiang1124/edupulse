@@ -273,6 +273,7 @@ class StaffTimesheetExportView(LoginRequiredMixin, View):
     def _generate_csv(self, timesheet_data, staff, filename):
         """Generate CSV export"""
         import csv
+        from datetime import datetime
         from django.http import HttpResponse
         
         response = HttpResponse(content_type='text/csv')
@@ -326,6 +327,7 @@ class StaffTimesheetExportView(LoginRequiredMixin, View):
         try:
             import openpyxl
             from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+            from datetime import datetime
             from django.http import HttpResponse
             from io import BytesIO
         except ImportError:
@@ -472,6 +474,7 @@ class StaffTimesheetOverviewView(AdminRequiredMixin, ListView):
         return Staff.objects.filter(is_active_staff=True, role='teacher').order_by('last_name', 'first_name')
     
     def get_context_data(self, **kwargs):
+        from datetime import datetime
         context = super().get_context_data(**kwargs)
         
         # Get date range from request
@@ -493,7 +496,6 @@ class StaffTimesheetOverviewView(AdminRequiredMixin, ListView):
         # Get timesheet data for all staff
         try:
             from core.services.staff_timesheet_service import StaffTimesheetService
-            from datetime import datetime, timedelta
             
             overview_data = StaffTimesheetService.get_all_staff_timesheet_data(
                 self.get_queryset(), start_date, end_date
@@ -564,6 +566,7 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
     def _generate_csv(self, overview_data, filename):
         """Generate CSV export for all staff"""
         import csv
+        from datetime import datetime
         from django.http import HttpResponse
         
         response = HttpResponse(content_type='text/csv')
@@ -607,6 +610,7 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
         try:
             import openpyxl
             from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+            from datetime import datetime
             from django.http import HttpResponse
             from io import BytesIO
         except ImportError:

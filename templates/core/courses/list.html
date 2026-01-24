@@ -153,19 +153,43 @@
                                                     {% endif %}
                                                     
                                                     {% if course.status == 'published' %}
-                                                        <li><a class="dropdown-item" href="{% url 'academics:course_duplicate' course.pk %}" onclick="return confirm('Duplicate this course?')"><i class="fas fa-copy me-2 w-20"></i>Duplicate</a></li>
+                                                        <li>
+                                                            <button class="dropdown-item duplicate-course-btn" 
+                                                                    data-course-id="{{ course.pk }}"
+                                                                    data-course-name="{{ course.name }}"
+                                                                    data-duplicate-url="{% url 'academics:course_duplicate' course.pk %}"
+                                                                    data-enrollment-count="{{ course.enrollments.count }}">
+                                                                <i class="fas fa-copy me-2 w-20"></i>Duplicate
+                                                            </button>
+                                                        </li>
                                                         <li><hr class="dropdown-divider"></li>
                                                         <li><a class="dropdown-item text-warning" href="{% url 'academics:course_archive' course.pk %}" onclick="return confirm('Archive this course?')"><i class="fas fa-archive me-2 w-20"></i>Archive</a></li>
                                                     {% endif %}
                                                     
                                                     {% if course.status == 'archived' %}
-                                                        <li><a class="dropdown-item" href="{% url 'academics:course_duplicate' course.pk %}" onclick="return confirm('Duplicate this course?')"><i class="fas fa-copy me-2 w-20"></i>Duplicate</a></li>
+                                                        <li>
+                                                            <button class="dropdown-item duplicate-course-btn" 
+                                                                    data-course-id="{{ course.pk }}"
+                                                                    data-course-name="{{ course.name }}"
+                                                                    data-duplicate-url="{% url 'academics:course_duplicate' course.pk %}"
+                                                                    data-enrollment-count="{{ course.enrollments.count }}">
+                                                                <i class="fas fa-copy me-2 w-20"></i>Duplicate
+                                                            </button>
+                                                        </li>
                                                         <li><hr class="dropdown-divider"></li>
                                                         <li><a class="dropdown-item" href="{% url 'academics:course_restore' course.pk %}" onclick="return confirm('Restore this course to Draft?')"><i class="fas fa-undo me-2 w-20"></i>Restore</a></li>
                                                     {% endif %}
 
                                                     {% if course.status == 'expired' %}
-                                                        <li><a class="dropdown-item" href="{% url 'academics:course_duplicate' course.pk %}" onclick="return confirm('Duplicate this course?')"><i class="fas fa-copy me-2 w-20"></i>Duplicate</a></li>
+                                                        <li>
+                                                            <button class="dropdown-item duplicate-course-btn" 
+                                                                    data-course-id="{{ course.pk }}"
+                                                                    data-course-name="{{ course.name }}"
+                                                                    data-duplicate-url="{% url 'academics:course_duplicate' course.pk %}"
+                                                                    data-enrollment-count="{{ course.enrollments.count }}">
+                                                                <i class="fas fa-copy me-2 w-20"></i>Duplicate
+                                                            </button>
+                                                        </li>
                                                         <li><hr class="dropdown-divider"></li>
                                                         <li><a class="dropdown-item text-warning" href="{% url 'academics:course_archive' course.pk %}" onclick="return confirm('Archive this course?')"><i class="fas fa-archive me-2 w-20"></i>Archive</a></li>
                                                     {% endif %}
@@ -256,6 +280,47 @@
     </div>
 </div>
 
+<!-- Duplicate Course Modal -->
+<div class="modal fade" id="duplicateCourseModal" tabindex="-1" aria-labelledby="duplicateCourseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="duplicateCourseModalLabel">
+                    <i class="fas fa-copy me-2"></i>Duplicate Course
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="duplicateCourseForm" method="post" action="">
+                    {% csrf_token %}
+                    <p>Are you sure you want to duplicate the course <strong id="duplicateCourseName"></strong>?</p>
+                    <p class="text-muted small">A new course will be created in <strong>Draft</strong> status.</p>
+                    
+                    <div id="enrollmentOptionSection" class="mt-3 p-3 bg-light rounded border d-none">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="include_enrollments" id="includeEnrollments">
+                            <label class="form-check-label fw-medium" for="includeEnrollments">
+                                Include existing enrollments as 'Pending'?
+                            </label>
+                        </div>
+                        <div class="form-text mt-1 text-primary">
+                            <span id="enrollmentCountDisplay">0</span> existing enrollments will be copied to the new course.
+                        </div>
+                        <div class="alert alert-info mt-2 mb-0 py-2 small">
+                            <i class="fas fa-info-circle me-1"></i> 
+                            Prices for new enrollments will be recalculated based on the new course's pricing settings.
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="duplicateCourseForm" class="btn btn-primary">Duplicate Course</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Row click handler
@@ -295,12 +360,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('deleteCourseName').textContent = courseName;
                 document.getElementById('deleteCourseForm').action = deleteUrl;
                 
-                // Show modal
                 const modal = new bootstrap.Modal(deleteModal);
                 modal.show();
             });
         });
     }
-});
-</script>
+
+    // Duplicate modal handler
+    const duplicateModal = document.getElementById('duplicateCourseModal');
+    if (duplicateModal) {
+        const duplicateButtons = document.querySelectorAll('.duplicate-course-btn');
+        duplicateButtons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault(); 
+                e.stopPropagation();
+                
+                const courseName = this.getAttribute('data-course-name');
+                const duplicateUrl = this.getAttribute('data-duplicate-url');
+                const enrollmentCount = parseInt(this.getAttribute('data-enrollment-count') || '0');
+                
+                // Update modal content
+                document.getElementById('duplicateCourseName').textContent = courseName;
+                document.getElementById('duplicateCourseForm').action = duplicateUrl;
+                
+                const enrollmentSection = document.getElementById('enrollmentOptionSection');
+                const countDisplay = document.getElementById('enrollmentCountDisplay');
+                
+                if (enrollmentCount > 0) {
+                    enrollmentSection.classList.remove('d-none');
+                    countDisplay.textContent = enrollmentCount;
+                    // Default to unchecked for safety
+                    document.getElementById('includeEnrollments').checked = false;
+                } else {
+                    enrollmentSection.classList.add('d-none');
+                    document.getElementById('includeEnrollments').checked = false;
+                }
+                
+                // Show modal
+                const modal = new bootstrap.Modal(duplicateModal);
+                modal.show();
+            });
+        });
+    }
+
 {% endblock %}

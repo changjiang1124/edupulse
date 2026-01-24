@@ -67,9 +67,13 @@ function addQuickDateRangeButtons() {
         </div>
     `;
     
-    // Insert before the first row
+    // Insert before the first row or at the top of the form
     const firstRow = filterForm.querySelector('.row');
-    firstRow.parentNode.insertBefore(quickRangeDiv, firstRow);
+    if (firstRow) {
+        firstRow.parentNode.insertBefore(quickRangeDiv, firstRow);
+    } else {
+        filterForm.insertBefore(quickRangeDiv, filterForm.firstElementChild);
+    }
 }
 
 /**

@@ -18,12 +18,17 @@ from .forms import CourseForm, CourseUpdateForm, ClassForm, ClassUpdateForm
 class CourseDuplicateView(LoginRequiredMixin, View):
     """
     Duplicate an existing course.
-    Copies the course with 'Draft' status and redirects to edit form.
+    Copies the course with 'Draft' status and redirects to course list.
+    Optionally includes existing enrollments as pending.
     """
     def post(self, request, pk):
         original = get_object_or_404(Course, pk=pk)
         
+        # Check if we should include enrollments
+        include_enrollments = request.POST.get('include_enrollments') == 'on'
+        
         # Create a copy by setting pk to None
+        original_pk = original.pk
         original.pk = None
         original.id = None
         original._state.adding = True
@@ -36,8 +41,48 @@ class CourseDuplicateView(LoginRequiredMixin, View):
         
         original.save()
         
-        messages.success(request, f'Course duplicated successfully as "{original.name}". Please review and publish.')
-        return redirect('academics:course_edit', pk=original.pk)
+        enrollments_msg = ""
+        if include_enrollments:
+            try:
+                from enrollment.models import Enrollment
+                # Get confirmed and pending enrollments from original course
+                # We skip cancelled ones as they are not relevant for next term mostly
+                original_enrollments = Enrollment.objects.filter(
+                    course_id=original_pk, 
+                    status__in=['confirmed', 'pending', 'completed']
+                )
+                
+                count = 0
+                for old_enrollment in original_enrollments:
+                    # Create new enrollment
+                    Enrollment.objects.create(
+                        student=old_enrollment.student,
+                        course=original,
+                        status='pending',
+                        source_channel='staff',
+                        registration_status='returning',
+                        is_new_student=False,
+                        matched_existing_student=True,
+                        # Reset fee flags
+                        registration_fee_paid=False,
+                        is_early_bird=original.is_early_bird_available(),
+                        # Recalculate fees based on NEW course
+                        course_fee=original.get_applicable_price(),
+                    )
+                    count += 1
+                
+                if count > 0:
+                    enrollments_msg = f" {count} existing enrollments have been copied as 'Pending'."
+            except ImportError:
+                pass
+            except Exception as e:
+                enrollments_msg = f" However, there was an error copying enrollments: {str(e)}"
+        
+        messages.success(
+            request, 
+            f'Course duplicated successfully as "{original.name}" (Draft).{enrollments_msg} Please review the new course.'
+        )
+        return redirect('academics:course_list')
 
     def get(self, request, pk):
         # Allow GET request for easier linking, but ideally should be POST
@@ -384,6 +429,7 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
         else:
             messages.success(self.request, f'Course updated successfully!')
 
+
         return response
     
     def get_success_url(self):
@@ -391,6 +437,17 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Check for pending enrollments count
+        try:
+            from enrollment.models import Enrollment
+            if self.object and self.object.pk:
+                context['pending_enrollment_count'] = Enrollment.objects.filter(
+                    course=self.object,
+                    status='pending'
+                ).count()
+        except Exception:
+            context['pending_enrollment_count'] = 0
         
         # Add information about existing classes
         if self.object and self.object.pk:

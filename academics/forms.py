@@ -432,6 +432,7 @@ class CourseUpdateForm(CourseForm):
                     })
                 )
         
+        
         # Configure classroom field for dynamic filtering
         # NOTE: This reconfiguration is necessary because CourseUpdateForm may need different logic
         from facilities.models import Classroom
