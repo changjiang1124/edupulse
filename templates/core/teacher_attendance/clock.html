@@ -291,7 +291,7 @@
                 </div>
                 {% endfor %}
                 <div class="text-center mt-2 border-top pt-2">
-                    <a href="{% url 'core:teacher_attendance_history' %}" class="text-decoration-none small text-primary fw-medium">View History</a>
+                    <a href="{% url 'teacher_attendance_history' %}" class="text-decoration-none small text-primary fw-medium">View History</a>
                 </div>
             {% else %}
                 <p class="text-center text-muted small mb-0 py-2">No recent activity today.</p>
@@ -402,7 +402,7 @@ function handleLocationSuccess(position) {
     currentLocation = { latitude: lat, longitude: lon };
     
     // Send to server for verification
-    fetch('{% url "core:teacher_location_verify" %}', {
+    fetch('{% url "teacher_location_verify" %}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -568,7 +568,7 @@ function submitClock(type) {
     document.getElementById('loadingMessage').textContent = type === 'clock_in' ? 'Clocking In...' : 'Clocking Out...';
     modal.show();
 
-    fetch('{% url "core:teacher_clock_submit" %}', {
+    fetch('{% url "teacher_clock_submit" %}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

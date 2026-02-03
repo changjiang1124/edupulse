@@ -1372,7 +1372,7 @@ class TimesheetExportView(LoginRequiredMixin, TemplateView):
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
         except ValueError:
             messages.error(request, 'Invalid date format')
-            return redirect('core:timesheet_export')
+            return redirect('timesheet_export')
         
         # Get teacher if specified
         teacher = None
@@ -1385,11 +1385,11 @@ class TimesheetExportView(LoginRequiredMixin, TemplateView):
                     request.user.role == 'teacher' and 
                     request.user.id != teacher.id):
                     messages.error(request, 'You can only export your own timesheet')
-                    return redirect('core:timesheet_export')
+                    return redirect('timesheet_export')
                     
             except Staff.DoesNotExist:
                 messages.error(request, 'Teacher not found')
-                return redirect('core:timesheet_export')
+                return redirect('timesheet_export')
         else:
             # If no teacher specified and user is a teacher, use current user
             if hasattr(request.user, 'role') and request.user.role == 'teacher':
@@ -1405,12 +1405,12 @@ class TimesheetExportView(LoginRequiredMixin, TemplateView):
                 )
             else:
                 messages.error(request, 'Unsupported export format')
-                return redirect('core:timesheet_export')
+                return redirect('timesheet_export')
                 
         except Exception as e:
             logger.error(f"Timesheet export error: {str(e)}")
             messages.error(request, f'Export failed: {str(e)}')
-            return redirect('core:timesheet_export')
+            return redirect('timesheet_export')
 
 
 class MonthlyTimesheetView(LoginRequiredMixin, View):
@@ -1422,7 +1422,7 @@ class MonthlyTimesheetView(LoginRequiredMixin, View):
         # Ensure only administrators can access monthly summary
         if not hasattr(request.user, 'role') or request.user.role != 'admin':
             messages.error(request, 'Access denied. This feature is for administrators only.')
-            return redirect('core:timesheet_export')
+            return redirect('timesheet_export')
         return super().dispatch(request, *args, **kwargs)
     
     def get(self, request, year, month):
@@ -1434,7 +1434,7 @@ class MonthlyTimesheetView(LoginRequiredMixin, View):
         except Exception as e:
             logger.error(f"Monthly timesheet export error: {str(e)}")
             messages.error(request, f'Monthly export failed: {str(e)}')
-            return redirect('core:timesheet_export')
+            return redirect('timesheet_export')
 
 
 # Organisation Settings Views

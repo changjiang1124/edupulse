@@ -5,9 +5,14 @@
 <div class="container py-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h1 class="h3 mb-0">Timesheet</h1>
-    <a href="{% url 'clock' %}" class="btn btn-outline-secondary">
-      <i class="fa-solid fa-arrow-left me-1"></i> Back to Clock
-    </a>
+    <div>
+        <a href="{% url 'timesheet_export' %}" class="btn btn-success me-2">
+            <i class="fa-solid fa-file-export me-1"></i> Export
+        </a>
+        <a href="{% url 'clock' %}" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-1"></i> Back to Clock
+        </a>
+    </div>
   </div>
 
   <!-- Date Filter -->

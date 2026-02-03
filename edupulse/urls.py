@@ -19,6 +19,17 @@ urlpatterns = [
     # Clock
     path('clock/', core_views.TeacherClockView.as_view(), name='clock'),
     
+    # Teacher Attendance System
+    path('attendance/teacher/qr/', core_views.TeacherQRAttendanceView.as_view(), name='teacher_qr_attendance'),
+    path('attendance/teacher/verify-location/', core_views.TeacherLocationVerifyView.as_view(), name='teacher_location_verify'),
+    path('attendance/teacher/submit/', core_views.TeacherClockSubmitView.as_view(), name='teacher_clock_submit'),
+    path('attendance/teacher/history/', core_views.TeacherAttendanceHistoryView.as_view(), name='teacher_attendance_history'),
+    
+    # Timesheet
+    path('timesheet/', core_views.TimesheetView.as_view(), name='timesheet'),
+    path('timesheet/export/', core_views.TimesheetExportView.as_view(), name='timesheet_export'),
+    path('timesheet/monthly/<int:year>/<int:month>/', core_views.MonthlyTimesheetView.as_view(), name='monthly_timesheet'),
+    
     # Core application (Dashboard, Clock, etc.)
     path('core/', include('core.urls')),
     

@@ -68,7 +68,7 @@ def test_basic_functionality():
     try:
         # Test key URLs
         dashboard_url = reverse('core:dashboard')
-        timesheet_url = reverse('core:timesheet_export')
+        timesheet_url = reverse('timesheet_export')
         teacher_clock_url = reverse('clock')
         
         print_test_result("URL resolution", True, "All core URLs resolved")
@@ -127,6 +127,7 @@ def test_user_authentication():
     
     try:
         # Get existing users for testing
+        from accounts.models import Staff
         admin_users = Staff.objects.filter(role='admin', is_active=True)[:1]
         teacher_users = Staff.objects.filter(role='teacher', is_active=True)[:1]
         
