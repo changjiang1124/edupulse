@@ -1232,21 +1232,6 @@ class SendEnrollmentEmailView(LoginRequiredMixin, View):
                     'error': 'Invalid email type. Must be "pending" or "confirmation".'
                 }, status=400)
 
-            # Check for price adjustment before sending email
-            from core.services.early_bird_pricing_service import EarlyBirdPricingService
-
-            price_check = EarlyBirdPricingService.check_price_adjustment_needed(enrollment)
-
-            if price_check['needs_adjustment']:
-                # Return price adjustment needed response
-                return JsonResponse({
-                    'needs_price_adjustment': True,
-                    'enrollment_id': enrollment.id,
-                    'price_check_data': EarlyBirdPricingService.get_price_adjustment_summary(enrollment),
-                    'message': 'Price adjustment required before sending email',
-                    'email_type': email_type  # Include the requested email type for later use
-                })
-
             # Get recipient email
             recipient_email = enrollment.student.get_contact_email()
             if not recipient_email:
@@ -1265,6 +1250,21 @@ class SendEnrollmentEmailView(LoginRequiredMixin, View):
                         'success': False,
                         'error': 'Enrollment pending email can only be sent for pending enrollments.'
                     }, status=400)
+
+                # Check for price adjustment before sending pending email
+                from core.services.early_bird_pricing_service import EarlyBirdPricingService
+
+                price_check = EarlyBirdPricingService.check_price_adjustment_needed(enrollment)
+
+                if price_check['needs_adjustment']:
+                    # Return price adjustment needed response
+                    return JsonResponse({
+                        'needs_price_adjustment': True,
+                        'enrollment_id': enrollment.id,
+                        'price_check_data': EarlyBirdPricingService.get_price_adjustment_summary(enrollment),
+                        'message': 'Price adjustment required before sending email',
+                        'email_type': email_type  # Include the requested email type for later use
+                    })
 
                 # Calculate fees for email using enrollment's stored values
                 fee_breakdown = {

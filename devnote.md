@@ -1,5 +1,10 @@
 # EduPulse 开发备注
 
+## Enrollment 欢迎邮件价格校验调整 (2026-02-03)
+
+- 仅对 `pending` 邮件执行 Early Bird 价格校验；`confirmation`/welcome 不再被价格调整拦截。
+- 原因：`confirmation` 分支前端未处理 `needs_price_adjustment` 响应，导致 UI 误报 “Failed to send email”。
+
 ## 技术架构更新 (2025-08-24)
 
 ### 核心技术栈变更：
