@@ -26,6 +26,7 @@ from core.services.notification_queue import (
     enqueue_new_enrollment_admin_notification,
 )
 from .services import EnrollmentAttendanceService
+from .services import AttendanceRosterService
 
 
 
@@ -1091,16 +1092,16 @@ class AttendanceMarkView(LoginRequiredMixin, View):
     
     def get_context_data(self, class_instance, form=None):
         """Prepare context for both GET and POST requests"""
+        roster_entries = AttendanceRosterService.get_roster_entries(class_instance)
         context = {
             'class_instance': class_instance,
             'course': class_instance.course,
+            'roster_entries': roster_entries,
+            'enrolled_students_count': len(roster_entries),
         }
         
-        # Get enrolled students for this course
-        enrolled_students = class_instance.course.enrollments.filter(
-            status='confirmed'
-        ).select_related('student')
-        context['enrolled_students'] = enrolled_students
+        # Backward-compatible context key used by template loops
+        context['enrolled_students'] = [entry['student'] for entry in roster_entries]
         
         # Get existing attendance records
         existing_attendance = class_instance.attendances.select_related('student').all()

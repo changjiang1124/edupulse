@@ -682,15 +682,34 @@ class ClassDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-            # Get students for this class - combining enrolled students and manually added ones
+        # Get students for this class - combining enrolled students and manual records
         try:
-            from enrollment.models import Enrollment, Attendance
+            from enrollment.models import Enrollment, Attendance, MakeupSession
             
             # Get existing attendance records map
             attendance_map = {
                 attendance.student_id: attendance.status
                 for attendance in Attendance.objects.filter(class_instance=self.object)
             }
+
+            source_makeups = MakeupSession.objects.filter(
+                source_class=self.object
+            ).select_related(
+                'student', 'target_class', 'target_class__course'
+            ).order_by('-created_at')
+            target_makeups = MakeupSession.objects.filter(
+                target_class=self.object
+            ).select_related(
+                'student', 'source_class', 'source_class__course'
+            ).order_by('-created_at')
+
+            latest_source_makeup_by_student = {}
+            for makeup in source_makeups:
+                latest_source_makeup_by_student.setdefault(makeup.student_id, makeup)
+
+            latest_target_makeup_by_student = {}
+            for makeup in target_makeups:
+                latest_target_makeup_by_student.setdefault(makeup.student_id, makeup)
             
             # Get ALL course enrollments (including cancelled) to handle history correctly
             enrollments = Enrollment.objects.filter(
@@ -698,6 +717,7 @@ class ClassDetailView(LoginRequiredMixin, DetailView):
             ).select_related('student')
             
             enrolled_students = []
+            seen_student_ids = set()
             from django.utils import timezone
             class_date = self.object.date
             
@@ -731,13 +751,34 @@ class ClassDetailView(LoginRequiredMixin, DetailView):
                     # We might want to visually indicate they are no longer enrolled in the COURSE
                     pass
 
+                source_makeup = latest_source_makeup_by_student.get(student_id)
+                target_makeup = latest_target_makeup_by_student.get(student_id)
+
                 enrolled_students.append({
                     'student': enrollment.student,
                     'participation_type': participation_type,
                     'attendance_status': attendance_status,
                     'enrollment_status': enrollment.status,
                     'enrollment_status_display': status_display,
+                    'source_makeup': source_makeup,
+                    'target_makeup': target_makeup,
                 })
+                seen_student_ids.add(student_id)
+
+            # Include makeup-only students if they are not part of current course enrollments.
+            for makeup in target_makeups:
+                if makeup.student_id in seen_student_ids:
+                    continue
+                enrolled_students.append({
+                    'student': makeup.student,
+                    'participation_type': 'temp',
+                    'attendance_status': attendance_map.get(makeup.student_id),
+                    'enrollment_status': 'confirmed',
+                    'enrollment_status_display': 'Makeup',
+                    'source_makeup': None,
+                    'target_makeup': makeup,
+                })
+                seen_student_ids.add(makeup.student_id)
             
             # Sort students by name
             enrolled_students.sort(key=lambda x: (x['student'].first_name, x['student'].last_name))
@@ -756,11 +797,22 @@ class ClassDetailView(LoginRequiredMixin, DetailView):
                 'late': context['attendances'].filter(status='late').count(),
             }
             context['attendance_stats'] = attendance_counts
+            context['source_makeup_sessions'] = source_makeups
+            context['target_makeup_sessions'] = target_makeups
+            context['available_makeup_classes'] = Class.objects.filter(
+                course=self.object.course,
+                is_active=True
+            ).exclude(pk=self.object.pk).order_by('date', 'start_time')
+            context['makeup_reason_choices'] = MakeupSession.REASON_CHOICES
             
         except ImportError:
             context['class_students'] = []
             context['attendances'] = []
             context['attendance_stats'] = {'present': 0, 'absent': 0, 'late': 0}
+            context['source_makeup_sessions'] = []
+            context['target_makeup_sessions'] = []
+            context['available_makeup_classes'] = []
+            context['makeup_reason_choices'] = []
         
         # Add user role context for template logic
         context['is_teacher'] = hasattr(self.request.user, 'role') and self.request.user.role == 'teacher'
@@ -869,113 +921,181 @@ from django.contrib.auth.decorators import login_required
 @require_http_methods(["POST"])
 def class_add_students(request, pk):
     """
-    AJAX endpoint to add students to a class.
-    Creates enrollment records for the selected students.
+    Legacy endpoint kept for backward compatibility.
+    Class-level direct add is intentionally disabled to prevent enrollment misuse.
+    """
+    return JsonResponse({
+        'success': False,
+        'message': (
+            'Direct class add is deprecated. '
+            'Please use Course Enrolment for regular students, or Schedule Makeup for one-off attendance.'
+        ),
+        'deprecated': True,
+    }, status=410)
+
+
+@login_required
+@require_http_methods(["GET"])
+def class_makeup_candidates(request, pk):
+    """
+    Return student metadata and candidate classes for makeup scheduling.
+    """
+    class_instance = get_object_or_404(Class, pk=pk)
+
+    if not request.user.is_staff:
+        return JsonResponse({
+            'success': False,
+            'message': 'Access denied. Staff members only.'
+        }, status=403)
+
+    if (
+        hasattr(request.user, 'role')
+        and request.user.role == 'teacher'
+        and class_instance.course.teacher_id != request.user.id
+    ):
+        return JsonResponse({
+            'success': False,
+            'message': 'You can only schedule makeup sessions for your own classes.'
+        }, status=403)
+
+    student_id = request.GET.get('student_id')
+    initiated_from = request.GET.get('initiated_from', 'source')
+
+    if not student_id:
+        return JsonResponse({
+            'success': False,
+            'message': 'student_id is required.'
+        }, status=400)
+
+    from students.models import Student
+    from enrollment.services import MakeupSessionService
+
+    student = get_object_or_404(Student, pk=student_id)
+    payload = MakeupSessionService.get_candidate_classes(
+        student=student,
+        current_class=class_instance,
+        initiated_from=initiated_from,
+        actor=request.user,
+    )
+
+    return JsonResponse({
+        'success': True,
+        **payload,
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def class_schedule_makeup(request, pk):
+    """
+    AJAX endpoint to schedule a makeup session from either source or target class context.
     """
     try:
         class_instance = get_object_or_404(Class, pk=pk)
-        
-        # Parse request data
         import json
         data = json.loads(request.body)
-        student_ids = data.get('student_ids', [])
-        participation_type = data.get('participation_type', 'enrolled')
-        
-        if not student_ids:
+
+        if not request.user.is_staff:
             return JsonResponse({
                 'success': False,
-                'message': 'No students selected.'
-            }, status=400)
-        
-        # Import models
-        from enrollment.models import Enrollment, Attendance
-        from students.models import Student
-        
-        # Track results
-        added_count = 0
-        skipped_count = 0
-        errors = []
-        
-        for student_id in student_ids:
-            try:
-                student = Student.objects.get(pk=student_id)
-                
-                # Check if enrollment already exists for this student and class
-                existing_enrollment = Enrollment.objects.filter(
-                    student=student,
-                    class_instance=class_instance
-                ).first()
-                
-                if existing_enrollment:
-                    skipped_count += 1
-                    continue
-                
-                # Determine enrollment status based on participation type
-                if participation_type == 'temp':
-                    status = 'confirmed'  # Temporary students are confirmed
-                elif participation_type == 'makeup':
-                    status = 'confirmed'  # Makeup students are confirmed
-                else:
-                    status = 'confirmed'  # Default to confirmed for enrolled
-                
-                # Create enrollment for this specific class
-                enrollment = Enrollment.objects.create(
-                    student=student,
-                    course=class_instance.course,
-                    class_instance=class_instance,
-                    status=status,
-                    source_channel='staff',  # Correct field name
-                    registration_status='returning',  # Assume returning since they're being manually added
-                    is_new_student=False,  # Manually added students are typically existing
-                    matched_existing_student=True
-                )
-                
-                # Update pricing from course after creation
-                enrollment.update_pricing_from_course()
-                enrollment.save()
+                'message': 'Access denied. Staff members only.'
+            }, status=403)
 
-                
-                # Create attendance record with unmarked status
-                Attendance.objects.get_or_create(
-                    student=student,
-                    class_instance=class_instance,
-                    defaults={
-                        'status': 'unmarked',
-                        'attendance_time': class_instance.start_time
-                    }
+        if (
+            hasattr(request.user, 'role')
+            and request.user.role == 'teacher'
+            and class_instance.course.teacher_id != request.user.id
+        ):
+            return JsonResponse({
+                'success': False,
+                'message': 'You can only schedule makeup sessions for your own classes.'
+            }, status=403)
+
+        student_id = data.get('student_id')
+        initiated_from = data.get('initiated_from', 'source')
+        reason_type = data.get('reason_type', 'student_request')
+        notes = (data.get('notes') or '').strip()
+
+        from students.models import Student
+        from enrollment.services import MakeupSessionService
+
+        if not student_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Student is required.'
+            }, status=400)
+
+        student = get_object_or_404(Student, pk=student_id)
+
+        if initiated_from == 'target':
+            source_class_id = data.get('source_class_id')
+            if not source_class_id:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Source class is required when initiating from target class.'
+                }, status=400)
+            source_class = get_object_or_404(Class, pk=source_class_id)
+            target_class = class_instance
+        else:
+            target_class_id = data.get('target_class_id')
+            if not target_class_id:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Target class is required when initiating from source class.'
+                }, status=400)
+            source_class = class_instance
+            target_class = get_object_or_404(Class, pk=target_class_id)
+            initiated_from = 'source'
+
+        if (
+            hasattr(request.user, 'role')
+            and request.user.role == 'teacher'
+            and (
+                source_class.course.teacher_id != request.user.id
+                or target_class.course.teacher_id != request.user.id
+            )
+        ):
+            return JsonResponse({
+                'success': False,
+                'message': (
+                    'Teachers can only schedule makeup between classes they teach. '
+                    'Please contact admin for cross-teacher makeup.'
                 )
-                
-                added_count += 1
-                
-            except Student.DoesNotExist:
-                errors.append(f'Student ID {student_id} not found.')
-            except Exception as e:
-                errors.append(f'Error adding student {student_id}: {str(e)}')
-        
-        # Build response message
-        message_parts = []
-        if added_count > 0:
-            message_parts.append(f'{added_count} student(s) added successfully.')
-        if skipped_count > 0:
-            message_parts.append(f'{skipped_count} student(s) already enrolled.')
-        if errors:
-            message_parts.append(f'Errors: {"; ".join(errors)}')
-        
+            }, status=403)
+
+        result = MakeupSessionService.schedule_session(
+            student=student,
+            source_class=source_class,
+            target_class=target_class,
+            initiated_from=initiated_from,
+            reason_type=reason_type,
+            notes=notes,
+            actor=request.user,
+        )
+
+        warning = result.get('source_warning')
+        message = 'Makeup session scheduled successfully.'
+        if warning:
+            message = f'{message} {warning}'
+
         return JsonResponse({
-            'success': added_count > 0,
-            'message': ' '.join(message_parts),
-            'added_count': added_count,
-            'skipped_count': skipped_count,
-            'errors': errors
+            'success': True,
+            'message': message,
+            'makeup_session_id': result['makeup_session'].id
         })
-        
+
+    except ValidationError as exc:
+        return JsonResponse({
+            'success': False,
+            'message': '; '.join(exc.messages) if hasattr(exc, 'messages') else str(exc)
+        }, status=400)
     except json.JSONDecodeError:
         return JsonResponse({
             'success': False,
             'message': 'Invalid JSON data.'
         }, status=400)
-    except Exception as e:
+    except Exception as exc:
         return JsonResponse({
             'success': False,
-            'message': f'Server error: {str(e)}'
+            'message': f'Server error: {str(exc)}'
         }, status=500)

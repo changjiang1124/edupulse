@@ -124,6 +124,7 @@
                 {{ class.is_active|yesno:'Active,Inactive' }}
             </span>
         </div>
+
     </div>
     <div class="d-flex flex-column gap-2">
         {% if user.role == 'admin' %}
@@ -226,8 +227,8 @@
                     Students <span class="badge bg-primary ms-2">{{ class_students|length }}</span>
                 </h5>
                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
-                        <i class="fas fa-user-plus me-1"></i>Add Student
+                    <button class="btn btn-outline-warning" onclick="openMakeupModalFromTarget()">
+                        <i class="fas fa-arrows-turn-to-dots me-1"></i>Schedule Makeup
                     </button>
                 </div>
             </div>
@@ -259,6 +260,12 @@
                                         <i class="fas fa-user-plus me-1"></i>Added
                                     {% endif %}
                                 </span>
+                                {% if student_info.source_makeup and student_info.source_makeup.status == 'scheduled' %}
+                                    <span class="badge bg-warning text-dark mt-1">Makeup Out</span>
+                                {% endif %}
+                                {% if student_info.target_makeup and student_info.target_makeup.status == 'scheduled' %}
+                                    <span class="badge bg-info text-dark mt-1">Makeup In</span>
+                                {% endif %}
                             </div>
                             <div class="col-md-2">
                                 {% with student_info.attendance_status as status %}
@@ -280,7 +287,7 @@
                                     </button>
                                     <ul class="dropdown-menu">
                                         <li><a class="dropdown-item" href="{% url 'students:student_detail' student_info.student.pk %}">View Student</a></li>
-                                        <li><a class="dropdown-item text-danger" href="#" onclick="removeStudent({{ student_info.student.pk }})">Remove from Class</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="openMakeupModalFromSource({{ student_info.student.pk }}, '{{ student_info.student.first_name|escapejs }} {{ student_info.student.last_name|escapejs }}'); return false;">Schedule Makeup</a></li>
                                     </ul>
                                 </div>
                             </div>
@@ -291,9 +298,9 @@
                     <div class="text-center py-5">
                         <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
                         <h6 class="text-muted">No students assigned</h6>
-                        <p class="text-muted mb-3">Add students to this class to get started</p>
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
-                            <i class="fas fa-user-plus me-2"></i>Add First Student
+                        <p class="text-muted mb-3">Use makeup scheduling to bring students into this class.</p>
+                        <button class="btn btn-outline-warning" onclick="openMakeupModalFromTarget()">
+                            <i class="fas fa-arrows-turn-to-dots me-2"></i>Schedule Makeup
                         </button>
                     </div>
                 {% endif %}
@@ -340,6 +347,52 @@
                         <i class="fas fa-clipboard fa-2x text-muted mb-3"></i>
                         <p class="text-muted mb-0">No attendance records yet</p>
                     </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Makeup Sessions -->
+        <div class="card class-meta-card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-arrows-turn-to-dots me-2 text-warning"></i>Makeup Sessions</h5>
+                <button class="btn btn-sm btn-outline-warning" onclick="openMakeupModalFromTarget()">
+                    <i class="fas fa-plus me-1"></i>New Makeup
+                </button>
+            </div>
+            <div class="card-body">
+                {% if source_makeup_sessions or target_makeup_sessions %}
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Direction</th>
+                                    <th>Counterpart Class</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for makeup in source_makeup_sessions %}
+                                <tr>
+                                    <td>{{ makeup.student.first_name }} {{ makeup.student.last_name }}</td>
+                                    <td><span class="badge bg-warning text-dark">Source</span></td>
+                                    <td>{{ makeup.target_class.course.name }} | {{ makeup.target_class.date|date:"d/m/Y" }} {{ makeup.target_class.start_time|time:"g:i A" }}</td>
+                                    <td><span class="badge bg-secondary">{{ makeup.get_status_display }}</span></td>
+                                </tr>
+                                {% endfor %}
+                                {% for makeup in target_makeup_sessions %}
+                                <tr>
+                                    <td>{{ makeup.student.first_name }} {{ makeup.student.last_name }}</td>
+                                    <td><span class="badge bg-info text-dark">Target</span></td>
+                                    <td>{{ makeup.source_class.course.name }} | {{ makeup.source_class.date|date:"d/m/Y" }} {{ makeup.source_class.start_time|time:"g:i A" }}</td>
+                                    <td><span class="badge bg-secondary">{{ makeup.get_status_display }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No makeup sessions for this class yet.</p>
                 {% endif %}
             </div>
         </div>
@@ -414,41 +467,89 @@
     </div>
 </div>
 
-<!-- Add Student Modal -->
-<div class="modal fade" id="addStudentModal" tabindex="-1">
+<!-- Schedule Makeup Modal -->
+<div class="modal fade" id="scheduleMakeupModal" tabindex="-1" aria-labelledby="scheduleMakeupModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Add Student to Class</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="scheduleMakeupModalLabel">Schedule Makeup Session</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <input type="hidden" id="makeupInitiatedFrom" value="source">
+                <input type="hidden" id="makeupStudentId" value="">
+
+                <div class="alert alert-light border mb-3">
+                    <strong>Current mode:</strong> <span id="makeupModeLabel">From Source Class</span>
+                </div>
+
                 <div class="mb-3">
-                    <label for="studentSearch" class="form-label">Search Students</label>
-                    <input type="text" class="form-control" id="studentSearch" placeholder="Type student name or email...">
+                    <label for="makeupStudentSearch" class="form-label">Student</label>
+                    <input type="text" class="form-control" id="makeupStudentSearch" placeholder="Search student name or email...">
+                    <div id="makeupStudentSearchResults" class="list-group mt-2"></div>
+                    <div class="form-text" id="makeupStudentHint">Select an existing student from the student list. New students must be created in Student Management first.</div>
                 </div>
-                <div id="studentSearchResults" class="mb-3">
-                    <!-- Student search results will be populated here -->
+
+                <div class="mb-3" id="makeupSelectedStudentBox" style="display: none;">
+                    <div class="card border-primary-subtle">
+                        <div class="card-body py-2">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-primary">Selected Student</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-success">Locked</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="unlockMakeupStudent()">
+                                        Change
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="fw-semibold" id="makeupSelectedStudentName"></div>
+                            <div class="small text-muted" id="makeupSelectedStudentMeta"></div>
+                            <div class="mt-2" id="makeupSelectedStudentCourses"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-center mb-3" id="addNewStudentOption" style="display: none;">
-                    <hr>
-                    <p class="text-muted">Can't find the student you're looking for?</p>
-                    <a href="{% url 'students:student_add' %}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-user-plus me-1"></i>Add New Student
-                    </a>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="makeupSourceClass" class="form-label">Source Class</label>
+                        <select class="form-select" id="makeupSourceClass">
+                            <option value="">Select source class...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="makeupTargetClass" class="form-label">Target Class</label>
+                        <select class="form-select" id="makeupTargetClass">
+                            <option value="">Select target class...</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="mt-3">
-                    <label for="participationType" class="form-label">Participation Type</label>
-                    <select class="form-select" id="participationType">
-                        <option value="enrolled">Enrolled (Regular student)</option>
-                        <option value="temp">Temporary (One-time participant)</option>
-                        <option value="makeup">Makeup Class</option>
-                    </select>
+                <div class="form-text mt-2" id="makeupClassHint">
+                    Select a student first to load source/target class options from the student's active enrolments and attendance history.
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <label for="makeupReasonType" class="form-label">Reason</label>
+                        <select class="form-select" id="makeupReasonType">
+                            {% for value, label in makeup_reason_choices %}
+                                <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="makeupNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="makeupNotes" rows="2" placeholder="Optional notes for audit"></textarea>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
+                <a href="{% url 'students:student_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-users me-1"></i>Open Student List
+                </a>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="addStudentsBtn" onclick="addSelectedStudents()">Add Students</button>
+                <button type="button" class="btn btn-warning" id="scheduleMakeupSubmitBtn" onclick="submitMakeupSession()" disabled>
+                    <i class="fas fa-check me-1"></i>Schedule Makeup
+                </button>
             </div>
         </div>
     </div>
@@ -458,175 +559,315 @@
 
 {% block extra_js %}
 <script>
-let selectedStudents = [];
+let makeupStudentSearchTimeout;
+let makeupCandidatesPayload = null;
 
-function removeStudent(studentId) {
-    if (confirm('Are you sure you want to remove this student from the class?')) {
-        // Implement remove student functionality
-        // This would make an AJAX call to remove the student
-        console.log('Remove student:', studentId);
+const CURRENT_CLASS_ID = '{{ class.pk }}';
+const CURRENT_CLASS_LABEL = '{{ class.course.name|escapejs }} | {{ class.date|date:"d/m/Y" }} {{ class.start_time|time:"g:i A" }}';
+
+function openMakeupModalFromSource(studentId, studentName) {
+    document.getElementById('makeupInitiatedFrom').value = 'source';
+    document.getElementById('makeupModeLabel').textContent = 'From Source Class';
+    configureMakeupMode('source');
+    resetMakeupStudentSelection();
+    if (studentId) {
+        setMakeupStudent(studentId, studentName);
     }
+    const modal = new bootstrap.Modal(document.getElementById('scheduleMakeupModal'));
+    modal.show();
 }
 
-function addSelectedStudents() {
-    if (selectedStudents.length === 0) {
-        alert('Please select at least one student.');
+function openMakeupModalFromTarget() {
+    document.getElementById('makeupInitiatedFrom').value = 'target';
+    document.getElementById('makeupModeLabel').textContent = 'From Target Class';
+    configureMakeupMode('target');
+    resetMakeupStudentSelection();
+    const modal = new bootstrap.Modal(document.getElementById('scheduleMakeupModal'));
+    modal.show();
+}
+
+function configureMakeupMode(mode) {
+    const sourceSelect = document.getElementById('makeupSourceClass');
+    const targetSelect = document.getElementById('makeupTargetClass');
+    const hint = document.getElementById('makeupClassHint');
+
+    if (mode === 'source') {
+        setLockedClassSelect(sourceSelect, CURRENT_CLASS_ID, CURRENT_CLASS_LABEL);
+        setPlaceholderOnly(targetSelect, 'Select target class...');
+        targetSelect.disabled = true;
+        hint.textContent = 'Select a student to load all upcoming active classes as target options.';
+    } else {
+        setLockedClassSelect(targetSelect, CURRENT_CLASS_ID, CURRENT_CLASS_LABEL);
+        setPlaceholderOnly(sourceSelect, 'Select source class...');
+        sourceSelect.disabled = true;
+        hint.textContent = 'Select a student first. Source classes will be loaded from that student\'s enrolment, attendance and makeup history.';
+    }
+
+    updateMakeupSubmitState();
+}
+
+function setLockedClassSelect(selectElement, classId, label) {
+    selectElement.innerHTML = '';
+    const option = document.createElement('option');
+    option.value = classId;
+    option.textContent = label;
+    option.selected = true;
+    selectElement.appendChild(option);
+    selectElement.disabled = true;
+}
+
+function setPlaceholderOnly(selectElement, placeholderText) {
+    selectElement.innerHTML = '';
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = placeholderText;
+    option.selected = true;
+    selectElement.appendChild(option);
+}
+
+function resetMakeupStudentSelection() {
+    makeupCandidatesPayload = null;
+    const searchInput = document.getElementById('makeupStudentSearch');
+    document.getElementById('makeupStudentId').value = '';
+    searchInput.value = '';
+    searchInput.readOnly = false;
+    document.getElementById('makeupSelectedStudentName').textContent = '';
+    document.getElementById('makeupSelectedStudentMeta').textContent = '';
+    document.getElementById('makeupSelectedStudentCourses').innerHTML = '';
+    document.getElementById('makeupSelectedStudentBox').style.display = 'none';
+    document.getElementById('makeupStudentSearchResults').innerHTML = '';
+    document.getElementById('makeupNotes').value = '';
+    document.getElementById('makeupStudentHint').textContent =
+        'Select an existing student from the student list. New students must be created in Student Management first.';
+    updateMakeupSubmitState();
+}
+
+function unlockMakeupStudent() {
+    resetMakeupStudentSelection();
+    configureMakeupMode(document.getElementById('makeupInitiatedFrom').value);
+    document.getElementById('makeupStudentSearch').focus();
+}
+
+function setMakeupStudent(studentId, studentName) {
+    const searchInput = document.getElementById('makeupStudentSearch');
+    document.getElementById('makeupStudentId').value = studentId;
+    document.getElementById('makeupSelectedStudentName').textContent = studentName;
+    document.getElementById('makeupSelectedStudentBox').style.display = 'block';
+    document.getElementById('makeupStudentSearchResults').innerHTML = '';
+    searchInput.value = studentName;
+    searchInput.readOnly = true;
+    document.getElementById('makeupStudentHint').textContent =
+        'Student is locked to keep source/target classes consistent. Click Change if needed.';
+    loadMakeupCandidates(studentId);
+}
+
+function initMakeupStudentSearch() {
+    const searchInput = document.getElementById('makeupStudentSearch');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', function () {
+        if (this.readOnly) {
+            return;
+        }
+        const query = this.value.trim();
+        clearTimeout(makeupStudentSearchTimeout);
+
+        if (query.length < 2) {
+            document.getElementById('makeupStudentSearchResults').innerHTML = '';
+            return;
+        }
+
+        makeupStudentSearchTimeout = setTimeout(() => {
+            fetch(`/students/search/?q=${encodeURIComponent(query)}`, {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(response => response.json())
+                .then(data => renderMakeupStudentSearchResults(data.students || []))
+                .catch(() => {
+                    document.getElementById('makeupStudentSearchResults').innerHTML = '';
+                });
+        }, 250);
+    });
+}
+
+function renderMakeupStudentSearchResults(students) {
+    const container = document.getElementById('makeupStudentSearchResults');
+    if (!students.length) {
+        container.innerHTML = '<div class="list-group-item text-muted">No matching students found.</div>';
         return;
     }
-    
-    const participationType = document.getElementById('participationType').value;
-    const studentIds = selectedStudents.map(s => s.id);
-    
-    // Get CSRF token
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    
-    // Disable the button to prevent double-clicks
-    const addButton = document.getElementById('addStudentsBtn');
-    addButton.disabled = true;
-    addButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding...';
-    
-    // Make AJAX call to add students
-    fetch('{% url "academics:class_add_students" class.pk %}', {
+
+    container.innerHTML = students.map(student => `
+        <button type="button" class="list-group-item list-group-item-action"
+            data-student-name="${`${student.first_name} ${student.last_name}`.replace(/"/g, '&quot;')}"
+            onclick="setMakeupStudent(${student.id}, this.dataset.studentName)">
+            <div class="fw-medium">${student.first_name} ${student.last_name}</div>
+            <small class="text-muted">${student.email || student.contact_email || 'No email'}</small>
+        </button>
+    `).join('');
+}
+
+function loadMakeupCandidates(studentId) {
+    const initiatedFrom = document.getElementById('makeupInitiatedFrom').value;
+    const hint = document.getElementById('makeupClassHint');
+    hint.textContent = 'Loading class options...';
+
+    fetch(`{% url "academics:class_makeup_candidates" class.pk %}?student_id=${encodeURIComponent(studentId)}&initiated_from=${encodeURIComponent(initiatedFrom)}`, {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                hint.textContent = data.message || 'Unable to load classes for selected student.';
+                return;
+            }
+            makeupCandidatesPayload = data;
+            applyCandidatePayload(data);
+        })
+        .catch(() => {
+            hint.textContent = 'Unable to load classes. Please try again.';
+        });
+}
+
+function applyCandidatePayload(payload) {
+    const mode = document.getElementById('makeupInitiatedFrom').value;
+    const sourceSelect = document.getElementById('makeupSourceClass');
+    const targetSelect = document.getElementById('makeupTargetClass');
+    const hint = document.getElementById('makeupClassHint');
+    const student = payload.student || {};
+
+    document.getElementById('makeupSelectedStudentName').textContent = student.name || '';
+    const email = student.email ? `Email: ${student.email}` : 'Email: N/A';
+    const phone = student.phone ? `Phone: ${student.phone}` : 'Phone: N/A';
+    document.getElementById('makeupSelectedStudentMeta').textContent = `${email} | ${phone}`;
+
+    const coursesContainer = document.getElementById('makeupSelectedStudentCourses');
+    const activeCourses = student.active_courses || [];
+    if (activeCourses.length) {
+        coursesContainer.innerHTML = activeCourses
+            .map(courseName => `<span class="badge bg-light text-dark border me-1 mb-1">${courseName}</span>`)
+            .join('');
+    } else {
+        coursesContainer.innerHTML = '<span class="badge bg-light text-muted border">No active enrolments</span>';
+    }
+
+    if (mode === 'source') {
+        setLockedClassSelect(sourceSelect, payload.current_class.id, payload.current_class.label);
+        populateClassSelect(targetSelect, payload.candidates, 'Select target class...');
+        targetSelect.disabled = payload.candidates.length === 0;
+    } else {
+        setLockedClassSelect(targetSelect, payload.current_class.id, payload.current_class.label);
+        populateClassSelect(sourceSelect, payload.candidates, 'Select source class...');
+        sourceSelect.disabled = payload.candidates.length === 0;
+    }
+
+    if (!payload.candidates.length) {
+        if (mode === 'target') {
+            setPlaceholderOnly(sourceSelect, 'No Available Class');
+            sourceSelect.disabled = true;
+        } else {
+            setPlaceholderOnly(targetSelect, 'No Available Class');
+            targetSelect.disabled = true;
+        }
+        hint.textContent = mode === 'source'
+            ? 'No upcoming active target classes are available right now.'
+            : 'No source classes were found for this student. Check enrolment/attendance history first.';
+    } else {
+        hint.textContent = mode === 'source'
+            ? 'Target options show all upcoming active classes across courses, sorted by time.'
+            : 'Source options are loaded from the selected student\'s enrolment, attendance and makeup history.';
+    }
+
+    updateMakeupSubmitState();
+}
+
+function populateClassSelect(selectElement, classes, placeholder) {
+    setPlaceholderOnly(selectElement, placeholder);
+    classes.forEach(classOption => {
+        const option = document.createElement('option');
+        option.value = classOption.id;
+        option.textContent = classOption.label;
+        selectElement.appendChild(option);
+    });
+}
+
+function updateMakeupSubmitState() {
+    const submitBtn = document.getElementById('scheduleMakeupSubmitBtn');
+    const hasStudent = !!document.getElementById('makeupStudentId').value;
+    const sourceClassId = document.getElementById('makeupSourceClass').value;
+    const targetClassId = document.getElementById('makeupTargetClass').value;
+    submitBtn.disabled = !(hasStudent && sourceClassId && targetClassId);
+}
+
+function submitMakeupSession() {
+    const initiatedFrom = document.getElementById('makeupInitiatedFrom').value;
+    const studentId = document.getElementById('makeupStudentId').value;
+    const sourceClassId = document.getElementById('makeupSourceClass').value;
+    const targetClassId = document.getElementById('makeupTargetClass').value;
+    const reasonType = document.getElementById('makeupReasonType').value;
+    const notes = document.getElementById('makeupNotes').value;
+
+    if (!studentId) {
+        alert('Please select a student from the list.');
+        return;
+    }
+    if (!sourceClassId) {
+        alert('Please select the source class.');
+        return;
+    }
+    if (!targetClassId) {
+        alert('Please select the target class.');
+        return;
+    }
+
+    const submitBtn = document.getElementById('scheduleMakeupSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Scheduling...';
+
+    fetch('{% url "academics:class_schedule_makeup" class.pk %}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
             'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({
-            student_ids: studentIds,
-            participation_type: participationType
+            initiated_from: initiatedFrom,
+            student_id: studentId,
+            source_class_id: sourceClassId,
+            target_class_id: targetClassId,
+            reason_type: reasonType,
+            notes: notes,
+        }),
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+                return;
+            }
+            alert(`Error: ${data.message}`);
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Show success message
-            alert(data.message);
-            
-            // Close modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentModal'));
-            modal.hide();
-            
-            // Reload page to show updated student list
-            window.location.reload();
-        } else {
-            // Show error message
-            alert('Error: ' + data.message);
-            
-            // Re-enable button
-            addButton.disabled = false;
-            addButton.innerHTML = 'Add Students';
-        }
-    })
-    .catch(error => {
-        console.error('Error adding students:', error);
-        alert('An error occurred while adding students. Please try again.');
-        
-        // Re-enable button
-        addButton.disabled = false;
-        addButton.innerHTML = 'Add Students';
-    });
-}
-
-
-function toggleStudentSelection(studentId, studentName) {
-    const index = selectedStudents.findIndex(s => s.id === studentId);
-    if (index === -1) {
-        selectedStudents.push({id: studentId, name: studentName});
-    } else {
-        selectedStudents.splice(index, 1);
-    }
-    
-    // Update visual feedback
-    const checkbox = document.querySelector(`input[data-student-id="${studentId}"]`);
-    if (checkbox) {
-        checkbox.checked = index === -1;
-    }
-    
-    console.log('Selected students:', selectedStudents);
-}
-
-// Student search functionality with debouncing
-let searchTimeout;
-document.getElementById('studentSearch').addEventListener('input', function() {
-    const query = this.value.trim();
-    
-    clearTimeout(searchTimeout);
-    
-    if (query.length >= 2) {
-        searchTimeout = setTimeout(() => {
-            searchStudents(query);
-        }, 300);
-    } else {
-        document.getElementById('studentSearchResults').innerHTML = '';
-        document.getElementById('addNewStudentOption').style.display = 'none';
-    }
-});
-
-function searchStudents(query) {
-    // Make AJAX call to search for students
-    fetch(`/students/search/?q=${encodeURIComponent(query)}`, {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        displaySearchResults(data.students, query);
-    })
-    .catch(error => {
-        console.error('Search error:', error);
-        displaySearchResults([], query);
-    });
-}
-
-function displaySearchResults(students, query) {
-    const resultsContainer = document.getElementById('studentSearchResults');
-    const addNewOption = document.getElementById('addNewStudentOption');
-    
-    if (students.length === 0) {
-        resultsContainer.innerHTML = `
-            <div class="alert alert-info">
-                <i class="fas fa-search me-2"></i>No students found matching "${query}"
-            </div>
-        `;
-        addNewOption.style.display = 'block';
-    } else {
-        let html = '<div class="list-group">';
-        students.forEach(student => {
-            const isSelected = selectedStudents.some(s => s.id === student.id);
-            html += `
-                <div class="list-group-item list-group-item-action">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" 
-                               data-student-id="${student.id}" 
-                               ${isSelected ? 'checked' : ''}
-                               onchange="toggleStudentSelection(${student.id}, '${student.first_name} ${student.last_name}')">
-                        <label class="form-check-label w-100" style="cursor: pointer;">
-                            <div class="d-flex align-items-center">
-                                <div class="avatar-circle bg-primary bg-opacity-10 text-primary me-3">
-                                    ${student.first_name[0]}${student.last_name[0]}
-                                </div>
-                                <div>
-                                    <div class="fw-medium">${student.first_name} ${student.last_name}</div>
-                                    <small class="text-muted">${student.contact_email || 'No email'}</small>
-                                </div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-            `;
+        .catch(() => {
+            alert('An error occurred while scheduling makeup. Please try again.');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check me-1"></i>Schedule Makeup';
         });
-        html += '</div>';
-        resultsContainer.innerHTML = html;
-        addNewOption.style.display = 'block';
-    }
 }
 
 // Fix for dropdown z-index issue
 document.addEventListener('DOMContentLoaded', function() {
+    initMakeupStudentSearch();
+    configureMakeupMode('source');
+
+    document.getElementById('makeupSourceClass').addEventListener('change', updateMakeupSubmitState);
+    document.getElementById('makeupTargetClass').addEventListener('change', updateMakeupSubmitState);
+
     // Add event listeners to all dropdowns in the student list
     const dropdowns = document.querySelectorAll('.student-list-item .dropdown');
     

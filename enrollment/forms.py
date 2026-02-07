@@ -4,6 +4,7 @@ from django.utils import timezone
 from .models import Enrollment, Attendance
 from students.models import Student
 from academics.models import Course, Class
+from .services import AttendanceRosterService
 
 
 class EnrollmentForm(forms.ModelForm):
@@ -666,13 +667,11 @@ class AttendanceForm(forms.ModelForm):
         
         if class_instance:
             self.fields['class_instance'].initial = class_instance
-            # Only show students enrolled in this course
-            enrolled_students = class_instance.course.enrollments.filter(
-                status='confirmed'
-            ).select_related('student')
+            # Include both confirmed enrolments and target-class makeup students.
+            roster_students = AttendanceRosterService.get_roster_students(class_instance)
             student_choices = [
-                (enrollment.student.id, f"{enrollment.student.get_full_name()} ({enrollment.student.contact_email or 'No email'})")
-                for enrollment in enrolled_students
+                (student.id, f"{student.get_full_name()} ({student.contact_email or 'No email'})")
+                for student in roster_students
             ]
             self.fields['student'].queryset = Student.objects.filter(
                 id__in=[choice[0] for choice in student_choices]
@@ -699,14 +698,12 @@ class BulkAttendanceForm(forms.Form):
     def __init__(self, *args, **kwargs):
         class_instance = kwargs.pop('class_instance', None)
         super().__init__(*args, **kwargs)
+        self.student_meta = {}
         
         if class_instance:
             self.fields['class_instance'].initial = class_instance
             
-            # Get enrolled students for this course
-            enrolled_students = class_instance.course.enrollments.filter(
-                status='confirmed'
-            ).select_related('student')
+            roster_entries = AttendanceRosterService.get_roster_entries(class_instance)
             
             # Get existing attendance records
             existing_attendance = {
@@ -714,10 +711,17 @@ class BulkAttendanceForm(forms.Form):
                 class_instance.attendances.select_related('student').all()
             }
             
-            # Create dynamic fields for each enrolled student
-            for enrollment in enrolled_students:
-                student = enrollment.student
+            # Create dynamic fields for each roster student
+            for entry in roster_entries:
+                student = entry['student']
                 field_name = f'student_{student.id}'
+                self.student_meta[str(student.id)] = {
+                    'email': student.contact_email or '',
+                    'from_makeup': entry['from_makeup'],
+                    'from_enrollment': entry['from_enrollment'],
+                    'makeup_status': entry['makeup_status'],
+                    'makeup_session_id': entry['makeup_session_id'],
+                }
                 
                 # Student attendance status field
                 self.fields[field_name] = forms.ChoiceField(
@@ -757,12 +761,17 @@ class BulkAttendanceForm(forms.Form):
                 student_id = field_name.replace('student_', '')
                 time_field_name = f'time_{student_id}'
                 time_field = self.fields.get(time_field_name)
+                meta = self.student_meta.get(student_id, {})
                 
                 student_data.append({
                     'student_id': student_id,
                     'status_field': self[field_name],
                     'time_field': self[time_field_name] if time_field else None,
-                    'student_name': field.label
+                    'student_name': field.label,
+                    'student_email': meta.get('email', ''),
+                    'from_makeup': meta.get('from_makeup', False),
+                    'from_enrollment': meta.get('from_enrollment', False),
+                    'makeup_status': meta.get('makeup_status'),
                 })
         return student_data
     

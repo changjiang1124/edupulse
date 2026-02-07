@@ -158,7 +158,7 @@
                 </div>
                 <div class="text-end">
                     <span class="badge bg-light text-dark fs-6">
-                        {{ enrolled_students.count }} Students Enrolled
+                        {{ enrolled_students_count }} Students in Roster
                     </span>
                 </div>
             </div>
@@ -231,13 +231,10 @@
                                             </div>
                                             <div class="student-details">
                                                 <h6>{{ student_data.student_name }}</h6>
-                                                {% with student_id=student_data.student_id|add:0 %}
-                                                    {% for enrollment in enrolled_students %}
-                                                        {% if enrollment.student.id == student_id %}
-                                                            <small>{{ enrollment.student.contact_email|default:"No email" }}</small>
-                                                        {% endif %}
-                                                    {% endfor %}
-                                                {% endwith %}
+                                                <small>{{ student_data.student_email|default:"No email" }}</small>
+                                                {% if student_data.from_makeup %}
+                                                    <span class="badge bg-warning text-dark ms-2">Makeup</span>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>

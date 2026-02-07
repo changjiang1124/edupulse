@@ -7,12 +7,283 @@ and synchronization between enrollments, classes, and attendance records.
 from django.db import transaction
 from django.utils import timezone
 from django.db import models
-from .models import Enrollment, Attendance
+from django.core.exceptions import ValidationError
+from .models import Enrollment, Attendance, MakeupSession
 from academics.models import Class, Course
 from students.models import Student
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class AttendanceRosterService:
+    """Resolve the effective attendance roster for a class."""
+
+    ACTIVE_MAKEUP_STATUSES = ('scheduled', 'completed')
+    SYNC_MAKEUP_STATUSES = ('scheduled', 'completed', 'no_show')
+
+    @staticmethod
+    def get_roster_entries(class_instance):
+        roster = {}
+
+        confirmed_enrollments = class_instance.course.enrollments.filter(
+            status='confirmed'
+        ).select_related('student')
+
+        for enrollment in confirmed_enrollments:
+            if not EnrollmentAttendanceService._is_class_within_window(enrollment, class_instance):
+                continue
+
+            student = enrollment.student
+            entry = roster.setdefault(
+                student.id,
+                {
+                    'student': student,
+                    'from_enrollment': False,
+                    'from_makeup': False,
+                    'makeup_status': None,
+                    'makeup_session_id': None,
+                }
+            )
+            entry['from_enrollment'] = True
+
+        makeup_sessions = MakeupSession.objects.filter(
+            target_class=class_instance,
+            status__in=AttendanceRosterService.ACTIVE_MAKEUP_STATUSES
+        ).select_related('student')
+
+        for makeup in makeup_sessions:
+            student = makeup.student
+            entry = roster.setdefault(
+                student.id,
+                {
+                    'student': student,
+                    'from_enrollment': False,
+                    'from_makeup': False,
+                    'makeup_status': None,
+                    'makeup_session_id': None,
+                }
+            )
+            entry['from_makeup'] = True
+            entry['makeup_status'] = makeup.status
+            entry['makeup_session_id'] = makeup.id
+
+        return sorted(
+            roster.values(),
+            key=lambda item: (item['student'].first_name.lower(), item['student'].last_name.lower())
+        )
+
+    @staticmethod
+    def get_roster_students(class_instance):
+        return [entry['student'] for entry in AttendanceRosterService.get_roster_entries(class_instance)]
+
+    @staticmethod
+    def get_roster_student_ids(class_instance):
+        return [entry['student'].id for entry in AttendanceRosterService.get_roster_entries(class_instance)]
+
+
+class MakeupSessionService:
+    """Create and maintain makeup sessions with attendance side effects."""
+
+    SOURCE_ABSENT_STATUSES = {'unmarked', 'absent'}
+
+    @staticmethod
+    def format_class_label(class_instance):
+        return (
+            f"{class_instance.course.name} | "
+            f"{class_instance.date.strftime('%a %d/%m/%Y')} "
+            f"{class_instance.start_time.strftime('%I:%M %p')}"
+        )
+
+    @staticmethod
+    def get_student_meta(student):
+        active_enrollments = Enrollment.objects.filter(
+            student=student,
+            status__in=['pending', 'confirmed']
+        ).select_related('course').order_by('course__name')
+
+        course_names = []
+        seen = set()
+        for enrollment in active_enrollments:
+            if enrollment.course_id in seen:
+                continue
+            seen.add(enrollment.course_id)
+            course_names.append(enrollment.course.name)
+
+        return {
+            'id': student.id,
+            'name': student.get_full_name(),
+            'email': student.contact_email or '',
+            'phone': student.contact_phone or '',
+            'active_courses': course_names,
+        }
+
+    @staticmethod
+    def get_candidate_classes(student, current_class, initiated_from='source', actor=None):
+        local_now = timezone.localtime()
+        now_date = local_now.date()
+        now_time = local_now.time()
+
+        if initiated_from == 'target':
+            # Source classes stay student-related and can include past sessions.
+            enrollment_course_ids = set(
+                Enrollment.objects.filter(
+                    student=student,
+                    status__in=['pending', 'confirmed']
+                ).values_list('course_id', flat=True)
+            )
+            attendance_class_ids = set(
+                Attendance.objects.filter(
+                    student=student
+                ).values_list('class_instance_id', flat=True)
+            )
+            makeup_class_ids = set(
+                MakeupSession.objects.filter(
+                    student=student
+                ).values_list('source_class_id', flat=True)
+            )
+            makeup_class_ids.update(
+                MakeupSession.objects.filter(
+                    student=student
+                ).values_list('target_class_id', flat=True)
+            )
+
+            queryset = Class.objects.filter(
+                is_active=True
+            ).filter(
+                models.Q(course_id__in=enrollment_course_ids) |
+                models.Q(id__in=attendance_class_ids) |
+                models.Q(id__in=makeup_class_ids)
+            )
+        else:
+            # Target classes are globally available upcoming sessions.
+            queryset = Class.objects.filter(
+                is_active=True
+            ).filter(
+                models.Q(date__gt=now_date) |
+                models.Q(date=now_date, start_time__gte=now_time)
+            )
+
+        queryset = queryset.select_related('course').distinct().order_by('date', 'start_time', 'course__name')
+
+        if (
+            actor is not None
+            and hasattr(actor, 'role')
+            and actor.role == 'teacher'
+        ):
+            queryset = queryset.filter(course__teacher=actor)
+
+        candidates = []
+        for class_instance in queryset:
+            if class_instance.id == current_class.id:
+                continue
+            candidates.append({
+                'id': class_instance.id,
+                'course_name': class_instance.course.name,
+                'date': class_instance.date.isoformat(),
+                'start_time': class_instance.start_time.isoformat(),
+                'label': MakeupSessionService.format_class_label(class_instance),
+            })
+
+        return {
+            'initiated_from': initiated_from,
+            'student': MakeupSessionService.get_student_meta(student),
+            'current_class': {
+                'id': current_class.id,
+                'label': MakeupSessionService.format_class_label(current_class),
+            },
+            'candidates': candidates,
+        }
+
+    @staticmethod
+    def _validate_student_relationship(student, source_class):
+        has_enrollment = Enrollment.objects.filter(
+            student=student,
+            course=source_class.course,
+            status__in=['pending', 'confirmed']
+        ).exists()
+        has_source_attendance = Attendance.objects.filter(
+            student=student,
+            class_instance=source_class
+        ).exists()
+
+        if not has_enrollment and not has_source_attendance:
+            raise ValidationError(
+                'Student is not linked to the source course. '
+                'Please enrol the student first or confirm source attendance.'
+            )
+
+    @staticmethod
+    def schedule_session(
+        *,
+        student,
+        source_class,
+        target_class,
+        initiated_from='source',
+        reason_type='student_request',
+        notes='',
+        actor=None
+    ):
+        if source_class.pk == target_class.pk:
+            raise ValidationError('Source and target classes must be different.')
+
+        MakeupSessionService._validate_student_relationship(student, source_class)
+
+        with transaction.atomic():
+            makeup_session = MakeupSession.objects.create(
+                student=student,
+                source_class=source_class,
+                target_class=target_class,
+                initiated_from=initiated_from,
+                reason_type=reason_type,
+                notes=notes or '',
+                created_by=actor,
+                updated_by=actor,
+                status='scheduled',
+            )
+
+            source_attendance, _ = Attendance.objects.get_or_create(
+                student=student,
+                class_instance=source_class,
+                defaults={
+                    'status': 'unmarked',
+                    'attendance_time': source_class.get_class_datetime()
+                }
+            )
+
+            source_warning = None
+            local_now = timezone.localtime()
+            if source_class.get_class_datetime() <= local_now:
+                if source_attendance.status in MakeupSessionService.SOURCE_ABSENT_STATUSES:
+                    if source_attendance.status != 'absent':
+                        source_attendance.status = 'absent'
+                        source_attendance.save(update_fields=['status', 'updated_at'])
+                elif source_attendance.status in ['present', 'late', 'early_leave']:
+                    source_warning = (
+                        'Source attendance is already marked as '
+                        f'{source_attendance.get_status_display()}; it was not overwritten.'
+                    )
+            else:
+                source_warning = (
+                    'Source class is in the future, so attendance was not auto-marked absent.'
+                )
+
+            target_attendance, target_created = Attendance.objects.get_or_create(
+                student=student,
+                class_instance=target_class,
+                defaults={
+                    'status': 'unmarked',
+                    'attendance_time': target_class.get_class_datetime()
+                }
+            )
+
+            return {
+                'makeup_session': makeup_session,
+                'source_attendance': source_attendance,
+                'target_attendance': target_attendance,
+                'target_created': target_created,
+                'source_warning': source_warning,
+            }
 
 
 class EnrollmentAttendanceService:
@@ -316,6 +587,12 @@ class ClassAttendanceService:
             if EnrollmentAttendanceService._is_class_within_window(enrollment, class_instance)
         ]
         
+        # Get active makeup sessions pointing to this class
+        active_makeups = MakeupSession.objects.filter(
+            target_class=class_instance,
+            status__in=AttendanceRosterService.SYNC_MAKEUP_STATUSES
+        ).select_related('student')
+
         # Get existing attendance records for this class
         existing_attendance = Attendance.objects.filter(class_instance=class_instance)
         
@@ -336,9 +613,27 @@ class ClassAttendanceService:
                     )
                     if created:
                         created_count += 1
+
+                # Ensure makeup students also keep an attendance record
+                for makeup_session in active_makeups:
+                    attendance_record, created = Attendance.objects.get_or_create(
+                        student=makeup_session.student,
+                        class_instance=class_instance,
+                        defaults={
+                            'status': 'unmarked',
+                            'attendance_time': class_instance.get_class_datetime()
+                        }
+                    )
+                    if created:
+                        created_count += 1
                 
                 # Remove attendance records for students who are not eligible for this class
-                eligible_student_ids = [enrollment.student_id for enrollment in eligible_enrollments]
+                eligible_student_ids = {
+                    enrollment.student_id for enrollment in eligible_enrollments
+                }
+                eligible_student_ids.update(
+                    makeup_session.student_id for makeup_session in active_makeups
+                )
                 orphaned_attendance = existing_attendance.exclude(student_id__in=eligible_student_ids)
                 removed_count = orphaned_attendance.count()
                 orphaned_attendance.delete()

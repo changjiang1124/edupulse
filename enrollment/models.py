@@ -1,5 +1,7 @@
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from students.models import Student
 from academics.models import Course, Class
 
@@ -295,3 +297,171 @@ class Attendance(models.Model):
     
     def __str__(self):
         return f"{self.student} - {self.class_instance} ({self.get_status_display()})"
+
+
+class MakeupSession(models.Model):
+    """
+    One-off makeup arrangement between a source class and a target class.
+
+    This model is intentionally class-centric so audit exports can reliably
+    connect a makeup operation back to the source course via source_class.
+    """
+
+    STATUS_CHOICES = [
+        ('scheduled', 'Scheduled'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+        ('no_show', 'No Show'),
+    ]
+
+    REASON_CHOICES = [
+        ('student_request', 'Student Request'),
+        ('teacher_request', 'Teacher Request'),
+        ('admin_adjustment', 'Admin Adjustment'),
+    ]
+
+    INITIATED_FROM_CHOICES = [
+        ('source', 'Source Class'),
+        ('target', 'Target Class'),
+    ]
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='makeup_sessions',
+        verbose_name='Student'
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='makeup_sessions',
+        verbose_name='Source Course'
+    )
+    source_class = models.ForeignKey(
+        Class,
+        on_delete=models.CASCADE,
+        related_name='makeup_sessions_as_source',
+        verbose_name='Source Class'
+    )
+    target_class = models.ForeignKey(
+        Class,
+        on_delete=models.CASCADE,
+        related_name='makeup_sessions_as_target',
+        verbose_name='Target Class'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='scheduled',
+        verbose_name='Status'
+    )
+    reason_type = models.CharField(
+        max_length=30,
+        choices=REASON_CHOICES,
+        default='student_request',
+        verbose_name='Reason'
+    )
+    notes = models.TextField(
+        blank=True,
+        verbose_name='Notes'
+    )
+    initiated_from = models.CharField(
+        max_length=20,
+        choices=INITIATED_FROM_CHOICES,
+        default='source',
+        verbose_name='Initiated From'
+    )
+    snapshot_json = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name='Audit Snapshot'
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_makeup_sessions',
+        verbose_name='Created By'
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='updated_makeup_sessions',
+        verbose_name='Updated By'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Created At'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Updated At'
+    )
+
+    class Meta:
+        verbose_name = 'Makeup Session'
+        verbose_name_plural = 'Makeup Sessions'
+        ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(source_class=models.F('target_class')),
+                name='makeup_source_target_must_differ'
+            ),
+            models.UniqueConstraint(
+                fields=['student', 'source_class', 'target_class'],
+                condition=models.Q(status='scheduled'),
+                name='unique_active_makeup_session'
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.student} | {self.source_class} -> {self.target_class} "
+            f"({self.get_status_display()})"
+        )
+
+    def clean(self):
+        if self.source_class_id and self.target_class_id and self.source_class_id == self.target_class_id:
+            raise ValidationError({'target_class': 'Source and target classes must be different.'})
+
+        if self.source_class_id:
+            source_course = self.source_class.course
+
+            if self.course_id and self.course_id != source_course.id:
+                raise ValidationError({'course': 'Course must match the source class course.'})
+
+    def _build_snapshot(self):
+        """Capture denormalised audit data to simplify future exports/import checks."""
+        if not (self.student_id and self.source_class_id and self.target_class_id):
+            return
+
+        self.snapshot_json = {
+            'student': {
+                'id': self.student_id,
+                'name': self.student.get_full_name(),
+            },
+            'course': {
+                'id': self.source_class.course_id,
+                'name': self.source_class.course.name,
+            },
+            'source_class': {
+                'id': self.source_class_id,
+                'date': self.source_class.date.isoformat(),
+                'start_time': self.source_class.start_time.isoformat(),
+            },
+            'target_class': {
+                'id': self.target_class_id,
+                'date': self.target_class.date.isoformat(),
+                'start_time': self.target_class.start_time.isoformat(),
+            },
+        }
+
+    def save(self, *args, **kwargs):
+        if self.source_class_id:
+            self.course = self.source_class.course
+        self.full_clean()
+        self._build_snapshot()
+        super().save(*args, **kwargs)
