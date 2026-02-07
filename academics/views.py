@@ -7,12 +7,17 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.views import View
 from django.urls import reverse_lazy, reverse
 from django.db.models import Count, Q
+from django.db import IntegrityError
 from django.utils import timezone
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from .models import Course, Class
 from .forms import CourseForm, CourseUpdateForm, ClassForm, ClassUpdateForm
+
+
+def _user_is_admin(user):
+    return user.is_superuser or getattr(user, 'role', None) == 'admin'
 
 
 class CourseDuplicateView(LoginRequiredMixin, View):
@@ -816,6 +821,7 @@ class ClassDetailView(LoginRequiredMixin, DetailView):
         
         # Add user role context for template logic
         context['is_teacher'] = hasattr(self.request.user, 'role') and self.request.user.role == 'teacher'
+        context['can_manage_makeup'] = _user_is_admin(self.request.user)
         
         return context
 
@@ -942,20 +948,10 @@ def class_makeup_candidates(request, pk):
     """
     class_instance = get_object_or_404(Class, pk=pk)
 
-    if not request.user.is_staff:
+    if not _user_is_admin(request.user):
         return JsonResponse({
             'success': False,
-            'message': 'Access denied. Staff members only.'
-        }, status=403)
-
-    if (
-        hasattr(request.user, 'role')
-        and request.user.role == 'teacher'
-        and class_instance.course.teacher_id != request.user.id
-    ):
-        return JsonResponse({
-            'success': False,
-            'message': 'You can only schedule makeup sessions for your own classes.'
+            'message': 'Access denied. Only administrators can manage makeup sessions.'
         }, status=403)
 
     student_id = request.GET.get('student_id')
@@ -995,20 +991,10 @@ def class_schedule_makeup(request, pk):
         import json
         data = json.loads(request.body)
 
-        if not request.user.is_staff:
+        if not _user_is_admin(request.user):
             return JsonResponse({
                 'success': False,
-                'message': 'Access denied. Staff members only.'
-            }, status=403)
-
-        if (
-            hasattr(request.user, 'role')
-            and request.user.role == 'teacher'
-            and class_instance.course.teacher_id != request.user.id
-        ):
-            return JsonResponse({
-                'success': False,
-                'message': 'You can only schedule makeup sessions for your own classes.'
+                'message': 'Access denied. Only administrators can manage makeup sessions.'
             }, status=403)
 
         student_id = data.get('student_id')
@@ -1047,22 +1033,6 @@ def class_schedule_makeup(request, pk):
             target_class = get_object_or_404(Class, pk=target_class_id)
             initiated_from = 'source'
 
-        if (
-            hasattr(request.user, 'role')
-            and request.user.role == 'teacher'
-            and (
-                source_class.course.teacher_id != request.user.id
-                or target_class.course.teacher_id != request.user.id
-            )
-        ):
-            return JsonResponse({
-                'success': False,
-                'message': (
-                    'Teachers can only schedule makeup between classes they teach. '
-                    'Please contact admin for cross-teacher makeup.'
-                )
-            }, status=403)
-
         result = MakeupSessionService.schedule_session(
             student=student,
             source_class=source_class,
@@ -1089,6 +1059,11 @@ def class_schedule_makeup(request, pk):
             'success': False,
             'message': '; '.join(exc.messages) if hasattr(exc, 'messages') else str(exc)
         }, status=400)
+    except IntegrityError:
+        return JsonResponse({
+            'success': False,
+            'message': 'A scheduled makeup already exists for this student and class pair.'
+        }, status=400)
     except json.JSONDecodeError:
         return JsonResponse({
             'success': False,
@@ -1099,3 +1074,68 @@ def class_schedule_makeup(request, pk):
             'success': False,
             'message': f'Server error: {str(exc)}'
         }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def class_update_makeup_status(request, pk):
+    """
+    AJAX endpoint to update makeup session status from class detail page.
+    """
+    class_instance = get_object_or_404(Class, pk=pk)
+
+    if not _user_is_admin(request.user):
+        return JsonResponse({
+            'success': False,
+            'message': 'Access denied. Only administrators can manage makeup sessions.'
+        }, status=403)
+
+    try:
+        import json
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data.'
+        }, status=400)
+
+    makeup_session_id = data.get('makeup_session_id')
+    new_status = data.get('status')
+    notes = (data.get('notes') or '').strip()
+
+    if not makeup_session_id or not new_status:
+        return JsonResponse({
+            'success': False,
+            'message': 'makeup_session_id and status are required.'
+        }, status=400)
+
+    from enrollment.models import MakeupSession
+    from enrollment.services import MakeupSessionService
+
+    makeup_session = get_object_or_404(
+        MakeupSession,
+        pk=makeup_session_id
+    )
+    if makeup_session.source_class_id != class_instance.id and makeup_session.target_class_id != class_instance.id:
+        return JsonResponse({
+            'success': False,
+            'message': 'This makeup session does not belong to the selected class.'
+        }, status=400)
+
+    try:
+        MakeupSessionService.update_session_status(
+            makeup_session=makeup_session,
+            new_status=new_status,
+            actor=request.user,
+            note=notes,
+        )
+    except ValidationError as exc:
+        return JsonResponse({
+            'success': False,
+            'message': '; '.join(exc.messages) if hasattr(exc, 'messages') else str(exc)
+        }, status=400)
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Makeup session marked as {makeup_session.get_status_display()}.'
+    })

@@ -86,6 +86,13 @@ class MakeupSessionService:
     """Create and maintain makeup sessions with attendance side effects."""
 
     SOURCE_ABSENT_STATUSES = {'unmarked', 'absent'}
+    FINAL_STATUSES = {'completed', 'cancelled', 'no_show'}
+    ATTENDANCE_STATUS_TO_MAKEUP_STATUS = {
+        'present': 'completed',
+        'late': 'completed',
+        'early_leave': 'completed',
+        'absent': 'no_show',
+    }
 
     @staticmethod
     def format_class_label(class_instance):
@@ -214,6 +221,73 @@ class MakeupSessionService:
             )
 
     @staticmethod
+    def _validate_class_pair(source_class, target_class):
+        local_now = timezone.localtime()
+
+        if not target_class.is_active:
+            raise ValidationError('Target class must be active.')
+
+        if target_class.get_class_datetime() <= local_now:
+            raise ValidationError('Target class must be in the future and not started yet.')
+
+    @staticmethod
+    def update_session_status(*, makeup_session, new_status, actor=None, note=''):
+        if new_status not in MakeupSessionService.FINAL_STATUSES:
+            raise ValidationError('Invalid makeup status update.')
+
+        if makeup_session.status != 'scheduled':
+            if makeup_session.status == new_status:
+                return makeup_session
+            raise ValidationError('Only scheduled makeup sessions can be updated.')
+
+        note = (note or '').strip()
+        if new_status == 'cancelled' and not note:
+            raise ValidationError('Cancellation reason is required.')
+
+        actor_label = 'System'
+        if actor is not None:
+            actor_label = actor.get_full_name().strip() or actor.username
+
+        timestamp = timezone.localtime().strftime('%Y-%m-%d %H:%M')
+        audit_note = f'[{timestamp}] Status changed to {new_status} by {actor_label}'
+        if note:
+            audit_note = f'{audit_note}: {note}'
+
+        makeup_session.status = new_status
+        makeup_session.updated_by = actor
+        makeup_session.notes = (
+            f'{makeup_session.notes}\n{audit_note}'.strip()
+            if makeup_session.notes else
+            audit_note
+        )
+        makeup_session.save(update_fields=['status', 'updated_by', 'notes', 'updated_at'])
+        return makeup_session
+
+    @staticmethod
+    def sync_status_from_target_attendance(*, student, target_class, attendance_status, actor=None):
+        next_status = MakeupSessionService.ATTENDANCE_STATUS_TO_MAKEUP_STATUS.get(attendance_status)
+        if not next_status:
+            return 0
+
+        scheduled_sessions = MakeupSession.objects.filter(
+            student=student,
+            target_class=target_class,
+            status='scheduled'
+        )
+
+        updated_count = 0
+        for makeup_session in scheduled_sessions:
+            MakeupSessionService.update_session_status(
+                makeup_session=makeup_session,
+                new_status=next_status,
+                actor=actor,
+                note=f'Auto-sync from attendance status: {attendance_status}.',
+            )
+            updated_count += 1
+
+        return updated_count
+
+    @staticmethod
     def schedule_session(
         *,
         student,
@@ -228,6 +302,7 @@ class MakeupSessionService:
             raise ValidationError('Source and target classes must be different.')
 
         MakeupSessionService._validate_student_relationship(student, source_class)
+        MakeupSessionService._validate_class_pair(source_class, target_class)
 
         with transaction.atomic():
             makeup_session = MakeupSession.objects.create(

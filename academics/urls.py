@@ -24,4 +24,5 @@ urlpatterns = [
     path('classes/<int:pk>/add-students/', views.class_add_students, name='class_add_students'),
     path('classes/<int:pk>/makeup-candidates/', views.class_makeup_candidates, name='class_makeup_candidates'),
     path('classes/<int:pk>/schedule-makeup/', views.class_schedule_makeup, name='class_schedule_makeup'),
+    path('classes/<int:pk>/makeup-status/', views.class_update_makeup_status, name='class_update_makeup_status'),
 ]

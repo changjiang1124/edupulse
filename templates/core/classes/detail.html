@@ -226,11 +226,13 @@
                     <i class="fas fa-users me-2 text-primary"></i>
                     Students <span class="badge bg-primary ms-2">{{ class_students|length }}</span>
                 </h5>
+                {% if can_manage_makeup %}
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-warning" onclick="openMakeupModalFromTarget()">
                         <i class="fas fa-arrows-turn-to-dots me-1"></i>Schedule Makeup
                     </button>
                 </div>
+                {% endif %}
             </div>
             <div class="card-body">
                 {% if class_students %}
@@ -287,7 +289,9 @@
                                     </button>
                                     <ul class="dropdown-menu">
                                         <li><a class="dropdown-item" href="{% url 'students:student_detail' student_info.student.pk %}">View Student</a></li>
+                                        {% if can_manage_makeup %}
                                         <li><a class="dropdown-item" href="#" onclick="openMakeupModalFromSource({{ student_info.student.pk }}, '{{ student_info.student.first_name|escapejs }} {{ student_info.student.last_name|escapejs }}'); return false;">Schedule Makeup</a></li>
+                                        {% endif %}
                                     </ul>
                                 </div>
                             </div>
@@ -299,9 +303,11 @@
                         <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
                         <h6 class="text-muted">No students assigned</h6>
                         <p class="text-muted mb-3">Use makeup scheduling to bring students into this class.</p>
+                        {% if can_manage_makeup %}
                         <button class="btn btn-outline-warning" onclick="openMakeupModalFromTarget()">
                             <i class="fas fa-arrows-turn-to-dots me-2"></i>Schedule Makeup
                         </button>
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>
@@ -355,9 +361,11 @@
         <div class="card class-meta-card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-arrows-turn-to-dots me-2 text-warning"></i>Makeup Sessions</h5>
+                {% if can_manage_makeup %}
                 <button class="btn btn-sm btn-outline-warning" onclick="openMakeupModalFromTarget()">
                     <i class="fas fa-plus me-1"></i>New Makeup
                 </button>
+                {% endif %}
             </div>
             <div class="card-body">
                 {% if source_makeup_sessions or target_makeup_sessions %}
@@ -369,6 +377,9 @@
                                     <th>Direction</th>
                                     <th>Counterpart Class</th>
                                     <th>Status</th>
+                                    {% if can_manage_makeup %}
+                                    <th>Actions</th>
+                                    {% endif %}
                                 </tr>
                             </thead>
                             <tbody>
@@ -378,6 +389,19 @@
                                     <td><span class="badge bg-warning text-dark">Source</span></td>
                                     <td>{{ makeup.target_class.course.name }} | {{ makeup.target_class.date|date:"d/m/Y" }} {{ makeup.target_class.start_time|time:"g:i A" }}</td>
                                     <td><span class="badge bg-secondary">{{ makeup.get_status_display }}</span></td>
+                                    {% if can_manage_makeup %}
+                                    <td>
+                                        {% if makeup.status == 'scheduled' %}
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-success" onclick="updateMakeupStatus({{ makeup.id }}, 'completed')">Complete</button>
+                                            <button type="button" class="btn btn-outline-secondary" onclick="updateMakeupStatus({{ makeup.id }}, 'no_show')">No Show</button>
+                                            <button type="button" class="btn btn-outline-danger" onclick="updateMakeupStatus({{ makeup.id }}, 'cancelled')">Cancel</button>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted small">Closed</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
                                 </tr>
                                 {% endfor %}
                                 {% for makeup in target_makeup_sessions %}
@@ -386,6 +410,19 @@
                                     <td><span class="badge bg-info text-dark">Target</span></td>
                                     <td>{{ makeup.source_class.course.name }} | {{ makeup.source_class.date|date:"d/m/Y" }} {{ makeup.source_class.start_time|time:"g:i A" }}</td>
                                     <td><span class="badge bg-secondary">{{ makeup.get_status_display }}</span></td>
+                                    {% if can_manage_makeup %}
+                                    <td>
+                                        {% if makeup.status == 'scheduled' %}
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-success" onclick="updateMakeupStatus({{ makeup.id }}, 'completed')">Complete</button>
+                                            <button type="button" class="btn btn-outline-secondary" onclick="updateMakeupStatus({{ makeup.id }}, 'no_show')">No Show</button>
+                                            <button type="button" class="btn btn-outline-danger" onclick="updateMakeupStatus({{ makeup.id }}, 'cancelled')">Cancel</button>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted small">Closed</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -561,11 +598,15 @@
 <script>
 let makeupStudentSearchTimeout;
 let makeupCandidatesPayload = null;
+const CAN_MANAGE_MAKEUP = {{ can_manage_makeup|yesno:'true,false' }};
 
 const CURRENT_CLASS_ID = '{{ class.pk }}';
 const CURRENT_CLASS_LABEL = '{{ class.course.name|escapejs }} | {{ class.date|date:"d/m/Y" }} {{ class.start_time|time:"g:i A" }}';
 
 function openMakeupModalFromSource(studentId, studentName) {
+    if (!CAN_MANAGE_MAKEUP) {
+        return;
+    }
     document.getElementById('makeupInitiatedFrom').value = 'source';
     document.getElementById('makeupModeLabel').textContent = 'From Source Class';
     configureMakeupMode('source');
@@ -578,6 +619,9 @@ function openMakeupModalFromSource(studentId, studentName) {
 }
 
 function openMakeupModalFromTarget() {
+    if (!CAN_MANAGE_MAKEUP) {
+        return;
+    }
     document.getElementById('makeupInitiatedFrom').value = 'target';
     document.getElementById('makeupModeLabel').textContent = 'From Target Class';
     configureMakeupMode('target');
@@ -802,6 +846,11 @@ function updateMakeupSubmitState() {
 }
 
 function submitMakeupSession() {
+    if (!CAN_MANAGE_MAKEUP) {
+        alert('Only administrators can manage makeup sessions.');
+        return;
+    }
+
     const initiatedFrom = document.getElementById('makeupInitiatedFrom').value;
     const studentId = document.getElementById('makeupStudentId').value;
     const sourceClassId = document.getElementById('makeupSourceClass').value;
@@ -860,13 +909,66 @@ function submitMakeupSession() {
         });
 }
 
+function updateMakeupStatus(makeupSessionId, nextStatus) {
+    if (!CAN_MANAGE_MAKEUP) {
+        alert('Only administrators can manage makeup sessions.');
+        return;
+    }
+
+    let notes = '';
+    if (nextStatus === 'cancelled') {
+        notes = window.prompt('Please enter a cancellation reason:');
+        if (notes === null) {
+            return;
+        }
+        notes = notes.trim();
+        if (!notes) {
+            alert('Cancellation reason is required.');
+            return;
+        }
+    } else {
+        const actionLabel = nextStatus.replace('_', ' ');
+        if (!window.confirm(`Mark this makeup session as ${actionLabel}?`)) {
+            return;
+        }
+    }
+
+    fetch('{% url "academics:class_update_makeup_status" class.pk %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({
+            makeup_session_id: makeupSessionId,
+            status: nextStatus,
+            notes: notes,
+        }),
+    })
+        .then(response => response.json().then(data => ({ ok: response.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok || !data.success) {
+                alert(`Error: ${data.message || 'Unable to update makeup status.'}`);
+                return;
+            }
+            alert(data.message);
+            window.location.reload();
+        })
+        .catch(() => {
+            alert('An error occurred while updating makeup status. Please try again.');
+        });
+}
+
 // Fix for dropdown z-index issue
 document.addEventListener('DOMContentLoaded', function() {
-    initMakeupStudentSearch();
-    configureMakeupMode('source');
+    if (CAN_MANAGE_MAKEUP) {
+        initMakeupStudentSearch();
+        configureMakeupMode('source');
 
-    document.getElementById('makeupSourceClass').addEventListener('change', updateMakeupSubmitState);
-    document.getElementById('makeupTargetClass').addEventListener('change', updateMakeupSubmitState);
+        document.getElementById('makeupSourceClass').addEventListener('change', updateMakeupSubmitState);
+        document.getElementById('makeupTargetClass').addEventListener('change', updateMakeupSubmitState);
+    }
 
     // Add event listeners to all dropdowns in the student list
     const dropdowns = document.querySelectorAll('.student-list-item .dropdown');

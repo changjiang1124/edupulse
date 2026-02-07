@@ -23,6 +23,11 @@
     border-radius: 0.5rem;
 }
 
+.weekly-day-card a.class-item {
+    color: inherit;
+    text-decoration: none;
+}
+
 .weekly-day-card .class-item:hover {
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
@@ -124,7 +129,7 @@
                             {% if day.classes %}
                                 <div class="d-flex flex-column gap-2">
                                     {% for item in day.classes %}
-                                    <div class="class-item p-3">
+                                    <a href="{% url 'academics:class_detail' item.instance.pk %}" class="class-item p-3 d-block">
                                         <div class="d-flex justify-content-between align-items-start mb-1">
                                             <div class="fw-semibold">{{ item.instance.course.name|truncatechars:45 }}</div>
                                             <span class="badge bg-primary">{{ item.instance.course.get_course_type_display }}</span>
@@ -149,7 +154,7 @@
                                         <div class="small text-muted">
                                             <i class="fas fa-user-friends me-1"></i>{{ item.instance.student_count|default:0 }} students
                                         </div>
-                                    </div>
+                                    </a>
                                     {% endfor %}
                                 </div>
                             {% else %}

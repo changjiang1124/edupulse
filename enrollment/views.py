@@ -1155,13 +1155,18 @@ class AttendanceMarkView(LoginRequiredMixin, View):
         
         if form.is_valid():
             try:
-                created_count, updated_count = form.save_attendance(class_instance)
+                created_count, updated_count, makeup_synced_count = form.save_attendance(
+                    class_instance,
+                    actor=request.user,
+                )
                 
                 success_msg = f'Attendance updated successfully! '
                 if created_count:
                     success_msg += f'{created_count} new records created. '
                 if updated_count:
                     success_msg += f'{updated_count} existing records updated.'
+                if makeup_synced_count:
+                    success_msg += f' {makeup_synced_count} makeup session(s) were auto-updated.'
                 
                 messages.success(request, success_msg)
                 return redirect('enrollment:attendance_mark', class_id=class_id)

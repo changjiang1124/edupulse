@@ -4,7 +4,7 @@ from django.utils import timezone
 from .models import Enrollment, Attendance
 from students.models import Student
 from academics.models import Course, Class
-from .services import AttendanceRosterService
+from .services import AttendanceRosterService, MakeupSessionService
 
 
 class EnrollmentForm(forms.ModelForm):
@@ -775,11 +775,12 @@ class BulkAttendanceForm(forms.Form):
                 })
         return student_data
     
-    def save_attendance(self, class_instance):
+    def save_attendance(self, class_instance, actor=None):
         """Save attendance records from form data"""
         default_time = self.cleaned_data['default_time']
         updated_count = 0
         created_count = 0
+        makeup_synced_count = 0
         
         for field_name, status in self.cleaned_data.items():
             if field_name.startswith('student_') and status:
@@ -801,10 +802,17 @@ class BulkAttendanceForm(forms.Form):
                         created_count += 1
                     else:
                         updated_count += 1
+
+                    makeup_synced_count += MakeupSessionService.sync_status_from_target_attendance(
+                        student=student,
+                        target_class=class_instance,
+                        attendance_status=status,
+                        actor=actor,
+                    )
                 except Student.DoesNotExist:
                     continue
         
-        return created_count, updated_count
+        return created_count, updated_count, makeup_synced_count
 
 
 class BulkEnrollmentNotificationForm(forms.Form):

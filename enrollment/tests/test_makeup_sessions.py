@@ -214,6 +214,88 @@ class MakeupSessionServiceTests(TestCase):
         self.assertEqual(makeup.course_id, self.source_class.course_id)
         self.assertEqual(makeup.target_class_id, self.cross_target_class.id)
 
+    def test_schedule_makeup_rejects_inactive_target(self):
+        inactive_target = Class.objects.create(
+            course=self.course,
+            date=date.today() + timedelta(days=10),
+            start_time=time(hour=19, minute=0),
+            duration_minutes=120,
+            is_active=False,
+        )
+
+        with self.assertRaises(ValidationError):
+            MakeupSessionService.schedule_session(
+                student=self.student,
+                source_class=self.source_class,
+                target_class=inactive_target,
+                initiated_from='source',
+                reason_type='student_request',
+                actor=self.admin,
+            )
+
+    def test_schedule_makeup_rejects_past_target(self):
+        past_target = Class.objects.create(
+            course=self.course,
+            date=date.today() - timedelta(days=1),
+            start_time=time(hour=9, minute=0),
+            duration_minutes=120,
+            is_active=True,
+        )
+
+        with self.assertRaises(ValidationError):
+            MakeupSessionService.schedule_session(
+                student=self.student,
+                source_class=self.source_class,
+                target_class=past_target,
+                initiated_from='source',
+                reason_type='student_request',
+                actor=self.admin,
+            )
+
+    def test_sync_status_from_target_attendance_marks_completed(self):
+        result = MakeupSessionService.schedule_session(
+            student=self.student,
+            source_class=self.source_class,
+            target_class=self.target_class,
+            initiated_from='source',
+            reason_type='student_request',
+            actor=self.admin,
+        )
+        makeup = result['makeup_session']
+
+        updated_count = MakeupSessionService.sync_status_from_target_attendance(
+            student=self.student,
+            target_class=self.target_class,
+            attendance_status='present',
+            actor=self.admin,
+        )
+
+        self.assertEqual(updated_count, 1)
+        makeup.refresh_from_db()
+        self.assertEqual(makeup.status, 'completed')
+
+    def test_sync_status_from_target_attendance_marks_no_show(self):
+        result = MakeupSessionService.schedule_session(
+            student=self.student,
+            source_class=self.source_class,
+            target_class=self.target_class,
+            initiated_from='source',
+            reason_type='student_request',
+            actor=self.admin,
+        )
+        makeup = result['makeup_session']
+
+        updated_count = MakeupSessionService.sync_status_from_target_attendance(
+            student=self.student,
+            target_class=self.target_class,
+            attendance_status='absent',
+            actor=self.admin,
+        )
+
+        self.assertEqual(updated_count, 1)
+        makeup.refresh_from_db()
+        self.assertEqual(makeup.status, 'no_show')
+
     def test_candidate_classes_include_course_name(self):
         Enrollment.objects.create(
             student=self.student,

@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from accounts.models import Staff
 from academics.models import Class, Course
-from enrollment.models import Enrollment
+from enrollment.models import Enrollment, MakeupSession
 from students.models import Student
 
 
@@ -126,7 +126,7 @@ class ClassAddStudentsDeprecatedTests(TestCase):
         labels = [item['label'] for item in payload['candidates']]
         self.assertTrue(any(self.course.name in label for label in labels))
 
-    def test_teacher_candidates_are_limited_to_owned_classes(self):
+    def test_non_admin_cannot_access_makeup_candidates(self):
         self.client.force_login(self.teacher_a)
         url = reverse('academics:class_makeup_candidates', kwargs={'pk': self.class_instance.pk})
         response = self.client.get(
@@ -138,12 +138,86 @@ class ClassAddStudentsDeprecatedTests(TestCase):
             HTTP_X_REQUESTED_WITH='XMLHttpRequest',
         )
 
+        self.assertEqual(response.status_code, 403)
+        payload = response.json()
+        self.assertFalse(payload['success'])
+
+    def test_admin_can_update_makeup_status(self):
+        makeup = MakeupSession.objects.create(
+            student=self.student,
+            source_class=self.class_instance,
+            target_class=self.extra_class,
+            initiated_from='source',
+            reason_type='admin_adjustment',
+            status='scheduled',
+            created_by=self.admin,
+            updated_by=self.admin,
+        )
+        self.client.force_login(self.admin)
+        url = reverse('academics:class_update_makeup_status', kwargs={'pk': self.class_instance.pk})
+        response = self.client.post(
+            url,
+            data='{"makeup_session_id": %d, "status": "completed"}' % makeup.id,
+            content_type='application/json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertTrue(payload['success'])
-        labels = [item['label'] for item in payload['candidates']]
-        self.assertTrue(any(self.course.name in label for label in labels))
-        self.assertTrue(all(self.other_course.name not in label for label in labels))
+        makeup.refresh_from_db()
+        self.assertEqual(makeup.status, 'completed')
+        self.assertEqual(makeup.updated_by_id, self.admin.id)
+
+    def test_cancel_makeup_requires_reason(self):
+        makeup = MakeupSession.objects.create(
+            student=self.student,
+            source_class=self.class_instance,
+            target_class=self.extra_class,
+            initiated_from='source',
+            reason_type='admin_adjustment',
+            status='scheduled',
+            created_by=self.admin,
+            updated_by=self.admin,
+        )
+        self.client.force_login(self.admin)
+        url = reverse('academics:class_update_makeup_status', kwargs={'pk': self.class_instance.pk})
+        response = self.client.post(
+            url,
+            data='{"makeup_session_id": %d, "status": "cancelled"}' % makeup.id,
+            content_type='application/json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertFalse(payload['success'])
+        makeup.refresh_from_db()
+        self.assertEqual(makeup.status, 'scheduled')
+
+    def test_non_admin_cannot_update_makeup_status(self):
+        makeup = MakeupSession.objects.create(
+            student=self.student,
+            source_class=self.class_instance,
+            target_class=self.extra_class,
+            initiated_from='source',
+            reason_type='admin_adjustment',
+            status='scheduled',
+            created_by=self.admin,
+            updated_by=self.admin,
+        )
+        self.client.force_login(self.teacher_a)
+        url = reverse('academics:class_update_makeup_status', kwargs={'pk': self.class_instance.pk})
+        response = self.client.post(
+            url,
+            data='{"makeup_session_id": %d, "status": "completed"}' % makeup.id,
+            content_type='application/json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        payload = response.json()
+        self.assertFalse(payload['success'])
 
     def test_source_mode_candidates_include_global_upcoming_classes(self):
         self.client.force_login(self.admin)
