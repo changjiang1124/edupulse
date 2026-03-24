@@ -27,6 +27,7 @@ from core.services.notification_queue import (
 )
 from .services import EnrollmentAttendanceService
 from .services import AttendanceRosterService
+from core.utils.url_utils import get_public_site_domain
 
 
 
@@ -684,11 +685,8 @@ class EnrollmentUpdateView(LoginRequiredMixin, UpdateView):
         """Send a generic enrollment update email"""
         try:
             from django.core.mail import EmailMultiAlternatives
-            from django.template.loader import render_to_string
-            from django.contrib.sites.models import Site
             from core.models import OrganisationSettings
 
-            site = Site.objects.get_current()
             org_settings = OrganisationSettings.get_instance()
 
             # Prepare context for email template
@@ -699,7 +697,7 @@ class EnrollmentUpdateView(LoginRequiredMixin, UpdateView):
                 'original_status': original_status,
                 'new_status': enrollment.get_status_display(),
                 'recipient_name': enrollment.student.guardian_name or enrollment.student.get_full_name(),
-                'site_domain': org_settings.site_domain,
+                'site_domain': get_public_site_domain(),
                 'contact_email': org_settings.contact_email,
                 'contact_phone': org_settings.contact_phone,
             }
@@ -719,7 +717,7 @@ Status changed to: {enrollment.get_status_display()}
 If you have any questions, please contact us at {org_settings.contact_email} or {org_settings.contact_phone}.
 
 Best regards,
-{org_settings.school_name or 'Perth Art School'}
+{org_settings.organisation_name or 'Perth Art School'}
             """
 
             # Create and send email
@@ -795,10 +793,10 @@ class PublicEnrollmentView(TemplateView):
         try:
             org_settings = OrganisationSettings.get_instance()
             context['organisation_settings'] = org_settings
-            context['site_domain'] = getattr(org_settings, 'site_domain', 'perthartschool.com.au')
+            context['site_domain'] = get_public_site_domain()
         except Exception:
             context['organisation_settings'] = None
-            context['site_domain'] = 'perthartschool.com.au'
+            context['site_domain'] = get_public_site_domain()
         
         # Get course_id from URL path parameter or query parameter
         course_id = self.kwargs.get('course_id') or self.request.GET.get('course')
@@ -1074,14 +1072,14 @@ class EnrollmentSuccessView(TemplateView):
             context['organisation_settings'] = org_settings
             context['contact_email'] = getattr(org_settings, 'contact_email', '')
             context['contact_phone'] = getattr(org_settings, 'contact_phone', '')
-            context['site_domain'] = getattr(org_settings, 'site_domain', 'perthartschool.com.au')
+            context['site_domain'] = get_public_site_domain()
         except Exception:
             # Fallbacks to ensure page doesn't break if settings not configured
             from django.conf import settings as dj_settings
             context['contact_email'] = getattr(dj_settings, 'DEFAULT_FROM_EMAIL', 'info@perthartschool.com.au')
             context['contact_phone'] = ''
             context['organisation_settings'] = None
-            context['site_domain'] = 'perthartschool.com.au'
+            context['site_domain'] = get_public_site_domain()
         
         return context
 
@@ -1776,7 +1774,7 @@ def bulk_enrollment_notification_execute(request, task_id):
                         'student_name': student.get_full_name(),
                         'course_name': enrollment_info.get('course_name', 'Course'),
                         'amount_due': enrollment_info.get('amount_due', ''),
-                        'site_domain': 'edupulse.perthartschool.com.au',  # TODO: Make configurable
+                        'site_domain': get_public_site_domain(),
                     }
                     
                     # Render message and subject

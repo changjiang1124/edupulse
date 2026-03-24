@@ -1,8 +1,8 @@
 from django import template
-from django.conf import settings
 from django.urls import reverse
 from datetime import date
 from core.services.staff_timesheet_service import StaffTimesheetService
+from core.utils.url_utils import build_absolute_url
 
 register = template.Library()
 
@@ -37,11 +37,11 @@ def calculate_age(birth_date):
 @register.simple_tag
 def site_url(url_name, *args, **kwargs):
     """
-    Generate absolute URL using configured site domain
+    Generate absolute URL using the configured EduPulse application domain
     Usage: {% site_url 'enrollment:public_enrollment' %}
     """
     relative_url = reverse(url_name, args=args, kwargs=kwargs)
-    return f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}{relative_url}"
+    return build_absolute_url(relative_url, app_domain=True)
 
 @register.simple_tag
 def enrollment_url(course_id=None):
@@ -49,7 +49,7 @@ def enrollment_url(course_id=None):
     Generate public enrollment URL with optional course parameter
     Usage: {% enrollment_url course.pk %}
     """
-    base_url = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}{reverse('enrollment:public_enrollment')}"
+    base_url = build_absolute_url(reverse('enrollment:public_enrollment'), app_domain=True)
     if course_id:
         return f"{base_url}?course={course_id}"
     return base_url

@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional
 from urllib.parse import urljoin
 from django.conf import settings
 from django.utils import timezone
+from core.utils.url_utils import build_absolute_url
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ class WooCommerceAPI:
         if not html_content:
             return html_content
 
-        base_url = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}/"
+        base_url = build_absolute_url('/', app_domain=True)
 
         # Pattern to match src and href attributes with relative URLs
         # Matches: src="..." or href="..." where the value doesn't start with http(s)://, data:, or mailto:
@@ -585,12 +586,12 @@ class WooCommerceSyncService:
         
         try:
             # Prepare course data for WooCommerce
-            enrollment_url = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}{reverse('enrollment:public_enrollment')}?course={course.id}"
+            enrollment_url = f"{build_absolute_url(reverse('enrollment:public_enrollment'), app_domain=True)}?course={course.id}"
             
             # Handle featured image URL - generate absolute URL
             featured_image_url = None
             if course.featured_image:
-                featured_image_url = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}{course.featured_image.url}"
+                featured_image_url = build_absolute_url(course.featured_image.url, app_domain=True)
             
             # Map category to WooCommerce category
             category_mapping = {

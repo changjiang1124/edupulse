@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.utils import timezone
 from datetime import date
-from core.models import NotificationQuota
+from core.models import NotificationQuota, OrganisationSettings
 
 
 class NotificationQuotaModelTest(TestCase):
@@ -129,3 +129,13 @@ class NotificationQuotaModelTest(TestCase):
             used_count=15
         )
         self.assertEqual(over_quota.remaining_quota, 0)  # Should not be negative
+
+
+class OrganisationSettingsModelTest(TestCase):
+    def test_site_domain_is_normalised_on_save(self):
+        settings_obj = OrganisationSettings.get_instance()
+        settings_obj.site_domain = 'https://perthartschool.com.au/'
+        settings_obj.save()
+
+        settings_obj.refresh_from_db()
+        self.assertEqual(settings_obj.site_domain, 'perthartschool.com.au')

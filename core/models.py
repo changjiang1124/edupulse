@@ -6,6 +6,7 @@ from django.conf import settings
 from accounts.models import Staff
 from decimal import Decimal
 import logging
+from core.utils.url_utils import normalise_site_domain
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,10 @@ class OrganisationSettings(models.Model):
     def clean(self):
         """Validate organisation settings"""
         super().clean()
+
+        self.site_domain = normalise_site_domain(self.site_domain)
+        if not self.site_domain:
+            raise ValidationError({'site_domain': 'Website domain is required'})
         
         # Validate GST rate
         if self.gst_rate < 0 or self.gst_rate > 1:
@@ -124,6 +129,7 @@ class OrganisationSettings(models.Model):
     
     def save(self, *args, **kwargs):
         """Override save to ensure only one instance exists (singleton)"""
+        self.site_domain = normalise_site_domain(self.site_domain)
         if not self.pk and OrganisationSettings.objects.exists():
             raise ValidationError('Only one Organisation Settings instance is allowed')
         return super().save(*args, **kwargs)

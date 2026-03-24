@@ -9,10 +9,10 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.conf import settings
-from django.contrib.sites.models import Site
 from django.urls import reverse
 from core.models import OrganisationSettings
 from core.services.invoice_service import EnrollmentInvoiceService
+from core.utils.url_utils import build_absolute_url, get_public_site_domain
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,9 @@ class NotificationService:
                 return False
             
             # Prepare context for email template
-            site = Site.objects.get_current()
             org_settings = OrganisationSettings.get_instance()
             price_summary = enrollment.get_price_summary()
+            site_domain = get_public_site_domain()
 
             context = {
                 'enrollment': enrollment,
@@ -59,8 +59,11 @@ class NotificationService:
                 'total_fee': enrollment.get_total_fee(),
                 'outstanding_fee': enrollment.get_outstanding_fee(),
                 'is_fully_paid': enrollment.is_fully_paid(),
-                'site_domain': site.domain,
-                'enrollment_url': f"https://{site.domain}{reverse('enrollment:enrollment_detail', args=[enrollment.id])}",
+                'site_domain': site_domain,
+                'enrollment_url': build_absolute_url(
+                    reverse('enrollment:enrollment_detail', args=[enrollment.id]),
+                    app_domain=True,
+                ),
                 'contact_email': org_settings.contact_email,
                 'contact_phone': org_settings.contact_phone,
                 'recipient_email': recipient_email,
@@ -112,7 +115,6 @@ class NotificationService:
                 return False
             
             # Prepare context for pending email template
-            site = Site.objects.get_current()
             org_settings = OrganisationSettings.get_instance()
             context = {
                 'enrollment': enrollment,
@@ -120,7 +122,7 @@ class NotificationService:
                 'course': enrollment.course,
                 'recipient_name': recipient_name,
                 'recipient_email': recipient_email,
-                'site_domain': org_settings.site_domain,
+                'site_domain': get_public_site_domain(),
                 'contact_email': org_settings.contact_email,
                 'contact_phone': org_settings.contact_phone,
                 'bank_account_name': org_settings.bank_account_name,
@@ -215,7 +217,7 @@ class NotificationService:
                 return False
             
             org_settings = OrganisationSettings.get_instance()
-            site_domain = org_settings.site_domain or Site.objects.get_current().domain
+            site_domain = get_public_site_domain()
 
             # Prepare context for welcome email template
             context = {
@@ -224,7 +226,7 @@ class NotificationService:
                 'course': enrollment.course,
                 'recipient_name': recipient_name,
                 'site_domain': site_domain,
-                'parent_portal_url': f"https://{site_domain}/students/",
+                'parent_portal_url': build_absolute_url('/students/', app_domain=True),
                 'contact_email': org_settings.contact_email,
                 'contact_phone': org_settings.contact_phone,
                 'facility_address': enrollment.course.facility.address if enrollment.course.facility else 'TBA',
@@ -275,7 +277,6 @@ class NotificationService:
                 return False
             
             # Prepare context for reminder email template
-            site = Site.objects.get_current()
             org_settings = OrganisationSettings.get_instance()
             context = {
                 'student': student,
@@ -288,7 +289,7 @@ class NotificationService:
                 'facility': class_instance.facility,
                 'classroom': class_instance.classroom,
                 'teacher': class_instance.teacher,
-                'site_domain': site.domain,
+                'site_domain': get_public_site_domain(),
                 'contact_email': org_settings.contact_email,
                 'contact_phone': org_settings.contact_phone
             }
@@ -340,7 +341,6 @@ class NotificationService:
                 return False
             
             # Prepare context for attendance notice template
-            site = Site.objects.get_current()
             org_settings = OrganisationSettings.get_instance()
             context = {
                 'student': student,
@@ -349,7 +349,7 @@ class NotificationService:
                 'course': attendance_record.class_instance.course,
                 'recipient_name': recipient_name,
                 'status_display': attendance_record.get_status_display(),
-                'site_domain': site.domain,
+                'site_domain': get_public_site_domain(),
                 'contact_email': org_settings.contact_email,
                 'contact_phone': org_settings.contact_phone
             }
@@ -422,7 +422,7 @@ class NotificationService:
                 enrollments_by_course[course_id].append(enrollment)
 
             # Cache site and organization settings
-            site_domain = Site.objects.get_current().domain
+            site_domain = get_public_site_domain()
             org_settings = OrganisationSettings.get_instance()
 
             # Prepare bulk email data
@@ -532,7 +532,6 @@ class NotificationService:
         """
         try:
             from accounts.models import Staff
-            from django.contrib.sites.models import Site
             
             # Get all organisation admin users with valid email addresses
             admin_users = Staff.objects.filter(
@@ -546,9 +545,10 @@ class NotificationService:
                 return False
             
             # Prepare email context
-            site = Site.objects.get_current()
-            org_settings = OrganisationSettings.get_instance()
-            enrollment_url = f"https://{site.domain}{reverse('enrollment:enrollment_detail', args=[enrollment.id])}"
+            enrollment_url = build_absolute_url(
+                reverse('enrollment:enrollment_detail', args=[enrollment.id]),
+                app_domain=True,
+            )
             
             context = {
                 'enrollment': enrollment,
@@ -591,4 +591,3 @@ class NotificationService:
         except Exception as e:
             logger.error("Error sending admin notification email for enrollment %s: %s", enrollment.id, str(e))
             return False
-
