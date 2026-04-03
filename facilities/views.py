@@ -27,17 +27,32 @@ class FacilityListView(AdminRequiredMixin, ListView):
     template_name = 'core/facilities/list.html'
     context_object_name = 'facilities'
     paginate_by = 20
+
+    def get_status_filter(self):
+        status_filter = self.request.GET.get('status', 'active')
+        if status_filter not in {'active', 'inactive', 'all'}:
+            return 'active'
+        return status_filter
     
     def get_queryset(self):
         queryset = Facility.objects.annotate(
             classroom_count=Count('classrooms', filter=Q(classrooms__is_active=True))
-        ).filter(is_active=True)
+        )
+
+        status_filter = self.get_status_filter()
+        if status_filter == 'inactive':
+            queryset = queryset.filter(is_active=False)
+        elif status_filter == 'all':
+            pass
+        else:
+            queryset = queryset.filter(is_active=True)
         
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
                 Q(name__icontains=search) |
                 Q(address__icontains=search) |
+                Q(phone__icontains=search) |
                 Q(email__icontains=search)
             )
         return queryset.order_by('name')
@@ -45,6 +60,11 @@ class FacilityListView(AdminRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['search_query'] = self.request.GET.get('search', '')
+        context['selected_status'] = self.get_status_filter()
+
+        pagination_params = self.request.GET.copy()
+        pagination_params.pop('page', None)
+        context['pagination_query'] = pagination_params.urlencode()
         return context
 
 
@@ -95,9 +115,23 @@ class ClassroomListView(AdminRequiredMixin, ListView):
     template_name = 'core/classrooms/list.html'
     context_object_name = 'classrooms'
     paginate_by = 30
+
+    def get_status_filter(self):
+        status_filter = self.request.GET.get('status', 'active')
+        if status_filter not in {'active', 'inactive', 'all'}:
+            return 'active'
+        return status_filter
     
     def get_queryset(self):
-        queryset = Classroom.objects.select_related('facility').filter(is_active=True)
+        queryset = Classroom.objects.select_related('facility')
+        status_filter = self.get_status_filter()
+
+        if status_filter == 'inactive':
+            queryset = queryset.filter(is_active=False)
+        elif status_filter == 'all':
+            pass
+        else:
+            queryset = queryset.filter(is_active=True)
         
         # Filter by facility if specified
         facility_id = self.request.GET.get('facility')
@@ -115,8 +149,13 @@ class ClassroomListView(AdminRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['search_query'] = self.request.GET.get('search', '')
-        context['facilities'] = Facility.objects.filter(is_active=True).order_by('name')
+        context['facilities'] = Facility.objects.order_by('name')
         context['selected_facility'] = self.request.GET.get('facility', '')
+        context['selected_status'] = self.get_status_filter()
+
+        pagination_params = self.request.GET.copy()
+        pagination_params.pop('page', None)
+        context['pagination_query'] = pagination_params.urlencode()
         return context
 
 

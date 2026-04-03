@@ -78,9 +78,24 @@ class StaffListView(AdminRequiredMixin, ListView):
     template_name = 'core/staff/list.html'
     context_object_name = 'staff_list'
     paginate_by = 20
+
+    def get_status_filter(self):
+        status_filter = self.request.GET.get('status', 'active')
+        if status_filter not in {'active', 'inactive', 'all'}:
+            return 'active'
+        return status_filter
     
     def get_queryset(self):
-        queryset = Staff.objects.filter(is_active_staff=True)
+        queryset = Staff.objects.all()
+        status_filter = self.get_status_filter()
+
+        if status_filter == 'inactive':
+            queryset = queryset.filter(is_active_staff=False)
+        elif status_filter == 'all':
+            pass
+        else:
+            queryset = queryset.filter(is_active_staff=True)
+
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
@@ -94,6 +109,11 @@ class StaffListView(AdminRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['search_query'] = self.request.GET.get('search', '')
+        context['selected_status'] = self.get_status_filter()
+
+        pagination_params = self.request.GET.copy()
+        pagination_params.pop('page', None)
+        context['pagination_query'] = pagination_params.urlencode()
         return context
 
 

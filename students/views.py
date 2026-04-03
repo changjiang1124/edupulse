@@ -29,16 +29,31 @@ class StudentListView(LoginRequiredMixin, ListView):
     template_name = 'core/students/list.html'
     context_object_name = 'students'
     paginate_by = 20
+
+    def get_status_filter(self):
+        status_filter = self.request.GET.get('status', 'active')
+        if status_filter not in {'active', 'inactive', 'all'}:
+            return 'active'
+        return status_filter
     
     def get_queryset(self):
-        queryset = Student.objects.filter(is_active=True).prefetch_related('tags').select_related('level')
+        queryset = Student.objects.prefetch_related('tags').select_related('level')
         search = self.request.GET.get('search')
+        status_filter = self.get_status_filter()
 
         # Support multiple tag filtering
         tag_filters = self.request.GET.getlist('tags')  # Changed from 'tag' to 'tags' and getlist
 
         # Support level filtering
         level_filter = self.request.GET.get('level')
+
+        if status_filter == 'inactive':
+            queryset = queryset.filter(is_active=False)
+        elif status_filter == 'all':
+            pass
+        else:
+            status_filter = 'active'
+            queryset = queryset.filter(is_active=True)
 
         if search:
             queryset = queryset.filter(
@@ -80,6 +95,11 @@ class StudentListView(LoginRequiredMixin, ListView):
 
         # Pass selected level for maintaining filter state
         context['selected_level'] = self.request.GET.get('level', '')
+        context['selected_status'] = self.get_status_filter()
+
+        pagination_params = self.request.GET.copy()
+        pagination_params.pop('page', None)
+        context['pagination_query'] = pagination_params.urlencode()
 
         return context
 

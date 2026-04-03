@@ -170,6 +170,13 @@ class StudentForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        if not (self.instance and self.instance.pk):
+            # Active status is only managed on the edit screen.
+            # If we keep the checkbox in the create form without rendering it,
+            # Django treats the missing POST value as False and silently creates
+            # inactive students.
+            self.fields.pop('is_active', None)
+
         # Configure level field choices
         self.fields['level'].queryset = StudentLevel.objects.filter(is_active=True).order_by('order', 'name')
         self.fields['level'].empty_label = "No level assigned"

@@ -27,12 +27,20 @@
         <div class="card">
             <div class="card-body">
                 <form method="get" class="row g-3">
-                    <div class="col-md-10">
+                    <div class="col-lg-8 col-md-7">
                         <label for="search" class="form-label">Search</label>
                         <input type="text" name="search" id="search" class="form-control" 
                                placeholder="Search staff by name or email..." value="{{ search_query }}">
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
+                    <div class="col-lg-2 col-md-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select name="status" id="status" class="form-select">
+                            <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active only</option>
+                            <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive only</option>
+                            <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All staff</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-2 d-flex align-items-end">
                         <button type="submit" class="btn btn-outline-primary w-100">Search</button>
                     </div>
                 </form>
@@ -111,7 +119,7 @@
                         <ul class="pagination justify-content-center">
                             {% if page_obj.has_previous %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                                    <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
                                 </li>
                             {% endif %}
                             
@@ -123,7 +131,7 @@
                             
                             {% if page_obj.has_next %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                                    <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
                                 </li>
                             {% endif %}
                         </ul>
