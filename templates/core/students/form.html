@@ -20,6 +20,40 @@
         <form method="post" class="needs-validation" novalidate id="studentForm">
             {% csrf_token %}
 
+            <div
+                id="student-form-error-summary"
+                class="alert alert-danger mb-4{% if not form.errors and not form.non_field_errors %} d-none{% endif %}"
+                role="alert"
+                tabindex="-1"
+                aria-live="assertive"
+            >
+                <h6 class="alert-heading mb-2">Please fix the following issues before submitting:</h6>
+
+                {% if form.non_field_errors or form.errors %}
+                <ul class="mb-0 ps-3" data-server-error-summary-list>
+                    {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+
+                    {% for field in form.visible_fields %}
+                        {% for error in field.errors %}
+                        <li>
+                            <a
+                                href="#{{ field.id_for_label }}"
+                                class="alert-link error-summary-link"
+                                data-error-target="{{ field.id_for_label }}"
+                            >
+                                {{ field.label }}: {{ error }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+                {% endif %}
+
+                <ul class="mb-0 ps-3 d-none" data-client-error-summary-list></ul>
+            </div>
+
             <!-- Section 1: Basic Information -->
             <div class="form-section">
                 <h6 class="section-title">
@@ -295,6 +329,7 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('studentForm');
     const birthDateField = document.getElementById('{{ form.birth_date.id_for_label }}');
     const guardianSection = document.getElementById('guardian-section');
     const guardianNameField = document.getElementById('{{ form.guardian_name.id_for_label }}');
@@ -302,6 +337,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const guardianRequiredBadge = document.getElementById('guardian-required-badge');
     const guardianDescription = document.getElementById('guardian-description');
     const ageDisplay = document.getElementById('age-display');
+    const errorSummary = document.getElementById('student-form-error-summary');
+    const clientErrorSummaryList = errorSummary ? errorSummary.querySelector('[data-client-error-summary-list]') : null;
 
     function calculateAge(birthDate) {
         if (!birthDate) return null;
@@ -314,6 +351,117 @@ document.addEventListener('DOMContentLoaded', function() {
             age--;
         }
         return age;
+    }
+
+    function getFieldLabel(field) {
+        const label = document.querySelector(`label[for="${field.id}"]`);
+        return label ? label.textContent.trim() : field.name;
+    }
+
+    function scrollToField(field) {
+        if (!field) return;
+
+        const fieldContainer = field.closest('.mb-3, .form-check, .form-section') || field;
+        fieldContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        setTimeout(function() {
+            field.focus({ preventScroll: true });
+        }, 150);
+    }
+
+    function clearClientErrorSummary() {
+        if (!clientErrorSummaryList) {
+            return;
+        }
+
+        clientErrorSummaryList.innerHTML = '';
+        clientErrorSummaryList.classList.add('d-none');
+
+        if (!errorSummary.querySelector('[data-server-error-summary-list]')) {
+            errorSummary.classList.add('d-none');
+        }
+    }
+
+    function renderClientErrorSummary(errors) {
+        if (!errorSummary || !clientErrorSummaryList) {
+            return;
+        }
+
+        clientErrorSummaryList.innerHTML = '';
+
+        errors.forEach(function(error) {
+            const item = document.createElement('li');
+            const link = document.createElement('a');
+
+            link.href = `#${error.field.id}`;
+            link.className = 'alert-link error-summary-link';
+            link.dataset.errorTarget = error.field.id;
+            link.textContent = `${getFieldLabel(error.field)}: ${error.message}`;
+
+            item.appendChild(link);
+            clientErrorSummaryList.appendChild(item);
+        });
+
+        clientErrorSummaryList.classList.remove('d-none');
+        errorSummary.classList.remove('d-none');
+    }
+
+    function removeClientFieldError(field) {
+        if (!field || field.dataset.clientInvalid !== 'true') {
+            return;
+        }
+
+        const errorId = field.dataset.clientErrorId;
+        if (errorId) {
+            const errorElement = document.getElementById(errorId);
+            if (errorElement) {
+                errorElement.remove();
+            }
+        }
+
+        field.classList.remove('is-invalid');
+        field.removeAttribute('aria-invalid');
+        field.removeAttribute('aria-describedby');
+        delete field.dataset.clientInvalid;
+        delete field.dataset.clientErrorId;
+    }
+
+    function removeAllClientErrors() {
+        form.querySelectorAll('[data-client-invalid="true"]').forEach(function(field) {
+            removeClientFieldError(field);
+        });
+
+        clearClientErrorSummary();
+    }
+
+    function showClientFieldError(field, message) {
+        removeClientFieldError(field);
+
+        const errorElement = document.createElement('div');
+        const errorId = `${field.id}-client-error`;
+
+        errorElement.id = errorId;
+        errorElement.className = 'invalid-feedback d-block client-error-feedback';
+        errorElement.textContent = message;
+
+        field.insertAdjacentElement('afterend', errorElement);
+        field.classList.add('is-invalid');
+        field.setAttribute('aria-invalid', 'true');
+        field.setAttribute('aria-describedby', errorId);
+        field.dataset.clientInvalid = 'true';
+        field.dataset.clientErrorId = errorId;
+    }
+
+    function updateGuardianCustomValidity() {
+        const age = calculateAge(birthDateField.value);
+        const guardianName = guardianNameField.value.trim();
+
+        if (age !== null && age < 18 && !guardianName) {
+            guardianNameField.setCustomValidity('Guardian name is required for students under 18 years of age.');
+            return;
+        }
+
+        guardianNameField.setCustomValidity('');
     }
 
     function updateGuardianRequirements() {
@@ -352,6 +500,8 @@ document.addEventListener('DOMContentLoaded', function() {
             guardianRequiredBadge.className = 'badge bg-secondary ms-2';
             guardianDescription.textContent = 'Guardian information will be required if student is under 18 years of age.';
         }
+
+        updateGuardianCustomValidity();
     }
 
     // Real-time phone number formatting
@@ -383,39 +533,70 @@ document.addEventListener('DOMContentLoaded', function() {
     birthDateField.addEventListener('change', updateGuardianRequirements);
     birthDateField.addEventListener('blur', updateGuardianRequirements);
 
-    // Form validation enhancement
-    const form = document.getElementById('studentForm');
-    form.addEventListener('submit', function(e) {
-        const age = calculateAge(birthDateField.value);
+    // Scroll to the first invalid field after server-side validation errors
+    const firstServerInvalidField = form.querySelector('.is-invalid');
+    if (firstServerInvalidField) {
+        setTimeout(function() {
+            scrollToField(firstServerInvalidField);
+        }, 200);
+    }
 
-        if (age !== null && age < 18) {
-            const guardianName = guardianNameField.value.trim();
-            if (!guardianName) {
-                e.preventDefault();
-                guardianNameField.classList.add('is-invalid');
-
-                // Show error message
-                let errorDiv = guardianNameField.nextElementSibling;
-                if (!errorDiv || !errorDiv.classList.contains('invalid-feedback')) {
-                    errorDiv = document.createElement('div');
-                    errorDiv.className = 'invalid-feedback d-block';
-                    guardianNameField.parentNode.insertBefore(errorDiv, guardianNameField.nextSibling);
-                }
-                errorDiv.textContent = 'Guardian name is required for students under 18 years of age.';
-
-                // Scroll to error
-                guardianSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                return false;
-            }
+    errorSummary?.addEventListener('click', function(event) {
+        const errorLink = event.target.closest('[data-error-target]');
+        if (!errorLink) {
+            return;
         }
+
+        event.preventDefault();
+        const targetField = document.getElementById(errorLink.dataset.errorTarget);
+        scrollToField(targetField);
     });
 
-    // Remove validation errors on input
-    guardianNameField.addEventListener('input', function() {
-        this.classList.remove('is-invalid');
-        const errorDiv = this.nextElementSibling;
-        if (errorDiv && errorDiv.classList.contains('invalid-feedback')) {
-            errorDiv.remove();
+    Array.from(form.querySelectorAll('input, select, textarea')).forEach(function(field) {
+        field.addEventListener('input', function() {
+            removeClientFieldError(field);
+            if (field === guardianNameField) {
+                updateGuardianCustomValidity();
+            }
+        });
+
+        field.addEventListener('change', function() {
+            removeClientFieldError(field);
+            if (field === birthDateField || field === guardianNameField) {
+                updateGuardianCustomValidity();
+            }
+        });
+    });
+
+    // Form validation enhancement
+    form.addEventListener('submit', function(e) {
+        removeAllClientErrors();
+        updateGuardianCustomValidity();
+
+        const invalidFields = Array.from(form.elements).filter(function(field) {
+            if (!field || typeof field.checkValidity !== 'function') {
+                return false;
+            }
+
+            if (field.disabled || field.type === 'hidden') {
+                return false;
+            }
+
+            return !field.checkValidity();
+        });
+
+        if (invalidFields.length > 0) {
+            e.preventDefault();
+
+            const errors = invalidFields.map(function(field) {
+                const message = field.validationMessage || `${getFieldLabel(field)} is invalid.`;
+                showClientFieldError(field, message);
+                return { field, message };
+            });
+
+            renderClientErrorSummary(errors);
+            scrollToField(invalidFields[0]);
+            return false;
         }
     });
 

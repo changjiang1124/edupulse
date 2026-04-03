@@ -88,11 +88,11 @@ sync_service_unit() {
 # Change to project directory
 cd "$PROJECT_DIR"
 
-# Load environment variables if available
+# Detect environment file. Django settings.py loads .env via python-dotenv,
+# and the systemd units reference the same file directly. Do not source the
+# file in bash because valid dotenv values may contain shell metacharacters.
 if [ -f "$ENV_FILE" ]; then
-  echo "[INFO] Loading environment from $ENV_FILE"
-  # shellcheck disable=SC1090
-  set -a && source "$ENV_FILE" && set +a
+  echo "[INFO] Found environment file at $ENV_FILE"
 else
   echo "[WARN] .env not found at $ENV_FILE; ensure required variables are set."
 fi

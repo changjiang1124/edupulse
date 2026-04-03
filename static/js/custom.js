@@ -49,11 +49,28 @@ $(document).ready(function() {
         }
     });
 
-    // 表单提交加载状态
-    $('form').submit(function() {
-        var submitBtn = $(this).find('button[type="submit"]');
+    // Form submit loading state
+    $('form').not('.ajax-form').submit(function(event) {
+        var submitter = event.originalEvent && event.originalEvent.submitter;
+        var submitBtn = submitter ? $(submitter) : $(this).find('button[type="submit"]').first();
+
+        if (!submitBtn.length) {
+            return;
+        }
+
+        if (!submitBtn.data('original-html')) {
+            submitBtn.data('original-html', submitBtn.html());
+        }
+
         submitBtn.prop('disabled', true);
         submitBtn.html('<span class="spinner-border spinner-border-sm me-2" role="status"></span>Processing...');
+
+        setTimeout(function() {
+            if (event.isDefaultPrevented()) {
+                submitBtn.prop('disabled', false);
+                submitBtn.html(submitBtn.data('original-html'));
+            }
+        }, 0);
     });
 
     // 数据表格排序

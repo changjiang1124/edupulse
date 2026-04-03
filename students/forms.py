@@ -151,6 +151,22 @@ class StudentForm(forms.ModelForm):
 
         return cleaned_data
 
+    def full_clean(self):
+        """Apply validation and then mark invalid widgets for template rendering."""
+        super().full_clean()
+
+        for field_name, field in self.fields.items():
+            existing_class = field.widget.attrs.get('class', '')
+            css_classes = [css_class for css_class in existing_class.split() if css_class != 'is-invalid']
+
+            if field_name in self.errors:
+                css_classes.append('is-invalid')
+                field.widget.attrs['aria-invalid'] = 'true'
+            else:
+                field.widget.attrs.pop('aria-invalid', None)
+
+            field.widget.attrs['class'] = ' '.join(css_classes).strip()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
