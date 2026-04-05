@@ -101,6 +101,25 @@ class StaffAttendanceManualEntryViewTests(TestCase):
         payload.update(overrides)
         return payload
 
+    def _create_manual_session(self, start, end):
+        clock_in = TeacherAttendance.objects.create(
+            teacher=self.teacher,
+            clock_type='clock_in',
+            source='manual',
+            timestamp=start,
+            created_by=self.admin,
+            updated_by=self.admin,
+        )
+        clock_out = TeacherAttendance.objects.create(
+            teacher=self.teacher,
+            clock_type='clock_out',
+            source='manual',
+            timestamp=end,
+            created_by=self.admin,
+            updated_by=self.admin,
+        )
+        return clock_in, clock_out
+
     def test_admin_can_view_manual_entry_page(self):
         self.client.login(username='admin-user', password='Admin123!')
 
@@ -154,22 +173,7 @@ class StaffAttendanceManualEntryViewTests(TestCase):
 
         start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) - timedelta(hours=5)
         end = start + timedelta(hours=2)
-        clock_in = TeacherAttendance.objects.create(
-            teacher=self.teacher,
-            clock_type='clock_in',
-            source='manual',
-            timestamp=start,
-            created_by=self.admin,
-            updated_by=self.admin,
-        )
-        clock_out = TeacherAttendance.objects.create(
-            teacher=self.teacher,
-            clock_type='clock_out',
-            source='manual',
-            timestamp=end,
-            created_by=self.admin,
-            updated_by=self.admin,
-        )
+        clock_in, clock_out = self._create_manual_session(start, end)
 
         updated_start = start + timedelta(minutes=30)
         updated_end = end + timedelta(minutes=45)
@@ -200,22 +204,7 @@ class StaffAttendanceManualEntryViewTests(TestCase):
 
         start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) - timedelta(hours=4)
         end = start + timedelta(hours=2)
-        clock_in = TeacherAttendance.objects.create(
-            teacher=self.teacher,
-            clock_type='clock_in',
-            source='manual',
-            timestamp=start,
-            created_by=self.admin,
-            updated_by=self.admin,
-        )
-        clock_out = TeacherAttendance.objects.create(
-            teacher=self.teacher,
-            clock_type='clock_out',
-            source='manual',
-            timestamp=end,
-            created_by=self.admin,
-            updated_by=self.admin,
-        )
+        clock_in, clock_out = self._create_manual_session(start, end)
 
         response = self.client.post(
             f"{reverse('accounts:staff_attendance_manual_edit', args=[self.teacher.pk, clock_in.pk])}?clock_out={clock_out.pk}",
@@ -234,22 +223,7 @@ class StaffAttendanceManualEntryViewTests(TestCase):
 
         start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) - timedelta(hours=6)
         end = start + timedelta(hours=2)
-        TeacherAttendance.objects.create(
-            teacher=self.teacher,
-            clock_type='clock_in',
-            source='manual',
-            timestamp=start,
-            created_by=self.admin,
-            updated_by=self.admin,
-        )
-        TeacherAttendance.objects.create(
-            teacher=self.teacher,
-            clock_type='clock_out',
-            source='manual',
-            timestamp=end,
-            created_by=self.admin,
-            updated_by=self.admin,
-        )
+        self._create_manual_session(start, end)
 
         overlapping_start = start + timedelta(hours=1)
         overlapping_end = end + timedelta(hours=1)
@@ -271,3 +245,51 @@ class StaffAttendanceManualEntryViewTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response['Location'], reverse('dashboard'))
+
+    def test_staff_detail_shows_edit_link_for_existing_timesheet(self):
+        self.client.login(username='admin-user', password='Admin123!')
+
+        start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) - timedelta(hours=5)
+        end = start + timedelta(hours=2)
+        clock_in, clock_out = self._create_manual_session(start, end)
+
+        response = self.client.get(
+            reverse('accounts:staff_detail', args=[self.teacher.pk]),
+            {
+                'timesheet_start': timezone.localtime(start).strftime('%Y-%m-%d'),
+                'timesheet_end': timezone.localtime(end).strftime('%Y-%m-%d'),
+            },
+        )
+
+        edit_url = (
+            f"{reverse('accounts:staff_attendance_manual_edit', args=[self.teacher.pk, clock_in.pk])}"
+            f"?clock_out={clock_out.pk}"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, edit_url)
+
+    def test_timesheet_overview_supports_staff_filter_and_edit_links(self):
+        self.client.login(username='admin-user', password='Admin123!')
+
+        start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) - timedelta(hours=5)
+        end = start + timedelta(hours=2)
+        clock_in, clock_out = self._create_manual_session(start, end)
+
+        response = self.client.get(
+            reverse('accounts:staff_timesheet_overview'),
+            {
+                'staff': str(self.teacher.pk),
+                'start_date': timezone.localtime(start).strftime('%Y-%m-%d'),
+                'end_date': timezone.localtime(end).strftime('%Y-%m-%d'),
+            },
+        )
+
+        edit_url = (
+            f"{reverse('accounts:staff_attendance_manual_edit', args=[self.teacher.pk, clock_in.pk])}"
+            f"?clock_out={clock_out.pk}"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Add Timesheet')
+        self.assertContains(response, 'name="staff"')
+        self.assertContains(response, 'Manual Teacher Entries')
+        self.assertContains(response, edit_url)

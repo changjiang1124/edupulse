@@ -103,8 +103,6 @@
                                         <div class="btn-group btn-group-sm" role="group">
                                             <a href="{% url 'accounts:staff_detail' staff.id %}" 
                                                class="btn btn-outline-primary btn-sm">View</a>
-                                            <a href="{% url 'accounts:staff_attendance_manual_entry' staff.id %}?next={{ request.get_full_path|urlencode }}"
-                                               class="btn btn-outline-info btn-sm">Timesheet</a>
                                             <a href="{% url 'accounts:staff_edit' staff.id %}" 
                                                class="btn btn-outline-secondary btn-sm">Edit</a>
                                         </div>

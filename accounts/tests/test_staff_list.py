@@ -1,11 +1,12 @@
 from django.contrib.auth import get_user_model
-from django.test import RequestFactory, TestCase
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import Staff
 from accounts.views import StaffListView
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class StaffListViewTest(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
@@ -14,6 +15,7 @@ class StaffListViewTest(TestCase):
             role='admin',
         )
         self.factory = RequestFactory()
+        self.client = Client()
 
         self.active_staff = Staff.objects.create_user(
             username='active-teacher',
@@ -70,3 +72,14 @@ class StaffListViewTest(TestCase):
         self.assertIn(self.inactive_staff, staff_members)
         self.assertNotIn(self.active_staff, staff_members)
         self.assertEqual(response.context_data['selected_status'], 'all')
+
+    def test_staff_list_does_not_show_manual_timesheet_shortcut(self):
+        self.client.login(username='admin', password='pass123')
+
+        response = self.client.get(reverse('accounts:staff_list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response,
+            reverse('accounts:staff_attendance_manual_entry', args=[self.active_staff.pk]),
+        )

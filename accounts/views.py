@@ -786,35 +786,59 @@ class StaffTimesheetOverviewView(AdminRequiredMixin, ListView):
     template_name = 'core/staff/timesheet_overview.html'
     context_object_name = 'staff_timesheets'
     paginate_by = 20
-    
-    def get_queryset(self):
-        # Get all active staff members
+
+    def get_base_queryset(self):
         return Staff.objects.filter(is_active_staff=True).order_by('last_name', 'first_name')
-    
-    def get_context_data(self, **kwargs):
+
+    def get_selected_staff(self):
+        if hasattr(self, '_selected_staff'):
+            return self._selected_staff
+
+        staff_id = self.request.GET.get('staff')
+        if not staff_id:
+            self._selected_staff = None
+            return self._selected_staff
+
+        try:
+            self._selected_staff = self.get_base_queryset().get(pk=staff_id)
+        except (Staff.DoesNotExist, ValueError):
+            self._selected_staff = None
+
+        return self._selected_staff
+
+    def _parse_date(self, raw_value):
         from datetime import datetime
+
+        if not raw_value:
+            return None
+
+        try:
+            return datetime.strptime(raw_value, '%Y-%m-%d').date()
+        except ValueError:
+            return None
+
+    def _get_pagination_query(self):
+        pagination_params = self.request.GET.copy()
+        pagination_params.pop('page', None)
+        return pagination_params.urlencode()
+
+    def get_queryset(self):
+        queryset = self.get_base_queryset()
+        selected_staff = self.get_selected_staff()
+        if selected_staff is not None:
+            queryset = queryset.filter(pk=selected_staff.pk)
+        return queryset
+
+    def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # Get date range from request
-        start_date = self.request.GET.get('start_date')
-        end_date = self.request.GET.get('end_date')
-        
-        # Parse dates if provided
-        if start_date:
-            try:
-                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-            except ValueError:
-                start_date = None
-        if end_date:
-            try:
-                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-            except ValueError:
-                end_date = None
-        
-        # Get timesheet data for all staff
+
+        start_date = self._parse_date(self.request.GET.get('start_date'))
+        end_date = self._parse_date(self.request.GET.get('end_date'))
+        selected_staff = self.get_selected_staff()
+
         try:
             from core.services.staff_timesheet_service import StaffTimesheetService
-            
+
             overview_data = StaffTimesheetService.get_all_staff_timesheet_data(
                 self.get_queryset(), start_date, end_date
             )
@@ -830,20 +854,44 @@ class StaffTimesheetOverviewView(AdminRequiredMixin, ListView):
             context['is_paginated'] = page_obj.has_other_pages()
             context['paginator'] = paginator
             context['staff_timesheets'] = page_obj.object_list
-            
+
+            context['selected_staff_timesheet'] = None
+            if selected_staff is not None:
+                context['selected_staff_timesheet'] = StaffTimesheetService.get_staff_timesheet_data(
+                    selected_staff,
+                    overview_data['date_range']['start_date'],
+                    overview_data['date_range']['end_date'],
+                )
+
         except ImportError:
             context['timesheet_overview'] = {
                 'overall_summary': {},
                 'staff_summaries': [],
                 'date_range': {'start_date': None, 'end_date': None}
             }
-        
+            context['selected_staff_timesheet'] = None
+
+        context['staff_filter_options'] = self.get_base_queryset()
+        context['selected_staff'] = selected_staff
+        context['selected_staff_id'] = str(selected_staff.pk) if selected_staff else ''
+        context['pagination_query'] = self._get_pagination_query()
         return context
 
 
 class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
     """Export all staff timesheet data in CSV or Excel format"""
-    
+
+    def _get_staff_queryset(self, request):
+        queryset = Staff.objects.filter(is_active_staff=True).order_by('last_name', 'first_name')
+        staff_id = request.GET.get('staff')
+        if not staff_id:
+            return queryset
+
+        try:
+            return queryset.filter(pk=int(staff_id))
+        except (TypeError, ValueError):
+            return queryset.none()
+
     def get(self, request):
         import csv
         from django.http import HttpResponse
@@ -867,8 +915,7 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
             except ValueError:
                 end_date = None
         
-        # Get all active staff
-        staff_queryset = Staff.objects.filter(is_active_staff=True).order_by('last_name', 'first_name')
+        staff_queryset = self._get_staff_queryset(request)
         
         # Get timesheet overview data
         try:

@@ -5,7 +5,6 @@
 {% block title %}Staff Timesheet Overview - EduPulse{% endblock %}
 
 {% block content %}
-<!-- Standard Detail Page Header -->
 <div class="mb-3">
     <a href="{% url 'accounts:staff_list' %}" class="text-decoration-none text-muted">
         <i class="fas fa-arrow-left me-2"></i>Back to Staff Management
@@ -18,14 +17,16 @@
         <p class="text-muted">Monitor and analyse all staff working hours and attendance</p>
     </div>
     <div class="btn-group btn-group-sm" role="group">
-        <a href="{% url 'accounts:staff_timesheet_overview_export' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&format=excel" 
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTimesheetModal">
+            <i class="fas fa-plus me-1"></i>Add Timesheet
+        </button>
+        <a href="{% url 'accounts:staff_timesheet_overview_export' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}{% if selected_staff_id %}&staff={{ selected_staff_id }}{% endif %}&format=excel"
            class="btn btn-outline-success">
             <i class="fas fa-file-excel me-1"></i>Excel
         </a>
     </div>
 </div>
 
-<!-- Date Range Filter -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3" id="timesheetOverviewFilterForm">
@@ -40,15 +41,26 @@
             </div>
             <div class="col-md-4">
                 <label for="overview_start_date" class="form-label">From Date</label>
-                <input type="date" id="overview_start_date" name="start_date" 
+                <input type="date" id="overview_start_date" name="start_date"
                        value="{{ start_date|date:'Y-m-d' }}" class="form-control">
             </div>
             <div class="col-md-4">
                 <label for="overview_end_date" class="form-label">To Date</label>
-                <input type="date" id="overview_end_date" name="end_date" 
+                <input type="date" id="overview_end_date" name="end_date"
                        value="{{ end_date|date:'Y-m-d' }}" class="form-control">
             </div>
-            <div class="col-md-4 d-flex align-items-end">
+            <div class="col-md-4">
+                <label for="overview_staff" class="form-label">Staff Member</label>
+                <select id="overview_staff" name="staff" class="form-select">
+                    <option value="">All staff with activity</option>
+                    {% for option in staff_filter_options %}
+                    <option value="{{ option.pk }}" {% if selected_staff_id == option.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ option.first_name }} {{ option.last_name }}{% if option.email %} · {{ option.email }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100">
                     <i class="fas fa-filter me-1"></i>Apply Filter
                 </button>
@@ -57,7 +69,6 @@
     </div>
 </div>
 
-<!-- Overall Summary Statistics -->
 {% if timesheet_overview.overall_summary %}
 <div class="row mb-4">
     <div class="col-md-3">
@@ -95,7 +106,6 @@
 </div>
 {% endif %}
 
-<!-- Staff Timesheet Summary -->
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
@@ -107,103 +117,261 @@
     </div>
     <div class="card-body">
         {% if timesheet_overview.staff_summaries %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Staff Member</th>
-                            <th class="text-center">Total Hours</th>
-                            <th class="text-center">Working Days</th>
-                            <th class="text-center">Sessions</th>
-                            <th class="text-center">Avg Hours/Day</th>
-                            <th class="text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for staff_data in timesheet_overview.staff_summaries %}
-                        <tr>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <div>
-                                        <strong>{{ staff_data.staff.first_name }} {{ staff_data.staff.last_name }}</strong>
-                                        <br><small class="text-muted">{{ staff_data.staff.email|default:"No email" }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="text-center">
-                                <span class="badge bg-primary fs-6">{{ staff_data.total_hours }}h</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="fw-medium">{{ staff_data.working_days }}</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="fw-medium">{{ staff_data.sessions }}</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="fw-medium">{{ staff_data.average_hours_per_day }}h</span>
-                            </td>
-                            <td class="text-center">
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{% url 'accounts:staff_detail' staff_data.staff.pk %}?timesheet_start={{ start_date|date:'Y-m-d' }}&timesheet_end={{ end_date|date:'Y-m-d' }}" 
-                                       class="btn btn-outline-primary btn-sm" title="View Details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{% url 'accounts:staff_attendance_manual_entry' staff_data.staff.pk %}?next={{ request.get_full_path|urlencode }}"
-                                       class="btn btn-outline-secondary btn-sm" title="Add Timesheet Entry">
-                                        <i class="fas fa-plus"></i>
-                                    </a>
-                                    <a href="{% url 'accounts:staff_timesheet_export' staff_data.staff.pk %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&format=excel" 
-                                       class="btn btn-outline-success btn-sm" title="Export Excel">
-                                        <i class="fas fa-file-excel"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Pagination -->
-            {% if is_paginated %}
-            <nav aria-label="Staff timesheet pagination" class="mt-3">
-                <ul class="pagination justify-content-center">
-                    {% if page_obj.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link" href="?{% if request.GET.start_date %}start_date={{ request.GET.start_date }}&{% endif %}{% if request.GET.end_date %}end_date={{ request.GET.end_date }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
-                        </li>
-                    {% endif %}
-                    
-                    <li class="page-item active">
-                        <span class="page-link">
-                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                        </span>
-                    </li>
-                    
-                    {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?{% if request.GET.start_date %}start_date={{ request.GET.start_date }}&{% endif %}{% if request.GET.end_date %}end_date={{ request.GET.end_date }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
-                        </li>
-                    {% endif %}
-                </ul>
-            </nav>
-            {% endif %}
-            
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Staff Member</th>
+                        <th class="text-center">Total Hours</th>
+                        <th class="text-center">Working Days</th>
+                        <th class="text-center">Sessions</th>
+                        <th class="text-center">Avg Hours/Day</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for staff_data in timesheet_overview.staff_summaries %}
+                    <tr>
+                        <td>
+                            <strong>{{ staff_data.staff.first_name }} {{ staff_data.staff.last_name }}</strong>
+                            <br><small class="text-muted">{{ staff_data.staff.email|default:"No email" }}</small>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-primary fs-6">{{ staff_data.total_hours }}h</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-medium">{{ staff_data.working_days }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-medium">{{ staff_data.sessions }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-medium">{{ staff_data.average_hours_per_day }}h</span>
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'accounts:staff_detail' staff_data.staff.pk %}?timesheet_start={{ start_date|date:'Y-m-d' }}&timesheet_end={{ end_date|date:'Y-m-d' }}"
+                                   class="btn btn-outline-primary btn-sm" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'accounts:staff_timesheet_export' staff_data.staff.pk %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&format=excel"
+                                   class="btn btn-outline-success btn-sm" title="Export Excel">
+                                    <i class="fas fa-file-excel"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if is_paginated %}
+        <nav aria-label="Staff timesheet pagination" class="mt-3">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
         {% else %}
-            <div class="text-center py-5">
-                <i class="fas fa-clock fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">No timesheet data found</h5>
-                <p class="text-muted">
-                    No staff members have recorded any working hours for the selected period.<br>
-                    Try adjusting the date range or check that staff are using the clock in/out system.
-                </p>
-                <div class="mt-3">
-                    <button type="button" class="btn btn-outline-primary" onclick="setOverviewDateRange('month')">
-                        <i class="fas fa-calendar me-1"></i>View This Month
-                    </button>
+        <div class="text-center py-5">
+            <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No timesheet data found</h5>
+            <p class="text-muted">
+                No staff members have recorded any working hours for the selected period.<br>
+                Try adjusting the date range, choosing another staff member, or add a manual timesheet entry.
+            </p>
+            <div class="mt-3 d-flex justify-content-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-primary" onclick="setOverviewDateRange('month')">
+                    <i class="fas fa-calendar me-1"></i>View This Month
+                </button>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTimesheetModal">
+                    <i class="fas fa-plus me-1"></i>Add Timesheet
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if selected_staff %}
+<div class="card mt-4" id="selectedStaffEntries">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0">
+                <i class="fas fa-user-clock me-2"></i>{{ selected_staff.first_name }} {{ selected_staff.last_name }} Entries
+            </h5>
+            <small class="text-muted">
+                {{ start_date|date:"d/m/Y" }} - {{ end_date|date:"d/m/Y" }}
+            </small>
+        </div>
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="{% url 'accounts:staff_attendance_manual_entry' selected_staff.pk %}?next={{ request.get_full_path|urlencode }}"
+               class="btn btn-outline-primary">
+                <i class="fas fa-plus me-1"></i>Add Entry
+            </a>
+            <a href="{% url 'accounts:staff_detail' selected_staff.pk %}?timesheet_start={{ start_date|date:'Y-m-d' }}&timesheet_end={{ end_date|date:'Y-m-d' }}"
+               class="btn btn-outline-secondary">
+                <i class="fas fa-eye me-1"></i>Staff Detail
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if selected_staff_timesheet.summary %}
+        <div class="row text-center mb-3">
+            <div class="col-md-3 col-6 mb-3 mb-md-0">
+                <div class="text-primary fw-bold fs-4">{{ selected_staff_timesheet.summary.total_hours }}h</div>
+                <small class="text-muted">Total Hours</small>
+            </div>
+            <div class="col-md-3 col-6 mb-3 mb-md-0">
+                <div class="text-success fw-bold fs-4">{{ selected_staff_timesheet.summary.total_days }}</div>
+                <small class="text-muted">Days</small>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="text-info fw-bold fs-4">{{ selected_staff_timesheet.summary.completed_sessions }}</div>
+                <small class="text-muted">Completed Sessions</small>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="text-warning fw-bold fs-4">{{ selected_staff_timesheet.summary.incomplete_sessions }}</div>
+                <small class="text-muted">Incomplete Entries</small>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if selected_staff_timesheet.paired_records %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Clock In</th>
+                        <th>Clock Out</th>
+                        <th>Classes</th>
+                        <th>Facility</th>
+                        <th class="text-end">Hours</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in selected_staff_timesheet.paired_records|slice:"-50:" %}
+                    <tr>
+                        <td class="text-nowrap">{{ record.date|date:"d/m/Y" }}</td>
+                        <td class="text-nowrap">
+                            {% if record.clock_in_time %}
+                                {{ record.clock_in_time|time:"H:i" }}
+                            {% else %}
+                                <span class="text-muted">--</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            {% if record.clock_out_time %}
+                                {{ record.clock_out_time|time:"H:i" }}
+                            {% else %}
+                                {% if record.clock_in_time %}
+                                    <span class="badge bg-warning text-dark">In Progress</span>
+                                {% else %}
+                                    <span class="text-muted">--</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record.classes %}
+                                {% for class in record.classes %}
+                                <span class="badge bg-info text-white me-1">{{ class.course.name }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">General Work</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record.facility %}
+                                <small class="text-muted">{{ record.facility.name }}</small>
+                            {% else %}
+                                <small class="text-muted">--</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if record.duration_hours %}
+                                <span class="fw-medium">{{ record.duration_hours|format_duration }}</span>
+                            {% else %}
+                                <span class="text-muted">--</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <a href="{% url 'accounts:staff_attendance_manual_edit' selected_staff.pk record.primary_record.pk %}?{% if record.clock_out %}clock_out={{ record.clock_out.pk }}&{% endif %}next={{ request.get_full_path|urlencode }}"
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-pen me-1"></i>Edit
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if selected_staff_timesheet.paired_records|length > 50 %}
+        <div class="text-center mt-3">
+            <small class="text-muted">Showing latest 50 records. Narrow the date range if you need a smaller edit set.</small>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-clock fa-2x text-muted mb-3"></i>
+            <p class="text-muted mb-1">No timesheet entries found for this staff member in the selected period.</p>
+            <small class="text-muted d-block mb-3">Use Add Entry to record payable time for payroll.</small>
+            <a href="{% url 'accounts:staff_attendance_manual_entry' selected_staff.pk %}?next={{ request.get_full_path|urlencode }}"
+               class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-plus me-1"></i>Add Entry
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="modal fade" id="addTimesheetModal" tabindex="-1" aria-labelledby="addTimesheetModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTimesheetModalLabel">Add Timesheet</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="addTimesheetStaffSelect" class="form-label">Choose a staff member</label>
+                <select id="addTimesheetStaffSelect" class="form-select">
+                    <option value="">Select a staff member</option>
+                    {% for option in staff_filter_options %}
+                    <option value="{% url 'accounts:staff_attendance_manual_entry' option.pk %}?next={{ request.get_full_path|urlencode }}"
+                            {% if selected_staff_id == option.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ option.first_name }} {{ option.last_name }}{% if option.email %} · {{ option.email }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text mt-2">
+                    After you pick a staff member, the same Add Timesheet form will open.
                 </div>
             </div>
-        {% endif %}
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="addTimesheetContinue" disabled>Continue</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -211,76 +379,84 @@
 {% block extra_js %}
 <script src="{% static 'js/timesheet.js' %}"></script>
 <script>
-// Overview-specific date range functions
 function setOverviewDateRange(period) {
     const startInput = document.getElementById('overview_start_date');
     const endInput = document.getElementById('overview_end_date');
     const form = document.getElementById('timesheetOverviewFilterForm');
-    
+
     if (!startInput || !endInput) return;
-    
+
     const today = new Date();
     let startDate, endDate;
-    
+
     switch (period) {
         case 'today':
             startDate = endDate = today;
             break;
-            
         case 'week':
-            // Start of current week (Monday)
             const dayOfWeek = today.getDay();
             const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
             startDate = new Date(today);
             startDate.setDate(today.getDate() - daysToMonday);
             endDate = today;
             break;
-            
         case 'month':
-            // Start of current month
             startDate = new Date(today.getFullYear(), today.getMonth(), 1);
             endDate = today;
             break;
-            
         case 'last30':
-            // Last 30 days
             startDate = new Date(today);
             startDate.setDate(today.getDate() - 30);
             endDate = today;
             break;
-            
         default:
             return;
     }
-    
-    // Format dates for input fields (YYYY-MM-DD)
+
     startInput.value = formatDateForInput(startDate);
     endInput.value = formatDateForInput(endDate);
-    
-    // Submit form
+
     if (form) {
         form.submit();
     }
 }
 
-// Auto-submit form when dates change
 document.addEventListener('DOMContentLoaded', function() {
     const startDateInput = document.getElementById('overview_start_date');
     const endDateInput = document.getElementById('overview_end_date');
     const form = document.getElementById('timesheetOverviewFilterForm');
-    
+    const addTimesheetSelect = document.getElementById('addTimesheetStaffSelect');
+    const addTimesheetContinue = document.getElementById('addTimesheetContinue');
+
     if (startDateInput && endDateInput && form) {
         startDateInput.addEventListener('change', function() {
             if (this.value && endDateInput.value) {
                 form.submit();
             }
         });
-        
+
         endDateInput.addEventListener('change', function() {
             if (this.value && startDateInput.value) {
                 form.submit();
             }
         });
+    }
+
+    function syncAddTimesheetState() {
+        if (!addTimesheetSelect || !addTimesheetContinue) {
+            return;
+        }
+        addTimesheetContinue.disabled = !addTimesheetSelect.value;
+    }
+
+    if (addTimesheetSelect && addTimesheetContinue) {
+        addTimesheetSelect.addEventListener('change', syncAddTimesheetState);
+        addTimesheetContinue.addEventListener('click', function() {
+            if (addTimesheetSelect.value) {
+                window.location.href = addTimesheetSelect.value;
+            }
+        });
+        syncAddTimesheetState();
     }
 });
 </script>
