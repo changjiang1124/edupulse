@@ -17,6 +17,7 @@ from decimal import Decimal, InvalidOperation
 from django.conf import settings
 
 from accounts.models import Staff
+from accounts.mixins import AdminRequiredMixin, TeacherOrAdminRequiredMixin
 from students.models import Student
 from academics.models import Course, Class
 from facilities.models import Facility, Classroom
@@ -201,7 +202,7 @@ from .services.staff_timesheet_service import StaffTimesheetService
 # ... imports ...
 
 
-class TimesheetView(LoginRequiredMixin, TemplateView):
+class TimesheetView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, TemplateView):
     template_name = 'core/clock/timesheet.html'
     
     def get_context_data(self, **kwargs):
@@ -846,7 +847,30 @@ def get_notification_quotas(request):
 
 # Teacher Attendance Views
 
-class TeacherClockView(LoginRequiredMixin, TemplateView):
+VALID_CLOCK_TYPES = {'clock_in', 'clock_out'}
+
+
+def get_latest_teacher_attendance(teacher):
+    return TeacherAttendance.objects.filter(
+        teacher=teacher
+    ).order_by('-timestamp').first()
+
+
+def validate_clock_transition(teacher, clock_type):
+    if clock_type not in VALID_CLOCK_TYPES:
+        return False, 'Invalid clock type'
+
+    latest_record = get_latest_teacher_attendance(teacher)
+
+    if clock_type == 'clock_in' and latest_record and latest_record.clock_type == 'clock_in':
+        return False, 'You are already clocked in. Please clock out first.'
+
+    if clock_type == 'clock_out' and (not latest_record or latest_record.clock_type != 'clock_in'):
+        return False, 'No active clock in found. Please clock in first.'
+
+    return True, None
+
+class TeacherClockView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, TemplateView):
     """
     Main teacher clock in/out page
     """
@@ -872,10 +896,7 @@ class TeacherClockView(LoginRequiredMixin, TemplateView):
         context['recent_records'] = recent_records
         
         # Check current clock status
-        # We look for the absolute latest record
-        latest_record = TeacherAttendance.objects.filter(
-            teacher=self.request.user
-        ).order_by('-timestamp').first()
+        latest_record = get_latest_teacher_attendance(self.request.user)
         
         context['latest_record'] = latest_record
         context['is_clocked_in'] = (latest_record and latest_record.clock_type == 'clock_in')
@@ -889,7 +910,7 @@ class TeacherClockView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class TeacherLocationVerifyView(LoginRequiredMixin, View):
+class TeacherLocationVerifyView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, View):
     """
     AJAX endpoint to verify teacher's GPS location and get available classes
     """
@@ -919,7 +940,7 @@ class TeacherLocationVerifyView(LoginRequiredMixin, View):
                 'success': False,
                 'error': location_result['error'],
                 'location_verified': False
-            })
+            }, status=400)
         
         facility = location_result['facility']
         
@@ -954,7 +975,7 @@ class TeacherLocationVerifyView(LoginRequiredMixin, View):
         })
 
 
-class TeacherClockSubmitView(LoginRequiredMixin, View):
+class TeacherClockSubmitView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, View):
     """
     Handle teacher clock in/out submission
     """
@@ -971,7 +992,7 @@ class TeacherClockSubmitView(LoginRequiredMixin, View):
             
             # Extract and validate required fields
             clock_type = data.get('clock_type')
-            if clock_type not in ['clock_in', 'clock_out']:
+            if clock_type not in VALID_CLOCK_TYPES:
                 raise ValueError('Invalid clock type')
             
             lat = Decimal(str(data.get('latitude')))
@@ -986,20 +1007,11 @@ class TeacherClockSubmitView(LoginRequiredMixin, View):
                 'error': f'Invalid data provided: {str(e)}'
             }, status=400)
 
-        latest_record = TeacherAttendance.objects.filter(
-            teacher=request.user
-        ).order_by('-timestamp').first()
-
-        if clock_type == 'clock_in' and latest_record and latest_record.clock_type == 'clock_in':
+        transition_valid, transition_error = validate_clock_transition(request.user, clock_type)
+        if not transition_valid:
             return JsonResponse({
                 'success': False,
-                'error': 'You are already clocked in. Please clock out first.'
-            }, status=400)
-
-        if clock_type == 'clock_out' and (not latest_record or latest_record.clock_type != 'clock_in'):
-            return JsonResponse({
-                'success': False,
-                'error': 'No active clock in found. Please clock in first.'
+                'error': transition_error
             }, status=400)
         
         # Re-verify location (security measure)
@@ -1009,7 +1021,7 @@ class TeacherClockSubmitView(LoginRequiredMixin, View):
             return JsonResponse({
                 'success': False,
                 'error': f"Location verification failed: {location_result['error']}"
-            })
+            }, status=400)
         
         facility = location_result['facility']
         
@@ -1017,13 +1029,14 @@ class TeacherClockSubmitView(LoginRequiredMixin, View):
             return JsonResponse({
                 'success': False,
                 'error': 'Facility mismatch. Please refresh and try again.'
-            })
+            }, status=400)
         
         # Create attendance record
         try:
             attendance = TeacherAttendance.objects.create(
                 teacher=request.user,
                 clock_type=clock_type,
+                source='gps',
                 facility=facility,
                 latitude=lat,
                 longitude=lon,
@@ -1031,10 +1044,13 @@ class TeacherClockSubmitView(LoginRequiredMixin, View):
                 location_verified=True,
                 ip_address=get_client_ip(request),
                 user_agent=get_user_agent(request),
-                notes=notes
+                notes=notes,
+                created_by=request.user,
+                updated_by=request.user
             )
             
             # Add selected classes
+            selected_class_count = 0
             if selected_class_ids:
                 selected_classes = Class.objects.filter(
                     id__in=selected_class_ids,
@@ -1044,11 +1060,11 @@ class TeacherClockSubmitView(LoginRequiredMixin, View):
                     is_active=True
                 )
                 attendance.classes.set(selected_classes)
+                selected_class_count = selected_classes.count()
             
             # Success message
             action_text = 'clocked in' if clock_type == 'clock_in' else 'clocked out'
-            class_count = len(selected_class_ids) if selected_class_ids else 0
-            class_text = f' for {class_count} class(es)' if class_count > 0 else ''
+            class_text = f' for {selected_class_count} class(es)' if selected_class_count > 0 else ''
             
             return JsonResponse({
                 'success': True,
@@ -1064,7 +1080,7 @@ class TeacherClockSubmitView(LoginRequiredMixin, View):
             }, status=500)
 
 
-class TeacherAttendanceHistoryView(LoginRequiredMixin, ListView):
+class TeacherAttendanceHistoryView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, ListView):
     """
     Display teacher's attendance history
     """
@@ -1095,24 +1111,23 @@ class TeacherAttendanceHistoryView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        filtered_queryset = self.get_queryset()
         context['teacher'] = self.request.user
+        context['history_stats'] = {
+            'total_records': filtered_queryset.count(),
+            'clock_in_count': filtered_queryset.filter(clock_type='clock_in').count(),
+            'today_count': filtered_queryset.filter(timestamp__date=timezone.localdate()).count(),
+        }
         return context
 
 
 # QR Code Teacher Attendance Views
 
-class TeacherQRAttendanceView(LoginRequiredMixin, View):
+class TeacherQRAttendanceView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, View):
     """
     Teacher QR Code Attendance View - Handles QR code scanning and attendance
     """
     template_name = 'core/teacher_attendance/qr_attendance.html'
-    
-    def dispatch(self, request, *args, **kwargs):
-        # Allow any authenticated user
-        if not request.user.is_authenticated:
-            messages.error(request, 'Access denied. Please log in.')
-            return redirect('core:dashboard')
-        return super().dispatch(request, *args, **kwargs)
     
     def get(self, request):
         """Display QR code attendance interface"""
@@ -1140,7 +1155,6 @@ class TeacherQRAttendanceView(LoginRequiredMixin, View):
         """Handle QR code attendance submission"""
         from core.services import QRCodeService
         from core.utils.gps_utils import verify_teacher_location
-        from core.models import TeacherAttendance
         from academics.models import Class
         
         # Get form data
@@ -1154,7 +1168,14 @@ class TeacherQRAttendanceView(LoginRequiredMixin, View):
             return JsonResponse({
                 'success': False,
                 'message': 'QR code data is required'
-            })
+            }, status=400)
+
+        transition_valid, transition_error = validate_clock_transition(request.user, clock_type)
+        if not transition_valid:
+            return JsonResponse({
+                'success': False,
+                'message': transition_error
+            }, status=400)
         
         # Validate QR code
         validation_result = QRCodeService.validate_qr_code(data_param)
@@ -1163,10 +1184,14 @@ class TeacherQRAttendanceView(LoginRequiredMixin, View):
             return JsonResponse({
                 'success': False,
                 'message': validation_result.get('error', 'Invalid QR code')
-            })
+            }, status=400)
         
         facility = validation_result['facility']
-        distance_from_facility = 0
+        class_instance = validation_result.get('class_instance')
+        latitude_value = None
+        longitude_value = None
+        distance_from_facility = None
+        location_verified = False
         
         # Verify GPS location if provided
         if latitude and longitude:
@@ -1180,50 +1205,58 @@ class TeacherQRAttendanceView(LoginRequiredMixin, View):
                     return JsonResponse({
                         'success': False,
                         'message': location_result.get('error', 'Location verification failed')
-                    })
+                    }, status=400)
                     
                 # Ensure GPS location matches facility from QR code
                 if location_result['facility'].id != facility.id:
                     return JsonResponse({
                         'success': False,
                         'message': f'GPS location does not match QR code facility. You are at {location_result["facility"].name} but QR code is for {facility.name}'
-                    })
+                    }, status=400)
 
+                latitude_value = lat_float
+                longitude_value = lon_float
                 distance_from_facility = location_result['distance']
+                location_verified = True
                     
             except (ValueError, TypeError):
                 return JsonResponse({
                     'success': False,
                     'message': 'Invalid GPS coordinates'
-                })
-        else:
-            # No GPS provided, use facility coordinates from QR code
-            lat_float = float(facility.latitude) if facility.latitude else 0
-            lon_float = float(facility.longitude) if facility.longitude else 0
+                }, status=400)
         
         # Create attendance record
         try:
+            allowed_classes = Class.objects.filter(
+                id__in=selected_classes,
+                teacher=request.user,
+                facility=facility,
+                is_active=True
+            )
+
+            if class_instance and class_instance.teacher_id == request.user.id and class_instance.facility_id == facility.id:
+                allowed_classes = allowed_classes | Class.objects.filter(pk=class_instance.pk)
+
+            note_suffix = '' if location_verified else ' (GPS not verified)'
             attendance = TeacherAttendance.objects.create(
                 teacher=request.user,
                 facility=facility,
                 clock_type=clock_type,
-                latitude=lat_float,
-                longitude=lon_float,
+                source='qr',
+                latitude=latitude_value,
+                longitude=longitude_value,
                 distance_from_facility=distance_from_facility,
-                location_verified=True,
+                location_verified=location_verified,
                 ip_address=request.META.get('REMOTE_ADDR', ''),
                 user_agent=request.META.get('HTTP_USER_AGENT', ''),
-                notes=f'QR Code attendance for {facility.name}'
+                notes=f'QR Code attendance for {facility.name}{note_suffix}',
+                created_by=request.user,
+                updated_by=request.user
             )
             
             # Add selected classes if any
-            if selected_classes:
-                classes = Class.objects.filter(
-                    id__in=selected_classes,
-                    facility=facility,
-                    is_active=True
-                )
-                attendance.classes.set(classes)
+            if allowed_classes.exists():
+                attendance.classes.set(allowed_classes.distinct())
             
             # Invalidate the QR token to prevent reuse
             QRCodeService.invalidate_qr_token(validation_result['token'])
@@ -1239,21 +1272,14 @@ class TeacherQRAttendanceView(LoginRequiredMixin, View):
             return JsonResponse({
                 'success': False,
                 'message': f'Error recording attendance: {str(e)}'
-            })
+            }, status=500)
 
 
-class QRCodeManagementView(LoginRequiredMixin, TemplateView):
+class QRCodeManagementView(LoginRequiredMixin, AdminRequiredMixin, TemplateView):
     """
     QR Code Management View for administrators
     """
     template_name = 'core/qr_codes/management.html'
-    
-    def dispatch(self, request, *args, **kwargs):
-        # Ensure only administrators can access this view
-        if not hasattr(request.user, 'role') or request.user.role != 'admin':
-            messages.error(request, 'Access denied. This page is for administrators only.')
-            return redirect('core:dashboard')
-        return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1266,18 +1292,11 @@ class QRCodeManagementView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class GenerateFacilityQRCodesView(LoginRequiredMixin, View):
+class GenerateFacilityQRCodesView(LoginRequiredMixin, AdminRequiredMixin, View):
     """
     Generate QR codes for a specific facility
     """
     template_name = 'core/qr_codes/facility_qr_codes.html'
-    
-    def dispatch(self, request, *args, **kwargs):
-        # Ensure only administrators can access this view
-        if not hasattr(request.user, 'role') or request.user.role != 'admin':
-            messages.error(request, 'Access denied. This page is for administrators only.')
-            return redirect('core:dashboard')
-        return super().dispatch(request, *args, **kwargs)
     
     def get(self, request, facility_id):
         """Display QR codes for facility"""
@@ -1325,7 +1344,7 @@ class GenerateFacilityQRCodesView(LoginRequiredMixin, View):
 
 # Timesheet Export Views
 
-class TimesheetExportView(LoginRequiredMixin, TemplateView):
+class TimesheetExportView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, TemplateView):
     """
     Timesheet Export Interface for administrators and teachers
     """
@@ -1340,6 +1359,7 @@ class TimesheetExportView(LoginRequiredMixin, TemplateView):
         # Get all teachers for selection
         context['teachers'] = Staff.objects.filter(
             role='teacher', 
+            is_active_staff=True,
             is_active=True
         ).order_by('first_name', 'last_name')
         
@@ -1413,17 +1433,10 @@ class TimesheetExportView(LoginRequiredMixin, TemplateView):
             return redirect('timesheet_export')
 
 
-class MonthlyTimesheetView(LoginRequiredMixin, View):
+class MonthlyTimesheetView(LoginRequiredMixin, AdminRequiredMixin, View):
     """
     Monthly timesheet summary export
     """
-    
-    def dispatch(self, request, *args, **kwargs):
-        # Ensure only administrators can access monthly summary
-        if not hasattr(request.user, 'role') or request.user.role != 'admin':
-            messages.error(request, 'Access denied. This feature is for administrators only.')
-            return redirect('timesheet_export')
-        return super().dispatch(request, *args, **kwargs)
     
     def get(self, request, year, month):
         """Generate and download monthly summary"""

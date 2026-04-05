@@ -14,5 +14,7 @@ urlpatterns = [
     path('staff/timesheet/export/', views.StaffTimesheetOverviewExportView.as_view(), name='staff_timesheet_overview_export'),
     path('staff/<int:pk>/', views.StaffDetailView.as_view(), name='staff_detail'),
     path('staff/<int:pk>/edit/', views.StaffUpdateView.as_view(), name='staff_edit'),
+    path('staff/<int:pk>/attendance/manual/', views.StaffAttendanceManualEntryView.as_view(), name='staff_attendance_manual_entry'),
+    path('staff/<int:pk>/attendance/manual/<int:attendance_pk>/edit/', views.StaffAttendanceManualEditView.as_view(), name='staff_attendance_manual_edit'),
     path('staff/<int:pk>/timesheet/export/', views.StaffTimesheetExportView.as_view(), name='staff_timesheet_export'),
 ]

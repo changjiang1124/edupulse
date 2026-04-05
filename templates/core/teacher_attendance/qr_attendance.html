@@ -393,10 +393,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (error.code === error.PERMISSION_DENIED) {
                         gpsStatus.className = 'gps-status error';
-                        gpsStatus.innerHTML = '⚠️ Location permission denied - QR code location will be used';
+                        gpsStatus.innerHTML = '⚠️ Location permission denied - attendance can still be submitted, but GPS verification will be skipped';
                     } else {
                         gpsStatus.className = 'gps-status error';
-                        gpsStatus.innerHTML = '⚠️ Unable to get location - QR code location will be used';
+                        gpsStatus.innerHTML = '⚠️ Unable to get location - attendance can still be submitted, but GPS verification will be skipped';
                     }
                     
                     // Still allow submission without GPS verification
@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             const gpsStatus = document.getElementById('gps-status');
             gpsStatus.className = 'gps-status error';
-            gpsStatus.innerHTML = '⚠️ GPS not supported - QR code location will be used';
+            gpsStatus.innerHTML = '⚠️ GPS not supported - attendance can still be submitted, but GPS verification will be skipped';
             
             // Still allow submission
             document.getElementById('submit-btn').disabled = false;
@@ -449,7 +449,9 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             body: formData,
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             }
         })
         .then(response => response.json())

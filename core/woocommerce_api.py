@@ -472,6 +472,19 @@ class WooCommerceAPI:
                 'data': result
             }
         except Exception as e:
+            response = getattr(e, 'response', None)
+            if response is not None and response.status_code in (404, 410):
+                logger.info(
+                    "WooCommerce product %s was already removed or trashed; treating delete as successful.",
+                    wc_product_id,
+                )
+                return {
+                    'status': 'success',
+                    'data': {
+                        'id': wc_product_id,
+                        'already_deleted': True,
+                    }
+                }
             logger.error(f"Failed to delete WooCommerce product {wc_product_id}: {str(e)}")
             return {
                 'status': 'error',
@@ -804,7 +817,7 @@ class WooCommerceSyncService:
             if result['status'] == 'success':
                 # Clear external_id from course
                 course.external_id = None
-                course.save(update_fields=['external_id'])
+                course.__class__.objects.filter(pk=course.pk).update(external_id=None)
                 logger.info(f"Successfully removed WooCommerce product for course {course.id}")
             
             # Update sync log with results
@@ -835,6 +848,7 @@ class WooCommerceSyncService:
                 
                 sync_log.status = 'failed'
                 sync_log.error_message = str(e)
+                sync_log.response_data = {}
                 sync_log.duration_ms = duration_ms
                 sync_log.retry_count += 1
                 sync_log.save()

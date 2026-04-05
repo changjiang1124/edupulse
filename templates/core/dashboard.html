@@ -317,19 +317,24 @@
                 </div>
                 {% else %}
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <a href="{% url 'academics:class_list' %}" class="btn btn-primary w-100 py-3">
                             My Classes
                         </a>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <a href="{% url 'clock' %}" class="btn btn-primary d-flex align-items-center justify-content-center gap-2">
                             Clock In/Out
                         </a>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <a href="{% url 'teacher_attendance_history' %}" class="btn btn-primary w-100 py-3">
                             My Attendance
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{% url 'timesheet' %}" class="btn btn-primary w-100 py-3">
+                            My Timesheet
                         </a>
                     </div>
                 </div>

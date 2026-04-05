@@ -657,6 +657,11 @@ class TeacherAttendance(models.Model):
         ('clock_in', 'Clock In'),
         ('clock_out', 'Clock Out'),
     ]
+    SOURCE_CHOICES = [
+        ('gps', 'GPS Clock'),
+        ('qr', 'QR Clock'),
+        ('manual', 'Manual Entry'),
+    ]
     
     teacher = models.ForeignKey(
         Staff,
@@ -669,8 +674,14 @@ class TeacherAttendance(models.Model):
         choices=CLOCK_TYPE_CHOICES,
         verbose_name='Clock Type'
     )
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default='gps',
+        verbose_name='Record Source'
+    )
     timestamp = models.DateTimeField(
-        auto_now_add=True,
+        default=timezone.now,
         verbose_name='Clock Time'
     )
     
@@ -686,22 +697,30 @@ class TeacherAttendance(models.Model):
     facility = models.ForeignKey(
         'facilities.Facility',
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         verbose_name='Facility',
-        help_text='Facility where attendance was recorded'
+        help_text='Facility where attendance was recorded, if applicable'
     )
     latitude = models.DecimalField(
         max_digits=10,
         decimal_places=8,
+        null=True,
+        blank=True,
         verbose_name='Teacher Latitude',
         help_text='GPS latitude where teacher clocked in/out'
     )
     longitude = models.DecimalField(
         max_digits=11,
         decimal_places=8,
+        null=True,
+        blank=True,
         verbose_name='Teacher Longitude',
         help_text='GPS longitude where teacher clocked in/out'
     )
     distance_from_facility = models.FloatField(
+        null=True,
+        blank=True,
         verbose_name='Distance from Facility (meters)',
         help_text='Calculated distance from facility location'
     )
@@ -713,6 +732,8 @@ class TeacherAttendance(models.Model):
     
     # Additional tracking information
     ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
         verbose_name='IP Address'
     )
     user_agent = models.TextField(
@@ -725,7 +746,28 @@ class TeacherAttendance(models.Model):
         verbose_name='Notes',
         help_text='Additional notes or comments'
     )
-    
+    manual_reason = models.TextField(
+        blank=True,
+        verbose_name='Manual Reason',
+        help_text='Reason provided when the record was entered manually'
+    )
+    created_by = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='teacher_attendance_created_records',
+        verbose_name='Created By'
+    )
+    updated_by = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='teacher_attendance_updated_records',
+        verbose_name='Updated By'
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name='Created At'

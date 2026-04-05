@@ -148,6 +148,10 @@
                                        class="btn btn-outline-primary btn-sm" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
+                                    <a href="{% url 'accounts:staff_attendance_manual_entry' staff_data.staff.pk %}?next={{ request.get_full_path|urlencode }}"
+                                       class="btn btn-outline-secondary btn-sm" title="Add Timesheet Entry">
+                                        <i class="fas fa-plus"></i>
+                                    </a>
                                     <a href="{% url 'accounts:staff_timesheet_export' staff_data.staff.pk %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&format=excel" 
                                        class="btn btn-outline-success btn-sm" title="Export Excel">
                                         <i class="fas fa-file-excel"></i>

@@ -4,7 +4,8 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 from .models import (
     ClockInOut, EmailSettings, SMSSettings, EmailLog, SMSLog, 
-    NotificationQuota, WooCommerceSyncLog, WooCommerceSyncQueue, OrganisationSettings
+    NotificationQuota, WooCommerceSyncLog, WooCommerceSyncQueue, OrganisationSettings,
+    TeacherAttendance
 )
 import json
 
@@ -123,6 +124,24 @@ class ClockInOutAdmin(admin.ModelAdmin):
     search_fields = ('staff__first_name', 'staff__last_name', 'staff__username')
     ordering = ('-timestamp',)
     
+    readonly_fields = ('created_at',)
+
+
+@admin.register(TeacherAttendance)
+class TeacherAttendanceAdmin(admin.ModelAdmin):
+    list_display = (
+        'teacher', 'clock_type', 'source', 'timestamp', 'facility',
+        'location_verified', 'created_by'
+    )
+    list_filter = (
+        'clock_type', 'source', 'location_verified', 'facility', 'timestamp'
+    )
+    search_fields = (
+        'teacher__first_name', 'teacher__last_name', 'teacher__username',
+        'notes', 'manual_reason'
+    )
+    ordering = ('-timestamp',)
+    filter_horizontal = ('classes',)
     readonly_fields = ('created_at',)
 
 

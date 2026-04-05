@@ -110,8 +110,12 @@ class StaffTimesheetService:
                 continue
 
             match_index = None
-            for index, clock_in in enumerate(open_clock_ins):
-                if clock_in.facility_id == record.facility_id:
+            for index in range(len(open_clock_ins) - 1, -1, -1):
+                clock_in = open_clock_ins[index]
+                if (
+                    clock_in.facility_id == record.facility_id and
+                    clock_in.timestamp <= record.timestamp
+                ):
                     match_index = index
                     break
 
@@ -170,6 +174,7 @@ class StaffTimesheetService:
             'date': clock_in.timestamp.date(),
             'clock_in': clock_in,
             'clock_out': clock_out,
+            'primary_record': clock_in,
             'clock_in_time': clock_in.timestamp.time(),
             'clock_out_time': clock_out.timestamp.time(),
             'duration_hours': duration_hours,
@@ -187,6 +192,7 @@ class StaffTimesheetService:
             'date': clock_in.timestamp.date(),
             'clock_in': clock_in,
             'clock_out': None,
+            'primary_record': clock_in,
             'clock_in_time': clock_in.timestamp.time(),
             'clock_out_time': None,
             'duration_hours': None,
@@ -205,6 +211,7 @@ class StaffTimesheetService:
             'date': clock_out.timestamp.date(),
             'clock_in': None,
             'clock_out': clock_out,
+            'primary_record': clock_out,
             'clock_in_time': None,
             'clock_out_time': clock_out.timestamp.time(),
             'duration_hours': None,
@@ -315,15 +322,7 @@ class StaffTimesheetService:
                 
                 # Calculate staff summary
                 paired_records = timesheet_data.get('paired_records', [])
-
-                from core.models import TeacherAttendance
-                raw_records = list(
-                    TeacherAttendance.objects.filter(
-                        teacher=staff,
-                        timestamp__date__gte=start_date,
-                        timestamp__date__lte=end_date
-                    ).select_related('facility').prefetch_related('classes__course').order_by('timestamp')
-                )
+                raw_records = timesheet_data.get('raw_teacher_attendance', [])
                 if not paired_records and raw_records:
                     paired_records = StaffTimesheetService._build_unmatched_from_records(raw_records)
                 total_hours = sum((record.get('duration_hours') or 0) for record in paired_records)

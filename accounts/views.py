@@ -1,18 +1,17 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
+from django.db import transaction
 from django.db.models import Q
+from django.core.paginator import Paginator
+from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .models import Staff
-from .forms import StaffForm, StaffCreationForm
-
-
-class AdminRequiredMixin(UserPassesTestMixin):
-    """Admin permission check mixin"""
-    def test_func(self):
-        return self.request.user.is_authenticated and self.request.user.role == 'admin'
+from .forms import StaffForm, StaffCreationForm, StaffAttendanceManualEntryForm
+from .mixins import AdminRequiredMixin
 
 
 class ProfileView(LoginRequiredMixin, DetailView):
@@ -250,7 +249,7 @@ class StaffTimesheetExportView(LoginRequiredMixin, View):
         staff = get_object_or_404(Staff, pk=pk)
         
         # Permission check - only admin or the staff member themselves
-        if not (request.user.role == 'admin' or request.user == staff):
+        if not (request.user.is_superuser or request.user.role == 'admin' or request.user == staff):
             messages.error(request, 'You do not have permission to view this timesheet.')
             return redirect('core:dashboard')
         
@@ -483,6 +482,305 @@ class StaffTimesheetExportView(LoginRequiredMixin, View):
         return response
 
 
+class StaffAttendanceManualBaseView(AdminRequiredMixin, View):
+    """Shared helpers for manual timesheet create and edit flows."""
+
+    template_name = 'core/staff/manual_attendance_form.html'
+    page_title = 'Add Timesheet Entry'
+    page_description = 'Only the work date and time are required. Everything else is optional.'
+    submit_label = 'Save Timesheet Entry'
+
+    def dispatch(self, request, *args, **kwargs):
+        self.staff = get_object_or_404(Staff, pk=kwargs['pk'], is_active_staff=True)
+        self.next_url = self._get_next_url()
+        self.existing_records = self.get_existing_records()
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_existing_records(self):
+        return []
+
+    def _get_form(self, data=None):
+        return StaffAttendanceManualEntryForm(
+            data,
+            staff=self.staff,
+            existing_records=self.existing_records,
+        )
+
+    def _get_next_url(self):
+        next_url = self.request.GET.get('next') or self.request.POST.get('next')
+        if not next_url:
+            return None
+
+        if url_has_allowed_host_and_scheme(
+            url=next_url,
+            allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure(),
+        ):
+            return next_url
+
+        return None
+
+    def _get_fallback_url(self, records):
+        records = [record for record in records if record]
+        if not records:
+            today = timezone.localdate().isoformat()
+            return (
+                f"{reverse('accounts:staff_detail', kwargs={'pk': self.staff.pk})}"
+                f"?timesheet_start={today}&timesheet_end={today}"
+            )
+
+        start_date = min(record.timestamp.date() for record in records).isoformat()
+        end_date = max(record.timestamp.date() for record in records).isoformat()
+        return (
+            f"{reverse('accounts:staff_detail', kwargs={'pk': self.staff.pk})}"
+            f"?timesheet_start={start_date}&timesheet_end={end_date}"
+        )
+
+    def _get_success_url(self, records):
+        return self.next_url or self._get_fallback_url(records)
+
+    def _build_manual_reason(self, cleaned_data, action):
+        manual_reason = (cleaned_data.get('manual_reason') or '').strip()
+        if manual_reason:
+            return manual_reason
+
+        actor_name = self.request.user.get_full_name().strip() or self.request.user.username
+        return f"Manual timesheet entry {action} by {actor_name}."
+
+    def _show_optional_details(self, form):
+        optional_fields = ['facility', 'classes', 'notes', 'manual_reason']
+        for field_name in optional_fields:
+            bound_field = form[field_name]
+            value = bound_field.value()
+            if bound_field.errors:
+                return True
+            if value not in (None, '', [], (), {}):
+                return True
+        return False
+
+    def _get_context(self, form):
+        back_url = self.next_url or reverse('accounts:staff_detail', kwargs={'pk': self.staff.pk})
+        return {
+            'form': form,
+            'staff': self.staff,
+            'back_url': back_url,
+            'next_url': self.next_url,
+            'page_title': self.page_title,
+            'page_description': self.page_description,
+            'submit_label': self.submit_label,
+            'show_optional_details': self._show_optional_details(form),
+            'is_edit_mode': bool(self.existing_records),
+            'existing_records': [record for record in self.existing_records if record],
+            'clock_out_record': next(
+                (record for record in self.existing_records if record and record.clock_type == 'clock_out'),
+                None
+            ),
+        }
+
+    def _apply_attendance_values(self, attendance, *, clock_type, timestamp, cleaned_data, reason):
+        classes = cleaned_data.get('classes')
+
+        attendance.teacher = self.staff
+        attendance.clock_type = clock_type
+        attendance.timestamp = timestamp
+        attendance.facility = cleaned_data.get('facility')
+        attendance.source = 'manual'
+        attendance.location_verified = False
+        attendance.notes = cleaned_data.get('notes', '')
+        attendance.manual_reason = reason
+        attendance.updated_by = self.request.user
+        attendance.ip_address = None
+        attendance.user_agent = ''
+        attendance.latitude = None
+        attendance.longitude = None
+        attendance.distance_from_facility = None
+
+        if attendance.pk is None and attendance.created_by_id is None:
+            attendance.created_by = self.request.user
+
+        attendance.save()
+        attendance.classes.set(classes or [])
+        return attendance
+
+
+class StaffAttendanceManualEntryView(StaffAttendanceManualBaseView):
+    """Admin-only manual timesheet creation."""
+
+    def get(self, request, pk):
+        form = self._get_form()
+        return render(request, self.template_name, self._get_context(form))
+
+    def post(self, request, pk):
+        form = self._get_form(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, self._get_context(form))
+
+        created_records = self._create_records(form)
+        messages.success(
+            request,
+            f'Timesheet entry saved for {self.staff.get_full_name()}.'
+        )
+        return redirect(self._get_success_url(created_records))
+
+    @transaction.atomic
+    def _create_records(self, form):
+        from core.models import TeacherAttendance
+
+        cleaned_data = form.cleaned_data
+        reason = self._build_manual_reason(cleaned_data, 'created')
+        created_records = []
+
+        if cleaned_data['entry_mode'] == 'single_event':
+            attendance = self._apply_attendance_values(
+                TeacherAttendance(created_by=self.request.user),
+                clock_type=cleaned_data['clock_type'],
+                timestamp=cleaned_data['event_timestamp'],
+                cleaned_data=cleaned_data,
+                reason=reason,
+            )
+            created_records.append(attendance)
+            return created_records
+
+        session_records = [
+            ('clock_in', cleaned_data['session_start']),
+            ('clock_out', cleaned_data['session_end']),
+        ]
+        for clock_type, timestamp in session_records:
+            attendance = self._apply_attendance_values(
+                TeacherAttendance(created_by=self.request.user),
+                clock_type=clock_type,
+                timestamp=timestamp,
+                cleaned_data=cleaned_data,
+                reason=reason,
+            )
+            created_records.append(attendance)
+
+        return created_records
+
+
+class StaffAttendanceManualEditView(StaffAttendanceManualBaseView):
+    """Edit or delete an existing timesheet entry."""
+
+    page_title = 'Edit Timesheet Entry'
+    page_description = 'Update the payable work time for this staff member. Optional details can stay blank.'
+    submit_label = 'Save Changes'
+
+    def get_existing_records(self):
+        from core.models import TeacherAttendance
+
+        primary_record = get_object_or_404(
+            TeacherAttendance,
+            pk=self.kwargs['attendance_pk'],
+            teacher=self.staff,
+        )
+        records = [primary_record]
+
+        companion_id = self.request.GET.get('clock_out') or self.request.POST.get('clock_out')
+        if companion_id:
+            companion_record = get_object_or_404(
+                TeacherAttendance,
+                pk=companion_id,
+                teacher=self.staff,
+            )
+            if companion_record.pk != primary_record.pk:
+                records.append(companion_record)
+
+        unique_records = {}
+        for record in records:
+            if record.clock_type not in unique_records:
+                unique_records[record.clock_type] = record
+
+        return list(unique_records.values())
+
+    def get(self, request, pk, attendance_pk):
+        form = self._get_form()
+        return render(request, self.template_name, self._get_context(form))
+
+    def post(self, request, pk, attendance_pk):
+        if request.POST.get('form_action') == 'delete':
+            deleted_records = list(self.existing_records)
+            self._delete_records()
+            messages.success(
+                request,
+                f'Timesheet entry deleted for {self.staff.get_full_name()}.'
+            )
+            return redirect(self._get_success_url(deleted_records))
+
+        form = self._get_form(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, self._get_context(form))
+
+        updated_records = self._update_records(form)
+        messages.success(
+            request,
+            f'Timesheet entry updated for {self.staff.get_full_name()}.'
+        )
+        return redirect(self._get_success_url(updated_records))
+
+    @transaction.atomic
+    def _update_records(self, form):
+        from core.models import TeacherAttendance
+
+        cleaned_data = form.cleaned_data
+        reason = self._build_manual_reason(cleaned_data, 'updated')
+        records_by_type = {
+            record.clock_type: record
+            for record in self.existing_records
+            if record is not None
+        }
+        saved_records = []
+
+        if cleaned_data['entry_mode'] == 'single_event':
+            target_type = cleaned_data['clock_type']
+            target_record = records_by_type.get(target_type)
+            if target_record is None:
+                target_record = next(iter(records_by_type.values()), TeacherAttendance(created_by=self.request.user))
+
+            saved_records.append(
+                self._apply_attendance_values(
+                    target_record,
+                    clock_type=target_type,
+                    timestamp=cleaned_data['event_timestamp'],
+                    cleaned_data=cleaned_data,
+                    reason=reason,
+                )
+            )
+        else:
+            clock_in_record = records_by_type.get('clock_in') or TeacherAttendance(created_by=self.request.user)
+            clock_out_record = records_by_type.get('clock_out') or TeacherAttendance(created_by=self.request.user)
+
+            saved_records.append(
+                self._apply_attendance_values(
+                    clock_in_record,
+                    clock_type='clock_in',
+                    timestamp=cleaned_data['session_start'],
+                    cleaned_data=cleaned_data,
+                    reason=reason,
+                )
+            )
+            saved_records.append(
+                self._apply_attendance_values(
+                    clock_out_record,
+                    clock_type='clock_out',
+                    timestamp=cleaned_data['session_end'],
+                    cleaned_data=cleaned_data,
+                    reason=reason,
+                )
+            )
+
+        saved_ids = {record.pk for record in saved_records if record.pk}
+        for record in self.existing_records:
+            if record and record.pk not in saved_ids:
+                record.delete()
+
+        return saved_records
+
+    def _delete_records(self):
+        for record in self.existing_records:
+            if record:
+                record.delete()
+
+
 class StaffTimesheetOverviewView(AdminRequiredMixin, ListView):
     """Timesheet overview for all staff members"""
     template_name = 'core/staff/timesheet_overview.html'
@@ -491,7 +789,7 @@ class StaffTimesheetOverviewView(AdminRequiredMixin, ListView):
     
     def get_queryset(self):
         # Get all active staff members
-        return Staff.objects.filter(is_active_staff=True, role='teacher').order_by('last_name', 'first_name')
+        return Staff.objects.filter(is_active_staff=True).order_by('last_name', 'first_name')
     
     def get_context_data(self, **kwargs):
         from datetime import datetime
@@ -520,10 +818,18 @@ class StaffTimesheetOverviewView(AdminRequiredMixin, ListView):
             overview_data = StaffTimesheetService.get_all_staff_timesheet_data(
                 self.get_queryset(), start_date, end_date
             )
+
+            paginator = Paginator(overview_data['staff_summaries'], self.paginate_by)
+            page_obj = paginator.get_page(self.request.GET.get('page'))
+            overview_data['staff_summaries'] = list(page_obj.object_list)
             
             context['timesheet_overview'] = overview_data
             context['start_date'] = overview_data['date_range']['start_date']
             context['end_date'] = overview_data['date_range']['end_date']
+            context['page_obj'] = page_obj
+            context['is_paginated'] = page_obj.has_other_pages()
+            context['paginator'] = paginator
+            context['staff_timesheets'] = page_obj.object_list
             
         except ImportError:
             context['timesheet_overview'] = {
@@ -562,7 +868,7 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
                 end_date = None
         
         # Get all active staff
-        staff_queryset = Staff.objects.filter(is_active_staff=True, role='teacher').order_by('last_name', 'first_name')
+        staff_queryset = Staff.objects.filter(is_active_staff=True).order_by('last_name', 'first_name')
         
         # Get timesheet overview data
         try:

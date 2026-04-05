@@ -291,7 +291,8 @@
                 </div>
                 {% endfor %}
                 <div class="text-center mt-2 border-top pt-2">
-                    <a href="{% url 'teacher_attendance_history' %}" class="text-decoration-none small text-primary fw-medium">View History</a>
+                    <a href="{% url 'teacher_attendance_history' %}" class="text-decoration-none small text-primary fw-medium me-3">View History</a>
+                    <a href="{% url 'timesheet' %}" class="text-decoration-none small text-primary fw-medium">View Timesheet</a>
                 </div>
             {% else %}
                 <p class="text-center text-muted small mb-0 py-2">No recent activity today.</p>
@@ -407,6 +408,8 @@ function handleLocationSuccess(position) {
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCookie('csrftoken'),
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({ latitude: lat, longitude: lon })
     })
@@ -572,7 +575,9 @@ function submitClock(type) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({
             clock_type: type,

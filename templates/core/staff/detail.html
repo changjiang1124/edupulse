@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load custom_filters %}
 
 {% block title %}{{ staff.first_name }} {{ staff.last_name }} - Staff Details - EduPulse{% endblock %}
 
@@ -301,6 +302,12 @@
                     <i class="fas fa-clock me-2"></i>Timesheet
                 </h5>
                 <div class="btn-group btn-group-sm" role="group">
+                    {% if user.role == 'admin' and not is_profile_view %}
+                    <a href="{% url 'accounts:staff_attendance_manual_entry' staff.pk %}?next={{ request.get_full_path|urlencode }}"
+                       class="btn btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i>Add Entry
+                    </a>
+                    {% endif %}
                     <a href="{% url 'accounts:staff_timesheet_export' staff.pk %}?start_date={{ timesheet_start_date|date:'Y-m-d' }}&end_date={{ timesheet_end_date|date:'Y-m-d' }}&format=excel" 
                        class="btn btn-outline-success">
                         <i class="fas fa-file-excel me-1"></i>Excel
@@ -361,6 +368,9 @@
                                 <th>Classes</th>
                                 <th>Facility</th>
                                 <th class="text-end">Hours</th>
+                                {% if user.role == 'admin' and not is_profile_view %}
+                                <th class="text-end">Actions</th>
+                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -403,7 +413,6 @@
                                 </td>
                                 <td class="text-end">
                                     {% if record.duration_hours %}
-                                        {% load custom_filters %}
                                         <span class="fw-medium">{{ record.duration_hours|format_duration }}</span>
                                     {% else %}
                                         {% if record.clock_in_time and not record.clock_out_time %}
@@ -413,6 +422,14 @@
                                         {% endif %}
                                     {% endif %}
                                 </td>
+                                {% if user.role == 'admin' and not is_profile_view %}
+                                <td class="text-end text-nowrap">
+                                    <a href="{% url 'accounts:staff_attendance_manual_edit' staff.pk record.primary_record.pk %}?{% if record.clock_out %}clock_out={{ record.clock_out.pk }}&{% endif %}next={{ request.get_full_path|urlencode }}"
+                                       class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-pen me-1"></i>Edit
+                                    </a>
+                                </td>
+                                {% endif %}
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -455,9 +472,10 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    {% if staff.role == 'teacher' %}
+                    {% if staff.role == 'teacher' or user.role == 'admin' %}
                     <a href="{% url 'clock' %}" class="btn btn-outline-info">Clock In/Out</a>
                     <a href="{% url 'teacher_attendance_history' %}" class="btn btn-outline-success">My Attendance History</a>
+                    <a href="{% url 'timesheet' %}" class="btn btn-outline-primary">My Timesheet</a>
                     <a href="{% url 'academics:class_list' %}" class="btn btn-outline-secondary">My Classes</a>
                     {% endif %}
                 </div>
