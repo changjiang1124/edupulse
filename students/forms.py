@@ -2,6 +2,30 @@ from django import forms
 from .models import Student, StudentTag, StudentLevel
 
 
+class MultipleFileInput(forms.ClearableFileInput):
+    """File input widget that supports selecting multiple files."""
+    allow_multiple_selected = True
+
+
+class MultipleFileField(forms.FileField):
+    """File field that normalises uploaded files into a list."""
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('widget', MultipleFileInput())
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        single_file_clean = super().clean
+
+        if not data:
+            return []
+
+        if not isinstance(data, (list, tuple)):
+            data = [data]
+
+        return [single_file_clean(item, initial) for item in data]
+
+
 class StudentForm(forms.ModelForm):
     """Student form with Bootstrap styling - aligned with enrollment form"""
 
@@ -217,6 +241,9 @@ class StudentTagForm(forms.ModelForm):
 
 class BulkNotificationForm(forms.Form):
     """Form for sending bulk notifications to students"""
+
+    PDF_ATTACHMENT_MAX_TOTAL_SIZE = 10 * 1024 * 1024
+    PDF_ATTACHMENT_MAX_FILES = 5
     
     NOTIFICATION_TYPE_CHOICES = [
         ('email', 'Email Only'),
@@ -309,6 +336,17 @@ class BulkNotificationForm(forms.Form):
         required=False,
         help_text='Rich HTML content for email with images and formatting'
     )
+
+    pdf_attachments = MultipleFileField(
+        label='Attach PDFs',
+        required=False,
+        widget=MultipleFileInput(attrs={
+            'class': 'form-control',
+            'accept': '.pdf,application/pdf',
+            'multiple': True
+        }),
+        help_text='Optional PDF files shared with every email in this batch'
+    )
     
     # SMS content (plain text)
     sms_content = forms.CharField(
@@ -331,6 +369,7 @@ class BulkNotificationForm(forms.Form):
         subject = cleaned_data.get('subject')
         email_content = cleaned_data.get('email_content')
         sms_content = cleaned_data.get('sms_content')
+        pdf_attachments = cleaned_data.get('pdf_attachments') or []
         student_ids = cleaned_data.get('student_ids')
         send_to = cleaned_data.get('send_to')
         selected_tags = cleaned_data.get('selected_tags')
@@ -359,9 +398,26 @@ class BulkNotificationForm(forms.Form):
                 errors['subject'] = 'Email subject is required for email notifications'
             if not email_content or not email_content.strip():
                 errors['email_content'] = 'Email content is required for email notifications'
+            if len(pdf_attachments) > self.PDF_ATTACHMENT_MAX_FILES:
+                errors['pdf_attachments'] = f'You can attach up to {self.PDF_ATTACHMENT_MAX_FILES} PDF files at a time.'
+            else:
+                total_attachment_size = 0
+                for pdf_attachment in pdf_attachments:
+                    file_name = (pdf_attachment.name or '').lower()
+                    content_type = getattr(pdf_attachment, 'content_type', '') or ''
+
+                    if not file_name.endswith('.pdf') and content_type != 'application/pdf':
+                        errors['pdf_attachments'] = 'Please upload PDF files only.'
+                        break
+
+                    total_attachment_size += pdf_attachment.size
+
+                if 'pdf_attachments' not in errors and total_attachment_size > self.PDF_ATTACHMENT_MAX_TOTAL_SIZE:
+                    errors['pdf_attachments'] = 'PDF attachments must be 10 MB or smaller in total.'
+
             # Store email_content as message for backward compatibility
             cleaned_data['message'] = email_content
-        
+
         # SMS specific validation
         elif notification_type == 'sms':
             if not sms_content or not sms_content.strip():
@@ -370,6 +426,7 @@ class BulkNotificationForm(forms.Form):
                 errors['sms_content'] = f'SMS message is too long ({len(sms_content)} characters). Maximum 160 characters allowed.'
             # Store sms_content as message for backward compatibility
             cleaned_data['message'] = sms_content
+            cleaned_data['pdf_attachments'] = []
         
         # Raise all errors at once
         if errors:

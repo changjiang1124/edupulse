@@ -7,7 +7,7 @@
                 <h5 class="modal-title" id="notificationModalLabel">Send Notification</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="post" id="notificationForm">
+            <form method="post" id="notificationForm" enctype="multipart/form-data">
                 <div class="modal-body">
                     {% csrf_token %}
                     <input type="hidden" name="student_ids" id="notificationStudentIds">
@@ -72,11 +72,30 @@
                                        placeholder="Enter email subject">
                             </div>
                             
-                            <div class="mb-3">
-                                <label for="notificationEmailContent" class="form-label">Email Content</label>
-                                <textarea class="form-control notification-tinymce-editor" id="notificationEmailContent" name="email_content" 
+                        <div class="mb-3">
+                            <label for="notificationEmailContent" class="form-label">Email Content</label>
+                            <textarea class="form-control notification-tinymce-editor" id="notificationEmailContent" name="email_content" 
                                           rows="15"></textarea>
                                 <div class="form-text">Rich HTML content for email with images and formatting</div>
+                            </div>
+
+                            <div class="mb-3" id="notificationPdfAttachmentGroup">
+                                <label for="notificationPdfAttachments" class="form-label">Attach PDFs (optional)</label>
+                                <input type="file" class="form-control" id="notificationPdfAttachments" name="pdf_attachments" accept=".pdf,application/pdf" multiple>
+                                <div class="form-text">The same PDFs will be attached to every email in this batch. Up to 5 files, 10 MB total.</div>
+                                <div class="alert alert-light border mt-2 py-2 px-3 d-none" id="notificationPdfAttachmentSummary">
+                                    <div class="d-flex justify-content-between align-items-center gap-3">
+                                        <div>
+                                            <div class="fw-semibold small" id="notificationPdfAttachmentName"></div>
+                                            <div class="text-muted small" id="notificationPdfAttachmentMeta"></div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearNotificationPdfAttachments()">Clear</button>
+                                    </div>
+                                    <div class="text-muted small mt-2 d-none" id="notificationPdfAttachmentList"></div>
+                                </div>
+                                <div class="alert alert-warning mt-2 py-2 px-3 d-none" id="notificationPdfCloudSuggestion" role="status">
+                                    Sending a larger document pack by email can be unreliable. For bigger file sets, upload them to OneDrive or Google Drive and share the link in your message instead.
+                                </div>
                             </div>
                         </div>
                         
@@ -289,14 +308,141 @@ function destroyNotificationTinyMCE() {
     }
 }
 
+function formatNotificationAttachmentSize(bytes) {
+    if (!bytes) {
+        return '0 KB';
+    }
+
+    if (bytes >= 1024 * 1024) {
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function getNotificationPdfAttachmentFiles() {
+    const input = document.getElementById('notificationPdfAttachments');
+    return input && input.files ? Array.from(input.files) : [];
+}
+
+function updateNotificationPdfAttachmentSummary() {
+    const input = document.getElementById('notificationPdfAttachments');
+    const summary = document.getElementById('notificationPdfAttachmentSummary');
+    const name = document.getElementById('notificationPdfAttachmentName');
+    const meta = document.getElementById('notificationPdfAttachmentMeta');
+    const fileList = document.getElementById('notificationPdfAttachmentList');
+    const cloudSuggestion = document.getElementById('notificationPdfCloudSuggestion');
+    const files = getNotificationPdfAttachmentFiles();
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+    if (files.length === 0) {
+        summary.classList.add('d-none');
+        name.textContent = '';
+        meta.textContent = '';
+        fileList.textContent = '';
+        fileList.classList.add('d-none');
+        cloudSuggestion.classList.add('d-none');
+        return;
+    }
+
+    if (files.length === 1) {
+        name.textContent = files[0].name;
+        meta.textContent = `1 PDF · ${formatNotificationAttachmentSize(totalSize)} total`;
+        fileList.textContent = '';
+        fileList.classList.add('d-none');
+    } else {
+        name.textContent = `${files.length} PDF files selected`;
+        meta.textContent = `${formatNotificationAttachmentSize(totalSize)} total`;
+        fileList.textContent = files.slice(0, 3).map(file => file.name).join(', ');
+        if (files.length > 3) {
+            fileList.textContent += `, plus ${files.length - 3} more`;
+        }
+        fileList.classList.remove('d-none');
+    }
+
+    if (files.length >= 4 || totalSize > 8 * 1024 * 1024) {
+        cloudSuggestion.classList.remove('d-none');
+    } else {
+        cloudSuggestion.classList.add('d-none');
+    }
+
+    summary.classList.remove('d-none');
+}
+
+function clearNotificationPdfAttachments() {
+    const input = document.getElementById('notificationPdfAttachments');
+    if (input) {
+        input.value = '';
+    }
+    updateNotificationPdfAttachmentSummary();
+}
+
+function validateNotificationPdfAttachments() {
+    const input = document.getElementById('notificationPdfAttachments');
+    const files = getNotificationPdfAttachmentFiles();
+    const maxFiles = 5;
+    const maxTotalBytes = 10 * 1024 * 1024;
+
+    if (files.length === 0 || input.disabled) {
+        return true;
+    }
+
+    if (files.length > maxFiles) {
+        clearNotificationPdfAttachments();
+        alert(`You can attach up to ${maxFiles} PDF files at a time.`);
+        return false;
+    }
+
+    const hasInvalidFile = files.some(file => file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf'));
+    if (hasInvalidFile) {
+        clearNotificationPdfAttachments();
+        alert('Please choose PDF files only.');
+        return false;
+    }
+
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > maxTotalBytes) {
+        clearNotificationPdfAttachments();
+        alert('PDF attachments must be 10 MB or smaller in total.');
+        return false;
+    }
+
+    return true;
+}
+
+function getNotificationProgressText() {
+    const hasAttachments = getNotificationPdfAttachmentFiles().length > 0;
+    return hasAttachments ? 'Uploading PDF attachments and preparing emails...' : 'Preparing to send notifications...';
+}
+
+function getNotificationFormErrorMessage(data, fallbackMessage) {
+    if (data && data.details) {
+        const firstField = Object.keys(data.details)[0];
+        const firstErrors = data.details[firstField];
+        if (firstErrors && firstErrors.length) {
+            return firstErrors[0];
+        }
+    }
+
+    if (data && data.error) {
+        return data.error;
+    }
+
+    return fallbackMessage;
+}
+
 // Handle notification type change (Email/SMS toggle)
 function handleNotificationTypeChange(type) {
     const emailFieldsGroup = document.getElementById('notificationEmailFieldsGroup');
     const smsFieldsGroup = document.getElementById('notificationSmsFieldsGroup');
+    const attachmentGroup = document.getElementById('notificationPdfAttachmentGroup');
+    const attachmentInput = document.getElementById('notificationPdfAttachments');
     
     if (type === 'email') {
         emailFieldsGroup.style.display = 'block';
         smsFieldsGroup.style.display = 'none';
+        attachmentGroup.style.display = 'block';
+        attachmentInput.disabled = false;
         
         // Make email fields required
         document.getElementById('notificationEmailSubject').required = true;
@@ -309,6 +455,8 @@ function handleNotificationTypeChange(type) {
     } else if (type === 'sms') {
         emailFieldsGroup.style.display = 'none';
         smsFieldsGroup.style.display = 'block';
+        attachmentGroup.style.display = 'none';
+        attachmentInput.disabled = true;
         
         // Make SMS fields required
         document.getElementById('notificationEmailSubject').required = false;
@@ -337,16 +485,16 @@ function openNotificationModal(studentIds) {
         alert('Please select at least one student.');
         return;
     }
-    
+
+    // Reset form
+    resetNotificationForm();
+
     // Set student IDs
     document.getElementById('notificationStudentIds').value = Array.isArray(studentIds) ? studentIds.join(',') : studentIds;
-    
+
     // Update recipient count
     const count = Array.isArray(studentIds) ? studentIds.length : studentIds.toString().split(',').length;
     document.getElementById('notificationRecipientCount').textContent = count;
-    
-    // Reset form
-    resetNotificationForm();
     
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
@@ -364,11 +512,22 @@ function resetNotificationForm() {
     const typeSelect = document.getElementById('notificationType');
     if (typeSelect) {
         typeSelect.value = 'email';
-        handleNotificationTypeChange('email');
     }
+
+    document.getElementById('notificationEmailFieldsGroup').style.display = 'block';
+    document.getElementById('notificationSmsFieldsGroup').style.display = 'none';
+    document.getElementById('notificationPdfAttachmentGroup').style.display = 'block';
+    document.getElementById('notificationPdfAttachments').disabled = false;
+    document.getElementById('notificationEmailSubject').required = true;
+    document.getElementById('notificationSmsContent').required = false;
     
     // Reset progress area
     showNotificationFormFields();
+    document.getElementById('notificationProgressSent').textContent = '0';
+    document.getElementById('notificationProgressFailed').textContent = '0';
+    document.getElementById('notificationProgressTotal').textContent = '0';
+    updateNotificationProgressBar(0, 'Preparing to send notifications...');
+    clearNotificationPdfAttachments();
     
     // Clear TinyMCE content
     if (typeof tinymce !== 'undefined' && tinymce.get('notificationEmailContent')) {
@@ -453,8 +612,17 @@ function updateNotificationProgressDisplay(progressData) {
 // Event listeners for SMS counter
 document.addEventListener('DOMContentLoaded', function() {
     const smsContent = document.getElementById('notificationSmsContent');
+    const pdfAttachment = document.getElementById('notificationPdfAttachments');
     if (smsContent) {
         smsContent.addEventListener('input', updateNotificationSmsCounter);
+    }
+
+    if (pdfAttachment) {
+        pdfAttachment.addEventListener('change', function() {
+            if (validateNotificationPdfAttachments()) {
+                updateNotificationPdfAttachmentSummary();
+            }
+        });
     }
     
     // Initialize TinyMCE when modal is shown
@@ -467,7 +635,7 @@ document.addEventListener('DOMContentLoaded', function() {
         notificationModal.addEventListener('hidden.bs.modal', function() {
             // Clean up when modal is hidden
             destroyNotificationTinyMCE();
-            showNotificationFormFields();
+            resetNotificationForm();
         });
     }
 });

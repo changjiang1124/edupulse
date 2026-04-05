@@ -1,17 +1,21 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from pathlib import Path
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View
 from django.urls import reverse_lazy
+from django.conf import settings
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
+from django.utils.text import get_valid_filename
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
 from datetime import timedelta
 import logging
+from uuid import uuid4
 
 from .models import Student, StudentTag, StudentLevel
 from .forms import StudentForm, BulkNotificationForm
@@ -19,6 +23,91 @@ from core.models import EmailSettings, SMSSettings, EmailLog, SMSLog, Notificati
 from core.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
+NOTIFICATION_ATTACHMENT_MAX_AGE_SECONDS = 6 * 60 * 60
+
+
+def _get_notification_attachment_dir():
+    """Return the temporary storage directory for bulk notification attachments."""
+    attachment_dir = Path(settings.MEDIA_ROOT) / 'notification_attachments'
+    attachment_dir.mkdir(parents=True, exist_ok=True)
+    return attachment_dir
+
+
+def _cleanup_stale_notification_attachments(max_age_seconds=NOTIFICATION_ATTACHMENT_MAX_AGE_SECONDS):
+    """Remove old temporary files left behind by interrupted bulk-notification flows."""
+    attachment_dir = _get_notification_attachment_dir()
+    cutoff_timestamp = timezone.now().timestamp() - max_age_seconds
+
+    for attachment_path in attachment_dir.iterdir():
+        try:
+            if attachment_path.is_file() and attachment_path.stat().st_mtime < cutoff_timestamp:
+                attachment_path.unlink()
+        except FileNotFoundError:
+            continue
+
+
+def _store_notification_attachments(uploaded_files):
+    """Persist uploaded PDFs so they can be reused between the start and execute requests."""
+    stored_attachments = []
+
+    try:
+        for uploaded_file in uploaded_files:
+            original_name = get_valid_filename(uploaded_file.name or 'attachment.pdf')
+            if not original_name.lower().endswith('.pdf'):
+                original_name = f'{original_name}.pdf'
+
+            stored_name = f'{uuid4().hex}-{original_name}'
+            attachment_path = _get_notification_attachment_dir() / stored_name
+
+            with attachment_path.open('wb+') as destination:
+                for chunk in uploaded_file.chunks():
+                    destination.write(chunk)
+
+            stored_attachments.append({
+                'path': str(attachment_path),
+                'name': original_name,
+                'mimetype': 'application/pdf'
+            })
+    except Exception:
+        _cleanup_notification_attachments(stored_attachments)
+        raise
+
+    return stored_attachments
+
+
+def _load_notification_attachments(attachments_info):
+    """Load persisted attachments into the structure expected by BatchEmailService."""
+    loaded_attachments = []
+
+    for attachment_info in attachments_info:
+        attachment_path = Path(attachment_info['path'])
+        if not attachment_path.exists():
+            raise FileNotFoundError('One of the selected PDF attachments could not be found.')
+
+        loaded_attachments.append({
+            'filename': attachment_info['name'],
+            'content': attachment_path.read_bytes(),
+            'mimetype': attachment_info.get('mimetype', 'application/pdf')
+        })
+
+    return loaded_attachments
+
+
+def _cleanup_notification_attachments(attachments_info):
+    """Remove temporary attachment files once the bulk send finishes."""
+    if not attachments_info:
+        return
+
+    for attachment_info in attachments_info:
+        attachment_path = attachment_info.get('path')
+        if not attachment_path:
+            continue
+
+        try:
+            Path(attachment_path).unlink()
+        except FileNotFoundError:
+            continue
+
 
 def _user_is_admin(user):
     return user.is_superuser or getattr(user, 'role', None) == 'admin'
@@ -183,8 +272,9 @@ def bulk_notification_start(request):
         return JsonResponse({'error': 'Access denied'}, status=403)
 
     from core.services.bulk_notification_progress import BulkNotificationProgress
+    _cleanup_stale_notification_attachments()
 
-    form = BulkNotificationForm(request.POST)
+    form = BulkNotificationForm(request.POST, request.FILES)
 
     if not form.is_valid():
         errors = {}
@@ -251,6 +341,18 @@ def bulk_notification_start(request):
                 'error': f'SMS quota exceeded. Cannot send {len(recipients)} SMS messages.'
             }, status=400)
 
+    attachments_info = []
+    if notification_type == 'email':
+        attachments = cleaned_data.get('pdf_attachments', [])
+        if attachments:
+            try:
+                attachments_info = _store_notification_attachments(attachments)
+            except Exception as exc:
+                logger.error("Failed to store bulk notification attachments: %s", exc)
+                return JsonResponse({
+                    'error': 'Failed to store the PDF attachments. Please try again.'
+                }, status=500)
+
     # Create progress tracking task
     task_id = BulkNotificationProgress.create_task(len(recipients), notification_type)
 
@@ -260,6 +362,7 @@ def bulk_notification_start(request):
         'message_type': cleaned_data['message_type'],
         'subject': cleaned_data.get('subject', ''),
         'message': cleaned_data['message'],
+        'attachments': attachments_info,
         'recipient_ids': [r.id for r in recipients],
         'total_recipients': len(recipients)
     }
@@ -289,6 +392,9 @@ def bulk_notification_execute(request, task_id):
         BulkNotificationProgress.mark_failed(task_id, 'Task data not found')
         return JsonResponse({'error': 'Task data not found'}, status=404)
 
+    attachments_info = task_data.get('attachments', [])
+    task_session_key = f'bulk_task_{task_id}'
+
     try:
         # Get recipients
         recipient_ids = task_data['recipient_ids']
@@ -298,6 +404,10 @@ def bulk_notification_execute(request, task_id):
         message_type = task_data['message_type']
         subject = task_data['subject']
         message = task_data['message']
+        shared_attachments = []
+
+        if notification_type in ['email', 'both'] and attachments_info:
+            shared_attachments = _load_notification_attachments(attachments_info)
 
         # Create progress callback
         progress_callback = create_progress_callback(task_id)
@@ -326,7 +436,8 @@ def bulk_notification_execute(request, task_id):
                         'to': contact_email,
                         'subject': subject,
                         'context': context,
-                        'template_name': 'core/emails/bulk_notification.html'
+                        'template_name': 'core/emails/bulk_notification.html',
+                        'attachments': shared_attachments
                     }
                     email_data_list.append(email_data)
 
@@ -400,10 +511,6 @@ def bulk_notification_execute(request, task_id):
 
         BulkNotificationProgress.mark_completed(task_id, final_stats)
 
-        # Clean up session data
-        if f'bulk_task_{task_id}' in request.session:
-            del request.session[f'bulk_task_{task_id}']
-
         return JsonResponse({
             'success': True,
             'stats': final_stats
@@ -413,6 +520,11 @@ def bulk_notification_execute(request, task_id):
         logger.error(f"Bulk notification execution error: {e}")
         BulkNotificationProgress.mark_failed(task_id, str(e))
         return JsonResponse({'error': f'Execution failed: {e}'}, status=500)
+    finally:
+        _cleanup_notification_attachments(attachments_info)
+        if task_session_key in request.session:
+            del request.session[task_session_key]
+            request.session.modified = True
 
 
 @login_required

@@ -193,7 +193,8 @@ class BatchEmailService:
 
         Args:
             email_data_list: List of dicts containing email data
-                Each dict should have: 'to', 'subject', 'context', 'template_name' (optional)
+                Each dict should have: 'to', 'subject', 'context', 'template_name' (optional),
+                and may include 'attachments'
             template_name: Default template name if not specified in email data
             subject_prefix: Prefix to add to all subjects
 
@@ -284,7 +285,8 @@ class BatchEmailService:
         Prepare individual email from data
 
         Args:
-            email_data: Dict with 'to', 'subject', 'context', 'template_name' (optional)
+            email_data: Dict with 'to', 'subject', 'context', 'template_name' (optional),
+                and 'attachments' (optional)
             default_template: Template to use if not specified in email_data
             subject_prefix: Prefix for subject line
 
@@ -296,6 +298,7 @@ class BatchEmailService:
             subject = email_data.get('subject', 'Notification')
             context = email_data.get('context', {})
             template_name = email_data.get('template_name', default_template)
+            attachments = email_data.get('attachments', [])
 
             if not to_email:
                 logger.warning("No recipient email provided")
@@ -343,6 +346,16 @@ class BatchEmailService:
                 reply_to=[sender_reply]
             )
             email.attach_alternative(html_content, "text/html")
+
+            for attachment in attachments:
+                filename = attachment.get('filename')
+                content = attachment.get('content')
+                mimetype = attachment.get('mimetype', 'application/octet-stream')
+
+                if not filename or content is None:
+                    continue
+
+                email.attach(filename, content, mimetype)
 
             return email
 

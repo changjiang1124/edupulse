@@ -839,6 +839,9 @@ async function submitNotificationForm() {
             alert('Please enter email content.');
             return;
         }
+        if (!validateNotificationPdfAttachments()) {
+            return;
+        }
         // Sync TinyMCE content to textarea
         tinymce.triggerSave();
     } else if (notificationType === 'sms') {
@@ -855,6 +858,7 @@ async function submitNotificationForm() {
 
     // Show progress
     showNotificationProgressArea();
+    updateNotificationProgressBar(0, getNotificationProgressText());
 
     try {
         // Start the notification task
@@ -866,7 +870,7 @@ async function submitNotificationForm() {
     } catch (error) {
         console.error('Notification error:', error);
         showNotificationFormFields();
-        alert('An error occurred while sending the notification. Please try again.');
+        alert(error.message || 'An error occurred while sending the notification. Please try again.');
     }
 }
 
@@ -884,8 +888,8 @@ async function startNotificationTask() {
 
     const data = await response.json();
 
-    if (!data.success) {
-        throw new Error(data.error || 'Failed to start notification');
+    if (!response.ok || !data.success) {
+        throw new Error(getNotificationFormErrorMessage(data, 'Failed to start notification'));
     }
 
     // Update progress display

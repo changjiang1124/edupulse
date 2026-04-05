@@ -555,7 +555,7 @@
                 <h5 class="modal-title" id="bulkNotificationModalLabel">Send Bulk Notification</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="post" action="{% url 'students:bulk_notification_start' %}" id="bulkNotificationForm">
+            <form method="post" action="{% url 'students:bulk_notification_start' %}" id="bulkNotificationForm" enctype="multipart/form-data">
                 <div class="modal-body">
                     {% csrf_token %}
                     <input type="hidden" name="student_ids" id="selectedStudentIds">
@@ -625,6 +625,25 @@
                             <textarea class="form-control tinymce-editor" id="emailContent" name="email_content" 
                                       rows="15"></textarea>
                             <div class="form-text">Rich HTML content for email with images and formatting</div>
+                        </div>
+
+                        <div class="mb-3" id="pdfAttachmentGroup">
+                            <label for="pdfAttachments" class="form-label">Attach PDFs (optional)</label>
+                            <input type="file" class="form-control" id="pdfAttachments" name="pdf_attachments" accept=".pdf,application/pdf" multiple>
+                            <div class="form-text">The same PDFs will be attached to every email in this batch. Up to 5 files, 10 MB total.</div>
+                            <div class="alert alert-light border mt-2 py-2 px-3 d-none" id="pdfAttachmentSummary">
+                                <div class="d-flex justify-content-between align-items-center gap-3">
+                                    <div>
+                                        <div class="fw-semibold small" id="pdfAttachmentName"></div>
+                                        <div class="text-muted small" id="pdfAttachmentMeta"></div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearBulkPdfAttachments()">Clear</button>
+                                </div>
+                                <div class="text-muted small mt-2 d-none" id="pdfAttachmentList"></div>
+                            </div>
+                            <div class="alert alert-warning mt-2 py-2 px-3 d-none" id="pdfCloudSuggestion" role="status">
+                                Sending a larger document pack by email can be unreliable. For bigger file sets, upload them to OneDrive or Google Drive and share the link in your message instead.
+                            </div>
                         </div>
                     </div>
                     
@@ -1017,6 +1036,8 @@ function openBulkNotificationModal() {
         return;
     }
 
+    resetBulkNotificationForm();
+
     // Update the modal with selected student IDs
     document.getElementById('selectedStudentIds').value = Array.from(selectedStudents).join(',');
     document.getElementById('recipientCount').textContent = selectedStudents.size;
@@ -1256,6 +1277,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert('Please enter email content.');
                     return false;
                 }
+                if (!validateBulkPdfAttachments()) {
+                    return false;
+                }
                 // Sync TinyMCE content to textarea
                 tinymce.triggerSave();
             } else if (notificationType === 'sms') {
@@ -1272,6 +1296,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Start progress display
             showProgressArea();
+            updateProgressBar(0, getBulkNotificationProgressText());
 
             try {
                 // Step 1: Start the bulk notification task
@@ -1283,7 +1308,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (error) {
                 console.error('Bulk notification error:', error);
                 hideProgressArea();
-                alert('An error occurred while sending notifications. Please try again.');
+                alert(error.message || 'An error occurred while sending notifications. Please try again.');
             }
         });
     }
@@ -1724,6 +1749,171 @@ function showCompletionState() {
     document.getElementById('doneBtn').style.display = 'inline-block';
 }
 
+function formatAttachmentSize(bytes) {
+    if (!bytes) {
+        return '0 KB';
+    }
+
+    if (bytes >= 1024 * 1024) {
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function getBulkPdfAttachmentFiles() {
+    const input = document.getElementById('pdfAttachments');
+    return input && input.files ? Array.from(input.files) : [];
+}
+
+function updateBulkPdfAttachmentSummary() {
+    const input = document.getElementById('pdfAttachments');
+    const summary = document.getElementById('pdfAttachmentSummary');
+    const name = document.getElementById('pdfAttachmentName');
+    const meta = document.getElementById('pdfAttachmentMeta');
+    const fileList = document.getElementById('pdfAttachmentList');
+    const cloudSuggestion = document.getElementById('pdfCloudSuggestion');
+    const files = getBulkPdfAttachmentFiles();
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+    if (files.length === 0) {
+        summary.classList.add('d-none');
+        name.textContent = '';
+        meta.textContent = '';
+        fileList.textContent = '';
+        fileList.classList.add('d-none');
+        cloudSuggestion.classList.add('d-none');
+        return;
+    }
+
+    if (files.length === 1) {
+        name.textContent = files[0].name;
+        meta.textContent = `1 PDF · ${formatAttachmentSize(totalSize)} total`;
+        fileList.textContent = '';
+        fileList.classList.add('d-none');
+    } else {
+        name.textContent = `${files.length} PDF files selected`;
+        meta.textContent = `${formatAttachmentSize(totalSize)} total`;
+        fileList.textContent = files.slice(0, 3).map(file => file.name).join(', ');
+        if (files.length > 3) {
+            fileList.textContent += `, plus ${files.length - 3} more`;
+        }
+        fileList.classList.remove('d-none');
+    }
+
+    if (files.length >= 4 || totalSize > 8 * 1024 * 1024) {
+        cloudSuggestion.classList.remove('d-none');
+    } else {
+        cloudSuggestion.classList.add('d-none');
+    }
+
+    summary.classList.remove('d-none');
+}
+
+function clearBulkPdfAttachments() {
+    const input = document.getElementById('pdfAttachments');
+    if (input) {
+        input.value = '';
+    }
+    updateBulkPdfAttachmentSummary();
+}
+
+function validateBulkPdfAttachments() {
+    const input = document.getElementById('pdfAttachments');
+    const files = getBulkPdfAttachmentFiles();
+    const maxFiles = 5;
+    const maxTotalBytes = 10 * 1024 * 1024;
+
+    if (files.length === 0 || input.disabled) {
+        return true;
+    }
+
+    if (files.length > maxFiles) {
+        clearBulkPdfAttachments();
+        alert(`You can attach up to ${maxFiles} PDF files at a time.`);
+        return false;
+    }
+
+    const hasInvalidFile = files.some(file => file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf'));
+    if (hasInvalidFile) {
+        clearBulkPdfAttachments();
+        alert('Please choose PDF files only.');
+        return false;
+    }
+
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > maxTotalBytes) {
+        clearBulkPdfAttachments();
+        alert('PDF attachments must be 10 MB or smaller in total.');
+        return false;
+    }
+
+    return true;
+}
+
+function getBulkNotificationProgressText() {
+    const hasAttachments = getBulkPdfAttachmentFiles().length > 0;
+    return hasAttachments ? 'Uploading PDF attachments and preparing emails...' : 'Preparing to send notifications...';
+}
+
+function resetBulkNotificationForm() {
+    const form = document.getElementById('bulkNotificationForm');
+    if (form) {
+        form.reset();
+    }
+
+    hideProgressArea();
+    document.getElementById('progressSent').textContent = '0';
+    document.getElementById('progressFailed').textContent = '0';
+    document.getElementById('progressTotal').textContent = '0';
+    document.getElementById('progressStats').style.display = 'none';
+    updateProgressBar(0, 'Preparing to send notifications...');
+    clearBulkPdfAttachments();
+
+    const typeSelect = document.getElementById('notificationType');
+    if (typeSelect) {
+        typeSelect.value = 'email';
+    }
+
+    document.getElementById('emailFieldsGroup').style.display = 'block';
+    document.getElementById('smsFieldsGroup').style.display = 'none';
+    document.getElementById('pdfAttachmentGroup').style.display = 'block';
+    document.getElementById('pdfAttachments').disabled = false;
+    document.getElementById('emailSubject').required = true;
+    document.getElementById('emailContent').required = true;
+    document.getElementById('smsContent').required = false;
+
+    if (typeof tinymce !== 'undefined' && tinymce.get('emailContent')) {
+        tinymce.get('emailContent').setContent('');
+    }
+
+    const smsContent = document.getElementById('smsContent');
+    const smsCounter = document.getElementById('smsCounter');
+    if (smsContent) {
+        smsContent.value = '';
+    }
+    if (smsCounter) {
+        smsCounter.textContent = '0';
+        smsCounter.parentElement.classList.remove('text-danger');
+    }
+}
+
+function getBulkNotificationErrorMessage(data, fallbackMessage) {
+    if (data && data.details) {
+        const firstField = Object.keys(data.details)[0];
+        const firstErrors = data.details[firstField];
+        if (firstErrors && firstErrors.length) {
+            return firstErrors[0];
+        }
+    }
+
+    if (data && data.error) {
+        return data.error;
+    }
+
+    return fallbackMessage;
+}
+
 async function startBulkNotification() {
     const formData = new FormData(document.getElementById('bulkNotificationForm'));
 
@@ -1738,8 +1928,8 @@ async function startBulkNotification() {
 
     const data = await response.json();
 
-    if (!data.success) {
-        throw new Error(data.error || 'Failed to start bulk notification');
+    if (!response.ok || !data.success) {
+        throw new Error(getBulkNotificationErrorMessage(data, 'Failed to start bulk notification'));
     }
 
     // Update progress display
@@ -1860,10 +2050,14 @@ function updateProgressBar(percentage, text) {
 function handleNotificationTypeChange(type) {
     const emailFieldsGroup = document.getElementById('emailFieldsGroup');
     const smsFieldsGroup = document.getElementById('smsFieldsGroup');
+    const attachmentGroup = document.getElementById('pdfAttachmentGroup');
+    const attachmentInput = document.getElementById('pdfAttachments');
     
     if (type === 'email') {
         emailFieldsGroup.style.display = 'block';
         smsFieldsGroup.style.display = 'none';
+        attachmentGroup.style.display = 'block';
+        attachmentInput.disabled = false;
         
         // Make email fields required
         document.getElementById('emailSubject').required = true;
@@ -1880,6 +2074,8 @@ function handleNotificationTypeChange(type) {
     } else if (type === 'sms') {
         emailFieldsGroup.style.display = 'none';
         smsFieldsGroup.style.display = 'block';
+        attachmentGroup.style.display = 'none';
+        attachmentInput.disabled = true;
         
         // Make SMS fields required
         document.getElementById('emailSubject').required = false;
@@ -2036,6 +2232,7 @@ function initializeTinyMCE() {
 document.addEventListener('DOMContentLoaded', function() {
     const smsContent = document.getElementById('smsContent');
     const smsCounter = document.getElementById('smsCounter');
+    const pdfAttachment = document.getElementById('pdfAttachments');
     
     if (smsContent && smsCounter) {
         smsContent.addEventListener('input', function() {
@@ -2046,6 +2243,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 smsCounter.parentElement.classList.add('text-danger');
             } else {
                 smsCounter.parentElement.classList.remove('text-danger');
+            }
+        });
+    }
+
+    if (pdfAttachment) {
+        pdfAttachment.addEventListener('change', function() {
+            if (validateBulkPdfAttachments()) {
+                updateBulkPdfAttachmentSummary();
             }
         });
     }
@@ -2065,6 +2270,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof tinymce !== 'undefined' && tinymce.get('emailContent')) {
                 tinymce.get('emailContent').remove();
             }
+            resetBulkNotificationForm();
         });
     }
 });
