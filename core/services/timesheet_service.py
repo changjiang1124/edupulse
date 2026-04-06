@@ -20,14 +20,107 @@ class TimesheetExportService:
     """
     Service for generating Excel timesheet reports
     """
+
+    DETAIL_HEADERS = [
+        'Date',
+        'Staff',
+        'Clock In',
+        'Clock Out',
+        'Facility',
+        'Classes',
+        'Duration (Hours)',
+        'Clock In Source',
+        'Clock Out Source',
+        'Clock In Verified',
+        'Clock Out Verified',
+        'Notes',
+        'Manual/Audit Note',
+        'Recorded By',
+        'Updated By',
+    ]
+
+    @staticmethod
+    def _get_staff_display_name(staff_member):
+        if staff_member is None:
+            return ''
+        return staff_member.get_full_name().strip() or staff_member.username
+
+    @staticmethod
+    def _first_non_empty_value(records, attribute_name):
+        for record in records:
+            if record is None:
+                continue
+            value = getattr(record, attribute_name, '')
+            if value:
+                return value
+        return ''
+
+    @staticmethod
+    def _get_actor_names(records, attribute_name):
+        names = []
+        seen = set()
+        for record in records:
+            if record is None:
+                continue
+            actor = getattr(record, attribute_name, None)
+            if actor is None:
+                continue
+            label = TimesheetExportService._get_staff_display_name(actor)
+            if not label or label in seen:
+                continue
+            seen.add(label)
+            names.append(label)
+        return ', '.join(names)
+
+    @staticmethod
+    def _get_location_verified_label(record):
+        if record is None:
+            return '--'
+        return 'Yes' if record.location_verified else 'No'
+
+    @staticmethod
+    def _build_detailed_row(staff_member, record):
+        clock_in = record.get('clock_in')
+        clock_out = record.get('clock_out')
+        related_records = [clock_in, clock_out]
+        duration_hours = record.get('duration_hours')
+        class_names = ', '.join([
+            cls.course.name for cls in record.get('classes', [])
+        ]) if record.get('classes') else 'General'
+
+        duration_value = ''
+        if duration_hours is not None:
+            duration_value = float(
+                Decimal(str(duration_hours)).quantize(
+                    Decimal('0.01'), rounding=ROUND_HALF_UP
+                )
+            )
+
+        return [
+            record['date'].strftime('%d/%m/%Y'),
+            TimesheetExportService._get_staff_display_name(staff_member),
+            record.get('clock_in_time').strftime('%H:%M') if record.get('clock_in_time') else '--',
+            record.get('clock_out_time').strftime('%H:%M') if record.get('clock_out_time') else '--',
+            record.get('facility').name if record.get('facility') else 'N/A',
+            class_names,
+            duration_value,
+            clock_in.get_source_display() if clock_in else '--',
+            clock_out.get_source_display() if clock_out else '--',
+            TimesheetExportService._get_location_verified_label(clock_in),
+            TimesheetExportService._get_location_verified_label(clock_out),
+            record.get('notes') or TimesheetExportService._first_non_empty_value(related_records, 'notes'),
+            TimesheetExportService._first_non_empty_value(related_records, 'manual_reason'),
+            TimesheetExportService._get_actor_names(related_records, 'created_by'),
+            TimesheetExportService._get_actor_names(related_records, 'updated_by'),
+        ]
     
     @staticmethod
     def export_teacher_timesheet(teacher=None, start_date=None, end_date=None, format='excel'):
         """
-        Export teacher timesheet data to Excel format
+        Export staff timesheet data to Excel format
         
         Args:
-            teacher: Specific teacher (if None, exports all teachers)
+            teacher: Specific staff member (if None, exports all active staff)
             start_date: Start date for report
             end_date: End date for report  
             format: Export format ('excel' or 'csv')
@@ -50,7 +143,7 @@ class TimesheetExportService:
                 staff_queryset = [teacher]
             else:
                 staff_queryset = list(
-                    Staff.objects.filter(role='teacher', is_active=True)
+                    Staff.objects.filter(is_active_staff=True, is_active=True)
                     .order_by('first_name', 'last_name')
                 )
 
@@ -71,8 +164,8 @@ class TimesheetExportService:
             ws = wb.active
             
             # Set worksheet title
-            teacher_name = f" - {teacher.get_full_name()}" if teacher else ""
-            ws.title = f"Timesheet{teacher_name}"[:31]  # Excel sheet name limit
+            staff_label = f" - {TimesheetExportService._get_staff_display_name(teacher)}" if teacher else ""
+            ws.title = f"Timesheet{staff_label}"[:31]  # Excel sheet name limit
             
             # Generate the timesheet
             TimesheetExportService._generate_timesheet_worksheet(
@@ -86,7 +179,8 @@ class TimesheetExportService:
             
             # Set filename
             date_str = f"{start_date.strftime('%Y%m%d')}-{end_date.strftime('%Y%m%d')}"
-            filename = f"timesheet_{teacher_name.replace(' - ', '_').replace(' ', '_').lower()}_{date_str}.xlsx"
+            suffix = staff_label.replace(' - ', '_').replace(' ', '_').lower().strip('_')
+            filename = f"timesheet_{suffix}_{date_str}.xlsx" if suffix else f"timesheet_{date_str}.xlsx"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             
             # Save workbook to response
@@ -124,25 +218,20 @@ class TimesheetExportService:
         )
         
         # Title and header
-        ws['A1'] = 'Perth Art School - Teacher Timesheet'
-        ws.merge_cells('A1:H1')
+        ws['A1'] = 'Perth Art School - Staff Timesheet'
+        ws.merge_cells('A1:O1')
         ws['A1'].font = Font(bold=True, size=14)
         ws['A1'].alignment = Alignment(horizontal='center')
         
         # Report details
         ws['A3'] = f'Report Period: {start_date.strftime("%d/%m/%Y")} - {end_date.strftime("%d/%m/%Y")}'
         if teacher:
-            ws['A4'] = f'Teacher: {teacher.get_full_name()}'
+            ws['A4'] = f'Staff Member: {TimesheetExportService._get_staff_display_name(teacher)}'
         ws['A5'] = f'Generated: {timezone.now().strftime("%d/%m/%Y %H:%M")}'
         
         # Column headers
-        headers = [
-            'Date', 'Teacher', 'Clock In', 'Clock Out', 'Facility',
-            'Classes', 'Duration (Hours)', 'Notes'
-        ]
-        
         header_row = 7
-        for col, header in enumerate(headers, 1):
+        for col, header in enumerate(TimesheetExportService.DETAIL_HEADERS, 1):
             cell = ws.cell(row=header_row, column=col, value=header)
             cell.font = header_font
             cell.fill = header_fill
@@ -167,42 +256,13 @@ class TimesheetExportService:
                 if duration_hours is not None:
                     daily_hours[staff_member.id][date_key] += Decimal(str(duration_hours))
 
-                class_names = ', '.join([
-                    cls.course.name for cls in record.get('classes', [])
-                ]) if record.get('classes') else 'General'
-
-                clock_in_time = (
-                    record.get('clock_in_time').strftime('%H:%M')
-                    if record.get('clock_in_time') else '--'
-                )
-                clock_out_time = (
-                    record.get('clock_out_time').strftime('%H:%M')
-                    if record.get('clock_out_time') else '--'
-                )
-                duration_value = ''
-                if duration_hours is not None:
-                    duration_value = float(
-                        Decimal(str(duration_hours)).quantize(
-                            Decimal('0.01'), rounding=ROUND_HALF_UP
-                        )
-                    )
-
-                data_row = [
-                    record['date'].strftime('%d/%m/%Y'),
-                    staff_member.get_full_name(),
-                    clock_in_time,
-                    clock_out_time,
-                    record.get('facility').name if record.get('facility') else 'N/A',
-                    class_names,
-                    duration_value,
-                    record.get('notes') or ''
-                ]
+                data_row = TimesheetExportService._build_detailed_row(staff_member, record)
 
                 for col, value in enumerate(data_row, 1):
                     cell = ws.cell(row=row, column=col, value=value)
                     cell.border = data_border
 
-                    if col == 7 and value != '':  # Duration column
+                    if col in [7] and value != '':
                         cell.alignment = Alignment(horizontal='right')
 
                 row += 1
@@ -217,7 +277,7 @@ class TimesheetExportService:
         TimesheetExportService._add_overall_summary(ws, row, staff_timesheets, daily_hours)
         
         # Adjust column widths
-        column_widths = [12, 20, 15, 10, 20, 25, 15, 30]
+        column_widths = [12, 20, 12, 12, 18, 24, 16, 16, 16, 16, 16, 28, 30, 22, 22]
         for col, width in enumerate(column_widths, 1):
             ws.column_dimensions[get_column_letter(col)].width = width
     
@@ -257,9 +317,7 @@ class TimesheetExportService:
         """
         Add summary row for a teacher
         """
-        teacher_total = sum(
-            sum(daily_hours.get(teacher.id, {}).values(), Decimal('0')),
-        )
+        teacher_total = sum(daily_hours.get(teacher.id, {}).values(), Decimal('0'))
         
         # Teacher summary row
         ws.merge_cells(f'A{row}:E{row}')
@@ -302,7 +360,7 @@ class TimesheetExportService:
         
         # Summary data
         summary_data = [
-            ('Total Teachers:', total_teachers),
+            ('Total Staff:', total_teachers),
             ('Total Hours:', float(total_hours)),
             ('Total Sessions:', total_sessions),
             ('Incomplete Sessions:', incomplete_sessions),
@@ -338,7 +396,7 @@ class TimesheetExportService:
             # Process data
             teacher_data = {}
             staff_queryset = Staff.objects.filter(
-                role='teacher',
+                is_active_staff=True,
                 is_active=True
             ).order_by('first_name', 'last_name')
 
@@ -394,13 +452,13 @@ class TimesheetExportService:
         Generate monthly summary worksheet
         """
         # Header
-        ws['A1'] = f'Perth Art School - Monthly Summary'
+        ws['A1'] = f'Perth Art School - Monthly Staff Summary'
         ws['A1'].font = Font(bold=True, size=14)
         ws['A2'] = f'Period: {start_date.strftime("%B %Y")}'
         ws['A3'] = f'Generated: {timezone.now().strftime("%d/%m/%Y %H:%M")}'
         
         # Column headers
-        headers = ['Teacher', 'Total Hours', 'Days Worked', 'Avg Hours/Day', 'Total Sessions']
+        headers = ['Staff Member', 'Total Hours', 'Days Worked', 'Avg Hours/Day', 'Total Sessions']
         header_row = 5
         
         for col, header in enumerate(headers, 1):

@@ -1,3 +1,7 @@
+1. 调用 Design Review 去 review 一下 Add Entry Edit Timesheet 的页面
+2. 查看一下 Export as Excel 里面的功能和数据是不是齐全的
+3. 确认一下这次修改是否会导致有些联动也需要修改
+
 - [x] in current enrolment, student should be searchable rather than dropdown? course should be searchable too? as the current selection could have over long list and bad UX, or what's the best practice for this?
 - [x] in public enrolment page, sort by monday - sunday arrangement, and could it use search2 as list in enrolment to present course selection?
 
@@ -29,4 +33,4 @@ help me review above design, and improve it if needed.
 
 - [x] enrolment list, add a filter for course status, default showing enrolments of published courses. note: the export function should export the current filtered results
 
-- [x] in enrolment list, multiple select action, add a new one called "remind payment", this only affect pending enrolments, which means even there are non-pending enrolments in the selection, they should be ignored. once click apply to proceed the action, a modal will be shown to confirm the action, and the modal should show the number of pending enrolments that will be affected. and ask operator to choose the contact method, email or phone (both checked by default, and can be unchecked), and then send the reminder to the student's contact (email or phone) to remind them to pay for the course. Considering the SMS length limit, the reminder message should be concise (e.g. xxx has been enrolled for xxx course, please pay for it. Bank transfer details: ...), and the email message should be more detailed. 
+- [x] in enrolment list, multiple select action, add a new one called "remind payment", this only affect pending enrolments, which means even there are non-pending enrolments in the selection, they should be ignored. once click apply to proceed the action, a modal will be shown to confirm the action, and the modal should show the number of pending enrolments that will be affected. and ask operator to choose the contact method, email or phone (both checked by default, and can be unchecked), and then send the reminder to the student's contact (email or phone) to remind them to pay for the course. Considering the SMS length limit, the reminder message should be concise (e.g. xxx has been enrolled for xxx course, please pay for it. Bank transfer details: ...), and the email message should be more detailed.

@@ -10,6 +10,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from datetime import datetime, date, timedelta
+import logging
 import os
 import uuid
 import json
@@ -31,6 +32,8 @@ from .utils.gps_utils import (
     get_client_ip, 
     get_user_agent
 )
+
+logger = logging.getLogger(__name__)
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
@@ -1356,21 +1359,25 @@ class TimesheetExportView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, Templ
         from accounts.models import Staff
         from datetime import date, timedelta
         
-        # Get all teachers for selection
-        context['teachers'] = Staff.objects.filter(
-            role='teacher', 
+        # Get all active staff for selection
+        context['staff_members'] = Staff.objects.filter(
             is_active_staff=True,
             is_active=True
         ).order_by('first_name', 'last_name')
         
-        # Set default date range (last month)
+        # Set default date range (last 30 days), preserving current filters when present
         today = date.today()
-        context['default_end_date'] = today.strftime('%Y-%m-%d')
-        context['default_start_date'] = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        default_start = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        default_end = today.strftime('%Y-%m-%d')
+        start_date = self.request.GET.get('start_date') or default_start
+        end_date = self.request.GET.get('end_date') or default_end
+        context['default_end_date'] = end_date
+        context['default_start_date'] = start_date
         
         # Current user context
         context['is_admin'] = hasattr(self.request.user, 'role') and self.request.user.role == 'admin'
-        context['current_teacher'] = self.request.user if hasattr(self.request.user, 'role') and self.request.user.role == 'teacher' else None
+        context['current_staff'] = self.request.user if hasattr(self.request.user, 'role') else None
+        context['selected_staff_id'] = self.request.GET.get('staff_id') or self.request.GET.get('teacher_id') or ''
         
         return context
     
@@ -1381,7 +1388,7 @@ class TimesheetExportView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, Templ
         from datetime import datetime
         
         # Get form data
-        teacher_id = request.POST.get('teacher_id')
+        staff_id = request.POST.get('staff_id') or request.POST.get('teacher_id')
         start_date_str = request.POST.get('start_date')
         end_date_str = request.POST.get('end_date')
         export_format = request.POST.get('format', 'excel')
@@ -1394,32 +1401,36 @@ class TimesheetExportView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, Templ
             messages.error(request, 'Invalid date format')
             return redirect('timesheet_export')
         
-        # Get teacher if specified
-        teacher = None
-        if teacher_id:
+        # Get staff member if specified
+        staff_member = None
+        if staff_id:
             try:
-                teacher = Staff.objects.get(id=teacher_id, role='teacher')
+                staff_member = Staff.objects.get(
+                    id=staff_id,
+                    is_active_staff=True,
+                    is_active=True,
+                )
                 
-                # Check permissions - teachers can only export their own data
+                # Check permissions, teachers can only export their own data
                 if (hasattr(request.user, 'role') and 
                     request.user.role == 'teacher' and 
-                    request.user.id != teacher.id):
+                    request.user.id != staff_member.id):
                     messages.error(request, 'You can only export your own timesheet')
                     return redirect('timesheet_export')
                     
             except Staff.DoesNotExist:
-                messages.error(request, 'Teacher not found')
+                messages.error(request, 'Staff member not found')
                 return redirect('timesheet_export')
         else:
-            # If no teacher specified and user is a teacher, use current user
+            # If no staff member is specified and the user is a teacher, use the current user
             if hasattr(request.user, 'role') and request.user.role == 'teacher':
-                teacher = request.user
+                staff_member = request.user
         
         # Generate export
         try:
             if export_format == 'excel':
                 return TimesheetExportService.export_teacher_timesheet(
-                    teacher=teacher,
+                    teacher=staff_member,
                     start_date=start_date,
                     end_date=end_date
                 )

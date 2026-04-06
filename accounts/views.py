@@ -238,6 +238,86 @@ class StaffUpdateView(AdminRequiredMixin, UpdateView):
 
 class StaffTimesheetExportView(LoginRequiredMixin, View):
     """Export staff timesheet data in CSV or Excel format"""
+
+    DETAIL_HEADERS = [
+        'Date',
+        'Clock In',
+        'Clock Out',
+        'Classes',
+        'Facility',
+        'Hours',
+        'Clock In Source',
+        'Clock Out Source',
+        'Clock In Verified',
+        'Clock Out Verified',
+        'Notes',
+        'Manual/Audit Note',
+        'Recorded By',
+        'Updated By',
+    ]
+
+    def _get_staff_display_name(self, staff_member):
+        if staff_member is None:
+            return ''
+        return staff_member.get_full_name().strip() or staff_member.username
+
+    def _get_actor_names(self, records, attribute_name):
+        names = []
+        seen = set()
+        for record in records:
+            if record is None:
+                continue
+            actor = getattr(record, attribute_name, None)
+            if actor is None:
+                continue
+            label = self._get_staff_display_name(actor)
+            if not label or label in seen:
+                continue
+            seen.add(label)
+            names.append(label)
+        return ', '.join(names)
+
+    def _first_non_empty_value(self, records, attribute_name):
+        for record in records:
+            if record is None:
+                continue
+            value = getattr(record, attribute_name, '')
+            if value:
+                return value
+        return ''
+
+    def _get_location_verified_label(self, record):
+        if record is None:
+            return '--'
+        return 'Yes' if record.location_verified else 'No'
+
+    def _build_detailed_row(self, record):
+        clock_in = record.get('clock_in')
+        clock_out = record.get('clock_out')
+        related_records = [clock_in, clock_out]
+        classes_text = ', '.join([cls.course.name for cls in record.get('classes', [])])
+        if not classes_text:
+            classes_text = 'General Work'
+
+        facility_name = record.get('facility').name if record.get('facility') else 'N/A'
+        duration = record.get('duration_hours')
+
+        return [
+            record['date'].strftime('%Y-%m-%d'),
+            record.get('clock_in_time').strftime('%H:%M') if record.get('clock_in_time') else '--',
+            record.get('clock_out_time').strftime('%H:%M') if record.get('clock_out_time') else '--',
+            classes_text,
+            facility_name,
+            f"{duration}h" if duration is not None else '--',
+            clock_in.get_source_display() if clock_in else '--',
+            clock_out.get_source_display() if clock_out else '--',
+            self._get_location_verified_label(clock_in),
+            self._get_location_verified_label(clock_out),
+            record.get('notes') or self._first_non_empty_value(related_records, 'notes'),
+            self._first_non_empty_value(related_records, 'manual_reason'),
+            self._get_actor_names(related_records, 'created_by'),
+            self._get_actor_names(related_records, 'updated_by'),
+        ]
     
     def get(self, request, pk):
         import csv
@@ -320,24 +400,10 @@ class StaffTimesheetExportView(LoginRequiredMixin, View):
         
         # Detailed records
         writer.writerow(['DETAILED TIMESHEET'])
-        writer.writerow(['Date', 'Clock In', 'Clock Out', 'Classes', 'Facility', 'Hours'])
+        writer.writerow(self.DETAIL_HEADERS)
         
         for record in timesheet_data.get('paired_records', []):
-            classes_text = ', '.join([cls.course.name for cls in record.get('classes', [])])
-            if not classes_text:
-                classes_text = 'General Work'
-            
-            facility_name = record.get('facility').name if record.get('facility') else 'N/A'
-            duration = record.get('duration_hours', 0)
-            
-            writer.writerow([
-                record['date'].strftime('%Y-%m-%d'),
-                record.get('clock_in_time').strftime('%H:%M') if record.get('clock_in_time') else '--',
-                record.get('clock_out_time').strftime('%H:%M') if record.get('clock_out_time') else '--',
-                classes_text,
-                facility_name,
-                f"{duration}h" if duration else '--'
-            ])
+            writer.writerow(self._build_detailed_row(record))
         
         return response
     
@@ -421,8 +487,7 @@ class StaffTimesheetExportView(LoginRequiredMixin, View):
         row += 1
         
         # Table headers
-        headers = ['Date', 'Clock In', 'Clock Out', 'Classes', 'Facility', 'Hours']
-        for col, header in enumerate(headers, 1):
+        for col, header in enumerate(self.DETAIL_HEADERS, 1):
             cell = worksheet.cell(row=row, column=col, value=header)
             cell.font = subheader_font
             cell.border = border
@@ -432,26 +497,12 @@ class StaffTimesheetExportView(LoginRequiredMixin, View):
         
         # Data rows
         for record in timesheet_data.get('paired_records', []):
-            classes_text = ', '.join([cls.course.name for cls in record.get('classes', [])])
-            if not classes_text:
-                classes_text = 'General Work'
-            
-            facility_name = record.get('facility').name if record.get('facility') else 'N/A'
-            duration = record.get('duration_hours', 0)
-            
-            data = [
-                record['date'].strftime('%Y-%m-%d'),
-                record.get('clock_in_time').strftime('%H:%M') if record.get('clock_in_time') else '--',
-                record.get('clock_out_time').strftime('%H:%M') if record.get('clock_out_time') else '--',
-                classes_text,
-                facility_name,
-                f"{duration}h" if duration else '--'
-            ]
+            data = self._build_detailed_row(record)
             
             for col, value in enumerate(data, 1):
                 cell = worksheet.cell(row=row, column=col, value=value)
                 cell.border = border
-                if col in [1, 2, 3, 6]:  # Date, times, and hours columns
+                if col in [1, 2, 3, 6, 7, 8, 9, 10]:
                     cell.alignment = Alignment(horizontal='center')
             row += 1
         
@@ -571,11 +622,37 @@ class StaffAttendanceManualBaseView(AdminRequiredMixin, View):
             'show_optional_details': self._show_optional_details(form),
             'is_edit_mode': bool(self.existing_records),
             'existing_records': [record for record in self.existing_records if record],
+            'existing_entry_summary': self._build_existing_entry_summary(),
             'clock_out_record': next(
                 (record for record in self.existing_records if record and record.clock_type == 'clock_out'),
                 None
             ),
         }
+
+    def _build_existing_entry_summary(self):
+        if not self.existing_records:
+            return None
+
+        clock_in_record = next(
+            (record for record in self.existing_records if record and record.clock_type == 'clock_in'),
+            None
+        )
+        clock_out_record = next(
+            (record for record in self.existing_records if record and record.clock_type == 'clock_out'),
+            None
+        )
+        primary_record = clock_in_record or clock_out_record
+        if primary_record is None:
+            return None
+
+        summary = {
+            'date': timezone.localtime(primary_record.timestamp).date(),
+            'clock_in_time': timezone.localtime(clock_in_record.timestamp).strftime('%H:%M') if clock_in_record else None,
+            'clock_out_time': timezone.localtime(clock_out_record.timestamp).strftime('%H:%M') if clock_out_record else None,
+            'entry_mode': 'full_session' if clock_in_record and clock_out_record else 'single_event',
+            'clock_type': primary_record.get_clock_type_display(),
+        }
+        return summary
 
     def _apply_attendance_values(self, attendance, *, clock_type, timestamp, cleaned_data, reason):
         classes = cleaned_data.get('classes')
@@ -822,6 +899,18 @@ class StaffTimesheetOverviewView(AdminRequiredMixin, ListView):
         pagination_params.pop('page', None)
         return pagination_params.urlencode()
 
+    def _build_export_query(self, start_date, end_date, selected_staff):
+        query_params = self.request.GET.copy()
+        query_params.pop('page', None)
+        query_params['start_date'] = start_date.strftime('%Y-%m-%d')
+        query_params['end_date'] = end_date.strftime('%Y-%m-%d')
+        query_params['format'] = 'excel'
+        if selected_staff is not None:
+            query_params['staff'] = str(selected_staff.pk)
+        else:
+            query_params.pop('staff', None)
+        return query_params.urlencode()
+
     def get_queryset(self):
         queryset = self.get_base_queryset()
         selected_staff = self.get_selected_staff()
@@ -875,6 +964,14 @@ class StaffTimesheetOverviewView(AdminRequiredMixin, ListView):
         context['selected_staff'] = selected_staff
         context['selected_staff_id'] = str(selected_staff.pk) if selected_staff else ''
         context['pagination_query'] = self._get_pagination_query()
+        if context.get('start_date') and context.get('end_date'):
+            context['summary_export_query'] = self._build_export_query(
+                context['start_date'],
+                context['end_date'],
+                selected_staff,
+            )
+        else:
+            context['summary_export_query'] = 'format=excel'
         return context
 
 
@@ -929,7 +1026,12 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
         
         # Generate filename
         date_range = f"{overview_data['date_range']['start_date'].strftime('%Y%m%d')}-{overview_data['date_range']['end_date'].strftime('%Y%m%d')}"
-        filename = f"all_staff_timesheet_{date_range}"
+        if staff_queryset.count() == 1:
+            staff_member = staff_queryset.first()
+            staff_name = f"{staff_member.first_name}_{staff_member.last_name}".strip('_') or staff_member.username
+            filename = f"{staff_name}_timesheet_summary_{date_range}"
+        else:
+            filename = f"all_staff_timesheet_summary_{date_range}"
         
         if export_format == 'excel':
             return self._generate_excel(overview_data, filename)

@@ -101,20 +101,25 @@ class StaffAttendanceManualEntryViewTests(TestCase):
         payload.update(overrides)
         return payload
 
-    def _create_manual_session(self, start, end):
+    def _create_manual_session(self, start, end, *, staff=None, manual_reason='Manual test entry', notes=''):
+        staff = staff or self.teacher
         clock_in = TeacherAttendance.objects.create(
-            teacher=self.teacher,
+            teacher=staff,
             clock_type='clock_in',
             source='manual',
             timestamp=start,
+            manual_reason=manual_reason,
+            notes=notes,
             created_by=self.admin,
             updated_by=self.admin,
         )
         clock_out = TeacherAttendance.objects.create(
-            teacher=self.teacher,
+            teacher=staff,
             clock_type='clock_out',
             source='manual',
             timestamp=end,
+            manual_reason=manual_reason,
+            notes=notes,
             created_by=self.admin,
             updated_by=self.admin,
         )
@@ -293,3 +298,87 @@ class StaffAttendanceManualEntryViewTests(TestCase):
         self.assertContains(response, 'name="staff"')
         self.assertContains(response, 'Manual Teacher Entries')
         self.assertContains(response, edit_url)
+
+    def test_staff_timesheet_export_includes_audit_columns(self):
+        self.client.login(username='admin-user', password='Admin123!')
+
+        start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) - timedelta(hours=5)
+        end = start + timedelta(hours=2)
+        self._create_manual_session(
+            start,
+            end,
+            manual_reason='Payroll correction after paper sign-in.',
+            notes='Adjusted from admin desk log.',
+        )
+
+        response = self.client.get(
+            reverse('accounts:staff_timesheet_export', args=[self.teacher.pk]),
+            {
+                'start_date': timezone.localtime(start).strftime('%Y-%m-%d'),
+                'end_date': timezone.localtime(end).strftime('%Y-%m-%d'),
+                'format': 'csv',
+            },
+        )
+
+        content = response.content.decode('utf-8')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Manual/Audit Note', content)
+        self.assertIn('Clock In Source', content)
+        self.assertIn('Recorded By', content)
+        self.assertIn('Payroll correction after paper sign-in.', content)
+        self.assertIn('Manual Entry', content)
+        self.assertIn('Admin User', content)
+
+    def test_overview_export_respects_staff_filter(self):
+        self.client.login(username='admin-user', password='Admin123!')
+
+        start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) - timedelta(hours=5)
+        end = start + timedelta(hours=2)
+        self._create_manual_session(start, end, staff=self.teacher)
+        self._create_manual_session(start + timedelta(days=1), end + timedelta(days=1), staff=self.office_admin)
+
+        response = self.client.get(
+            reverse('accounts:staff_timesheet_overview_export'),
+            {
+                'staff': str(self.teacher.pk),
+                'start_date': timezone.localtime(start).strftime('%Y-%m-%d'),
+                'end_date': timezone.localtime(end + timedelta(days=1)).strftime('%Y-%m-%d'),
+                'format': 'csv',
+            },
+        )
+
+        content = response.content.decode('utf-8')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Manual Teacher', content)
+        self.assertNotIn('Office Admin', content)
+
+    def test_timesheet_overview_shows_summary_and_entry_exports_for_selected_staff(self):
+        self.client.login(username='admin-user', password='Admin123!')
+
+        start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) - timedelta(hours=5)
+        end = start + timedelta(hours=2)
+        self._create_manual_session(start, end)
+
+        response = self.client.get(
+            reverse('accounts:staff_timesheet_overview'),
+            {
+                'staff': str(self.teacher.pk),
+                'start_date': timezone.localtime(start).strftime('%Y-%m-%d'),
+                'end_date': timezone.localtime(end).strftime('%Y-%m-%d'),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Export Entries')
+        self.assertContains(
+            response,
+            reverse('accounts:staff_timesheet_overview_export')
+        )
+        self.assertContains(
+            response,
+            f"staff={self.teacher.pk}"
+        )
+        self.assertContains(
+            response,
+            reverse('accounts:staff_timesheet_export', args=[self.teacher.pk])
+        )

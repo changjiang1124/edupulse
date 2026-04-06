@@ -17,12 +17,18 @@
         <p class="text-muted">Monitor and analyse all staff working hours and attendance</p>
     </div>
     <div class="btn-group btn-group-sm" role="group">
+        {% if selected_staff %}
+        <a href="{% url 'accounts:staff_timesheet_export' selected_staff.pk %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&format=excel"
+           class="btn btn-success">
+            <i class="fas fa-file-lines me-1"></i>Export Entries
+        </a>
+        {% endif %}
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTimesheetModal">
             <i class="fas fa-plus me-1"></i>Add Timesheet
         </button>
-        <a href="{% url 'accounts:staff_timesheet_overview_export' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}{% if selected_staff_id %}&staff={{ selected_staff_id }}{% endif %}&format=excel"
+        <a href="{% url 'accounts:staff_timesheet_overview_export' %}?{{ summary_export_query }}"
            class="btn btn-outline-success">
-            <i class="fas fa-file-excel me-1"></i>Excel
+            <i class="fas fa-file-excel me-1"></i>Export Summary
         </a>
     </div>
 </div>
@@ -226,6 +232,10 @@
             <a href="{% url 'accounts:staff_attendance_manual_entry' selected_staff.pk %}?next={{ request.get_full_path|urlencode }}"
                class="btn btn-outline-primary">
                 <i class="fas fa-plus me-1"></i>Add Entry
+            </a>
+            <a href="{% url 'accounts:staff_timesheet_export' selected_staff.pk %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&format=excel"
+               class="btn btn-outline-success">
+                <i class="fas fa-file-excel me-1"></i>Export Entries
             </a>
             <a href="{% url 'accounts:staff_detail' selected_staff.pk %}?timesheet_start={{ start_date|date:'Y-m-d' }}&timesheet_end={{ end_date|date:'Y-m-d' }}"
                class="btn btn-outline-secondary">

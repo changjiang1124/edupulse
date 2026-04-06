@@ -156,7 +156,7 @@
         <!-- Header -->
         <div class="export-card">
             <h2>📊 Timesheet Export</h2>
-            <p>Export teacher attendance and working hours data to Excel format</p>
+            <p>Export staff attendance and working hours data to Excel format</p>
         </div>
         
         <!-- Export Form -->
@@ -164,16 +164,16 @@
             <form method="post" id="export-form">
                 {% csrf_token %}
                 
-                <!-- Teacher Selection -->
+                <!-- Staff Selection -->
                 {% if is_admin %}
                 <div class="form-section">
-                    <h5>Teacher Selection</h5>
+                    <h5>Staff Selection</h5>
                     <div class="form-group">
-                        <label for="teacher_id">Select Teacher (leave blank for all teachers):</label>
-                        <select name="teacher_id" id="teacher_id" class="form-control">
-                            <option value="">All Teachers</option>
-                            {% for teacher in teachers %}
-                            <option value="{{ teacher.id }}">{{ teacher.get_full_name }}</option>
+                        <label for="staff_id">Select Staff Member (leave blank for all active staff):</label>
+                        <select name="staff_id" id="staff_id" class="form-control">
+                            <option value="">All Active Staff</option>
+                            {% for staff in staff_members %}
+                            <option value="{{ staff.id }}" {% if selected_staff_id == staff.id|stringformat:"s" %}selected{% endif %}>{{ staff.get_full_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -181,9 +181,9 @@
                 {% else %}
                 <div class="info-box">
                     <span class="info-icon">ℹ️</span>
-                    <strong>Teacher Mode:</strong> You can only export your own timesheet data.
+                    <strong>Staff Mode:</strong> You can only export your own timesheet data.
                 </div>
-                <input type="hidden" name="teacher_id" value="{{ current_teacher.id }}">
+                <input type="hidden" name="staff_id" value="{{ current_staff.id }}">
                 {% endif %}
                 
                 <!-- Date Range -->
@@ -230,11 +230,11 @@
         {% if is_admin %}
         <div class="monthly-section">
             <h5>📅 Monthly Summary Reports</h5>
-            <p>Generate comprehensive monthly reports for all teachers:</p>
+            <p>Generate comprehensive monthly reports for all active staff:</p>
             
             <div class="warning-box">
                 <span class="warning-icon">⚠️</span>
-                <strong>Note:</strong> Monthly reports include summary data for all teachers and are available to administrators only.
+                <strong>Note:</strong> Monthly reports include summary data for all active staff and are available to administrators only.
             </div>
             
             <div class="monthly-buttons">
@@ -272,10 +272,10 @@
             <ul class="mt-2 mb-0">
                 <li>Select the date range for the timesheet data you want to export</li>
                 {% if is_admin %}
-                <li>Choose a specific teacher or leave blank to export all teachers</li>
+                <li>Choose a specific staff member or leave blank to export all active staff</li>
                 {% endif %}
                 <li>Click "Export Timesheet" to download the Excel file</li>
-                <li>The exported file will include clock in/out times, duration calculations, and class information</li>
+                <li>The exported file will include clock in/out times, duration calculations, source and audit details, plus class information</li>
                 {% if is_admin %}
                 <li>Use monthly summary reports for payroll and administrative purposes</li>
                 {% endif %}
@@ -372,7 +372,7 @@ function resetForm() {
     document.getElementById('start_date').value = '{{ default_start_date }}';
     document.getElementById('end_date').value = '{{ default_end_date }}';
     {% if is_admin %}
-    document.getElementById('teacher_id').value = '';
+    document.getElementById('staff_id').value = '';
     {% endif %}
 }
 </script>

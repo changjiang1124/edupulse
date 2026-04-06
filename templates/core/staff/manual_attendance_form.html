@@ -24,6 +24,19 @@
             <div class="small mt-2">
                 Payroll-first entry: only the work date and time are required. Facility, classes, notes, and audit note are optional.
             </div>
+            {% if existing_entry_summary %}
+            <div class="border-top pt-3 mt-3 small">
+                <div class="fw-semibold mb-1">Current Entry</div>
+                <div class="text-muted">
+                    {{ existing_entry_summary.date|date:"d/m/Y" }}
+                    {% if existing_entry_summary.entry_mode == 'full_session' %}
+                        · {{ existing_entry_summary.clock_in_time|default:"--" }} to {{ existing_entry_summary.clock_out_time|default:"--" }}
+                    {% else %}
+                        · {{ existing_entry_summary.clock_type }} at {{ existing_entry_summary.clock_in_time|default:existing_entry_summary.clock_out_time|default:"--" }}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <form method="post" novalidate>
