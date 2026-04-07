@@ -144,6 +144,11 @@ class BulkCourseDuplicateView(LoginRequiredMixin, View):
         course_ids_str = request.POST.get('course_ids', '')
         include_enrollments = request.POST.get('include_enrollments') == 'on'
         should_generate_classes = request.POST.get('generate_classes') == 'on'
+        confirm_duplicate = request.POST.get('confirm_bulk_duplicate') == 'on'
+
+        if not confirm_duplicate:
+            messages.error(request, 'Please review and confirm the bulk duplicate settings before duplicating courses.')
+            return redirect('academics:course_list')
 
         # Parse course IDs
         try:

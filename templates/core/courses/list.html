@@ -294,12 +294,18 @@
 <!-- Duplicate Course Modal -->
 <div class="modal fade" id="duplicateCourseModal" tabindex="-1" aria-labelledby="duplicateCourseModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="duplicateCourseModalLabel">
-                    <i class="fas fa-copy me-2"></i>Duplicate Course
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content course-duplicate-modal">
+            <div class="modal-header course-duplicate-modal__header">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="course-duplicate-modal__icon">
+                        <i class="fas fa-copy"></i>
+                    </span>
+                    <div>
+                        <h5 class="modal-title mb-0" id="duplicateCourseModalLabel">Duplicate Course</h5>
+                        <div class="small text-muted">Creates a new Draft copy</div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="duplicateCourseForm" method="post" action="">
@@ -307,19 +313,19 @@
                     <p>Are you sure you want to duplicate the course <strong id="duplicateCourseName"></strong>?</p>
                     <p class="text-muted small">A new course will be created in <strong>Draft</strong> status.</p>
                     
-                    <div id="enrollmentOptionSection" class="mt-3 p-3 bg-light rounded border d-none">
+                    <div id="enrollmentOptionSection" class="course-duplicate-option course-duplicate-option--warning mt-3 p-3 d-none">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="include_enrollments" id="includeEnrollments">
                             <label class="form-check-label fw-medium" for="includeEnrollments">
-                                Include existing enrollments as 'Pending'?
+                                Include existing enrolments as 'Pending'?
                             </label>
                         </div>
-                        <div class="form-text mt-1 text-primary">
-                            <span id="enrollmentCountDisplay">0</span> existing enrollments will be copied to the new course.
+                        <div class="form-text mt-1 text-warning-emphasis">
+                            <span id="enrollmentCountDisplay">0</span> existing enrolments will be copied to the new course.
                         </div>
                         <div class="alert alert-info mt-2 mb-0 py-2 small">
                             <i class="fas fa-info-circle me-1"></i> 
-                            Prices for new enrollments will be recalculated based on the new course's pricing settings.
+                            Prices for new enrolments will be recalculated based on the new course's pricing settings.
                         </div>
                     </div>
                 </form>
@@ -344,14 +350,20 @@
 </div>
 
 <!-- Bulk Duplicate Wizard Modal -->
-<div class="modal fade" id="bulkDuplicateModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-copy me-2"></i>Bulk Duplicate Courses
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+<div class="modal fade" id="bulkDuplicateModal" tabindex="-1" aria-labelledby="bulkDuplicateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content course-duplicate-modal course-duplicate-modal--bulk">
+            <div class="modal-header course-duplicate-modal__header">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="course-duplicate-modal__icon">
+                        <i class="fas fa-copy"></i>
+                    </span>
+                    <div>
+                        <h5 class="modal-title mb-0" id="bulkDuplicateModalLabel">Bulk Duplicate Courses</h5>
+                        <div class="small text-muted">Review course copies before they are created</div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="bulkDuplicateForm" method="post" action="{% url 'academics:course_bulk_duplicate' %}">
@@ -360,16 +372,20 @@
 
                     <!-- Step indicators -->
                     <div class="d-flex justify-content-center mb-4">
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="course-duplicate-steps d-flex align-items-center flex-wrap justify-content-center gap-2">
                             <span class="badge rounded-pill step-indicator" id="stepBadge1">1</span>
-                            <small class="text-muted me-3">Confirm</small>
-                            <span id="stepGroup2">
+                            <small class="course-duplicate-step-label me-3" id="stepLabel1">Confirm</small>
+                            <span id="stepGroup2" class="d-inline-flex align-items-center gap-2">
                                 <span class="badge rounded-pill step-indicator" id="stepBadge2">2</span>
-                                <small class="text-muted me-3">Dates</small>
+                                <small class="course-duplicate-step-label me-3" id="stepLabel2">Dates</small>
                             </span>
-                            <span id="stepGroup3">
+                            <span id="stepGroup3" class="d-inline-flex align-items-center gap-2">
                                 <span class="badge rounded-pill step-indicator" id="stepBadge3">3</span>
-                                <small class="text-muted">Classes</small>
+                                <small class="course-duplicate-step-label me-3" id="stepLabel3">Classes</small>
+                            </span>
+                            <span id="stepGroup4" class="d-inline-flex align-items-center gap-2">
+                                <span class="badge rounded-pill step-indicator" id="stepBadge4">4</span>
+                                <small class="course-duplicate-step-label" id="stepLabel4">Review</small>
                             </span>
                         </div>
                     </div>
@@ -384,15 +400,19 @@
                             Selected courses have mixed repeat patterns. Please edit dates individually after duplication.
                         </div>
 
-                        <div id="bulkEnrollmentSection" class="mt-3 p-3 bg-light rounded border">
+                        <div id="bulkEnrollmentSection" class="course-duplicate-option course-duplicate-option--warning mt-3 p-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="include_enrollments" id="bulkIncludeEnrollments">
                                 <label class="form-check-label fw-medium" for="bulkIncludeEnrollments">
                                     Include existing enrolments as 'Pending'
                                 </label>
                             </div>
-                            <div class="form-text mt-1 text-primary">
+                            <div class="form-text mt-1 text-warning-emphasis">
                                 <span id="bulkEnrollmentCount">0</span> total enrolments across selected courses.
+                            </div>
+                            <div class="alert alert-warning mt-2 mb-0 py-2 small">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                Only tick this if you intentionally want matching Pending enrolments on the new draft courses.
                             </div>
                         </div>
                     </div>
@@ -451,6 +471,40 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Step 4: Final review -->
+                    <div id="wizardStep4" style="display: none;">
+                        <div class="alert alert-warning small mb-3">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Please review the final duplicate settings before creating new draft courses.
+                        </div>
+                        <div class="course-duplicate-review-card border rounded p-3 mb-3">
+                            <div class="course-duplicate-review-item">
+                                <i class="fas fa-copy text-primary"></i>
+                                <span id="bulkReviewCourseLine">0 draft course copies will be created.</span>
+                            </div>
+                            <div class="course-duplicate-review-item">
+                                <i class="fas fa-users text-warning"></i>
+                                <span id="bulkReviewEnrollmentLine">Enrolments will not be copied.</span>
+                            </div>
+                            <div class="course-duplicate-review-item">
+                                <i class="fas fa-calendar-alt text-primary"></i>
+                                <span id="bulkReviewDatesLine">Original course dates will be kept.</span>
+                            </div>
+                            <div class="course-duplicate-review-item">
+                                <i class="fas fa-chalkboard-teacher text-success"></i>
+                                <span id="bulkReviewClassesLine">Classes will not be generated automatically.</span>
+                            </div>
+                        </div>
+                        <div class="course-duplicate-final-check">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="confirm_bulk_duplicate" id="bulkFinalConfirm" required>
+                                <label class="form-check-label fw-medium" for="bulkFinalConfirm">
+                                    I have reviewed these options and want to create the duplicate draft courses.
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -462,7 +516,7 @@
                     Next <i class="fas fa-arrow-right ms-1"></i>
                 </button>
                 <button type="submit" form="bulkDuplicateForm" class="btn btn-primary" id="wizardSubmitBtn" style="display: none;">
-                    <i class="fas fa-copy me-1"></i>Duplicate <span id="bulkDuplicateCountBtn">0</span> Courses
+                    <i class="fas fa-copy me-1"></i>Confirm and Duplicate <span id="bulkDuplicateCountBtn">0</span> Courses
                 </button>
             </div>
         </div>
@@ -659,11 +713,12 @@ function openBulkDuplicateModal() {
     document.getElementById('bulkEndDate').value = '';
     document.getElementById('bulkEarlyBirdDeadline').value = '';
     document.getElementById('bulkGenerateClasses').checked = false;
+    document.getElementById('bulkFinalConfirm').checked = false;
 
     // Reset submit button state
     const submitBtn = document.getElementById('wizardSubmitBtn');
     submitBtn.disabled = false;
-    submitBtn.innerHTML = '<i class="fas fa-copy me-1"></i>Duplicate <span id="bulkDuplicateCountBtn">' + ids.length + '</span> Courses';
+    submitBtn.innerHTML = '<i class="fas fa-copy me-1"></i>Confirm and Duplicate <span id="bulkDuplicateCountBtn">' + ids.length + '</span> Courses';
 
     showWizardStep(1);
 
@@ -671,9 +726,91 @@ function openBulkDuplicateModal() {
     modal.show();
 }
 
+function getWizardSteps() {
+    // Non-weekly courses skip date and class generation settings.
+    return allWeekly ? [1, 2, 3, 4] : [1, 4];
+}
+
 function getLastStep() {
-    // Non-weekly courses skip Steps 2 and 3
-    return allWeekly ? 3 : 1;
+    const steps = getWizardSteps();
+    return steps[steps.length - 1];
+}
+
+function getNextStep() {
+    const steps = getWizardSteps();
+    const currentIndex = steps.indexOf(currentWizardStep);
+    return steps[currentIndex + 1] || null;
+}
+
+function getPreviousStep() {
+    const steps = getWizardSteps();
+    const currentIndex = steps.indexOf(currentWizardStep);
+    return steps[currentIndex - 1] || null;
+}
+
+function formatReviewDate(value) {
+    if (!value) {
+        return '';
+    }
+    const date = new Date(value + 'T00:00:00');
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+    return date.toLocaleDateString('en-AU', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+    });
+}
+
+function updateBulkReviewSummary() {
+    const selectedCount = selectedCourses.size;
+    const totalEnrolments = parseInt(document.getElementById('bulkEnrollmentCount').textContent || '0');
+    const includeEnrolments = document.getElementById('bulkIncludeEnrollments').checked && totalEnrolments > 0;
+    const startDate = document.getElementById('bulkStartDate').value;
+    const endDate = document.getElementById('bulkEndDate').value;
+    const earlyBirdDeadline = document.getElementById('bulkEarlyBirdDeadline').value;
+    const generateClasses = document.getElementById('bulkGenerateClasses').checked;
+
+    document.getElementById('bulkReviewCourseLine').textContent =
+        `${selectedCount} draft course ${selectedCount === 1 ? 'copy' : 'copies'} will be created.`;
+
+    const enrolmentLine = document.getElementById('bulkReviewEnrollmentLine');
+    if (includeEnrolments) {
+        enrolmentLine.textContent =
+            `${totalEnrolments} enrolment${totalEnrolments === 1 ? '' : 's'} will be copied as Pending.`;
+        enrolmentLine.className = 'text-warning-emphasis fw-semibold';
+    } else if (totalEnrolments > 0) {
+        enrolmentLine.textContent = `${totalEnrolments} existing enrolment${totalEnrolments === 1 ? '' : 's'} will not be copied.`;
+        enrolmentLine.className = 'text-muted';
+    } else {
+        enrolmentLine.textContent = 'No existing enrolments in this selection.';
+        enrolmentLine.className = 'text-muted';
+    }
+
+    const dateParts = [];
+    if (startDate) {
+        dateParts.push(`start ${formatReviewDate(startDate)}`);
+    }
+    if (endDate) {
+        dateParts.push(`end ${formatReviewDate(endDate)}`);
+    }
+    if (earlyBirdDeadline) {
+        dateParts.push(`early bird deadline ${formatReviewDate(earlyBirdDeadline)}`);
+    }
+    if (!allWeekly) {
+        document.getElementById('bulkReviewDatesLine').textContent =
+            'Dates will stay unchanged because the selection includes non-weekly courses.';
+    } else if (dateParts.length > 0) {
+        document.getElementById('bulkReviewDatesLine').textContent =
+            `New date settings: ${dateParts.join(', ')}.`;
+    } else {
+        document.getElementById('bulkReviewDatesLine').textContent = 'Original course dates will be kept.';
+    }
+
+    document.getElementById('bulkReviewClassesLine').textContent = generateClasses
+        ? 'Classes will be generated for the duplicated courses.'
+        : 'Classes will not be generated automatically.';
 }
 
 function showWizardStep(step) {
@@ -684,26 +821,40 @@ function showWizardStep(step) {
     document.getElementById('wizardStep1').style.display = 'none';
     document.getElementById('wizardStep2').style.display = 'none';
     document.getElementById('wizardStep3').style.display = 'none';
+    document.getElementById('wizardStep4').style.display = 'none';
 
     // Show current step
     document.getElementById('wizardStep' + step).style.display = 'block';
 
     // Update step indicators — hide steps 2/3 badges when not applicable
-    const stepIndicators = document.querySelectorAll('.step-indicator-group');
+    const wizardSteps = getWizardSteps();
+    const activeStepIndex = wizardSteps.indexOf(step);
     for (let i = 1; i <= 3; i++) {
         const badge = document.getElementById('stepBadge' + i);
+        const badgeStepIndex = wizardSteps.indexOf(i);
+        if (badgeStepIndex === -1) {
+            continue;
+        }
         if (i === step) {
             badge.className = 'badge rounded-pill bg-primary';
-        } else if (i < step) {
+        } else if (badgeStepIndex < activeStepIndex) {
             badge.className = 'badge rounded-pill bg-success';
         } else {
             badge.className = 'badge rounded-pill bg-secondary';
         }
     }
+    const reviewBadge = document.getElementById('stepBadge4');
+    reviewBadge.textContent = allWeekly ? '4' : '2';
+    if (step === 4) {
+        reviewBadge.className = 'badge rounded-pill bg-primary';
+    } else {
+        reviewBadge.className = 'badge rounded-pill bg-secondary';
+    }
 
     // Show/hide step indicator badges for steps 2 and 3
-    document.getElementById('stepGroup2').style.display = allWeekly ? 'inline' : 'none';
-    document.getElementById('stepGroup3').style.display = allWeekly ? 'inline' : 'none';
+    document.getElementById('stepGroup2').style.display = allWeekly ? 'inline-flex' : 'none';
+    document.getElementById('stepGroup3').style.display = allWeekly ? 'inline-flex' : 'none';
+    document.getElementById('stepGroup4').style.display = 'inline-flex';
 
     // Update navigation buttons
     document.getElementById('wizardBackBtn').style.display = step > 1 ? 'inline-block' : 'none';
@@ -725,17 +876,23 @@ function showWizardStep(step) {
             document.getElementById('bulkGenerateClasses').checked = false;
         }
     }
+
+    if (step === 4) {
+        updateBulkReviewSummary();
+    }
 }
 
 function wizardNext() {
-    if (currentWizardStep < getLastStep()) {
-        showWizardStep(currentWizardStep + 1);
+    const nextStep = getNextStep();
+    if (nextStep) {
+        showWizardStep(nextStep);
     }
 }
 
 function wizardPrev() {
-    if (currentWizardStep > 1) {
-        showWizardStep(currentWizardStep - 1);
+    const previousStep = getPreviousStep();
+    if (previousStep) {
+        showWizardStep(previousStep);
     }
 }
 </script>
