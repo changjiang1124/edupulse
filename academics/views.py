@@ -44,6 +44,7 @@ def _duplicate_single_course(course_pk, include_enrollments=False,
     original.status = 'draft'
     original.external_id = None
     original.woocommerce_last_synced_at = None
+    original.enrollment_deadline = None
 
     if new_start_date:
         original.start_date = new_start_date
@@ -64,27 +65,30 @@ def _duplicate_single_course(course_pk, include_enrollments=False,
     if include_enrollments:
         try:
             from enrollment.models import Enrollment
+            from django.db import transaction
             original_enrollments = Enrollment.objects.filter(
                 course_id=original_pk,
                 status__in=['confirmed', 'pending', 'completed']
             )
-            for old_enrollment in original_enrollments:
-                Enrollment.objects.create(
-                    student=old_enrollment.student,
-                    course=new_course,
-                    status='pending',
-                    source_channel='staff',
-                    registration_status='returning',
-                    is_new_student=False,
-                    matched_existing_student=True,
-                    registration_fee_paid=False,
-                    is_early_bird=new_course.is_early_bird_available(),
-                    course_fee=new_course.get_applicable_price(),
-                )
-                enrollment_count += 1
+            with transaction.atomic():
+                for old_enrollment in original_enrollments:
+                    Enrollment.objects.create(
+                        student=old_enrollment.student,
+                        course=new_course,
+                        status='pending',
+                        source_channel='staff',
+                        registration_status='returning',
+                        is_new_student=False,
+                        matched_existing_student=True,
+                        registration_fee_paid=False,
+                        is_early_bird=new_course.is_early_bird_available(),
+                        course_fee=new_course.get_applicable_price(),
+                    )
+                    enrollment_count += 1
         except ImportError:
             enrollment_error = "Enrolment module unavailable."
         except (IntegrityError, ValidationError) as e:
+            enrollment_count = 0
             enrollment_error = str(e)
 
     return new_course, enrollment_count, classes_count, enrollment_error
@@ -325,14 +329,16 @@ class CourseListView(LoginRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        queryset = Course.objects.all()
-        
+        queryset = Course.objects.annotate(
+            enrollment_count=Count('enrollments')
+        )
+
         # Filter by status (default to published)
         status_filter = self.request.GET.get('status', 'published')
-        
+
         if status_filter != 'all':
             queryset = queryset.filter(status=status_filter)
-            
+
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(

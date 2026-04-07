@@ -90,7 +90,7 @@
                                     <td class="ps-3 text-center" onclick="event.stopPropagation()">
                                         <input type="checkbox" class="form-check-input course-checkbox"
                                                value="{{ course.pk }}"
-                                               data-enrollment-count="{{ course.enrollments.count }}"
+                                               data-enrollment-count="{{ course.enrollment_count }}"
                                                data-repeat-pattern="{{ course.repeat_pattern }}"
                                                onchange="toggleCourseSelection({{ course.pk }}, this.checked)">
                                     </td>
@@ -146,7 +146,7 @@
                                                     <span class="visually-hidden">Toggle Dropdown</span>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                                                    {% if course.status == 'draft' and not course.enrollments.exists %}
+                                                    {% if course.status == 'draft' and not course.enrollment_count %}
                                                         <li>
                                                             <button class="dropdown-item text-danger delete-course-btn" 
                                                                     data-course-id="{{ course.pk }}" 
@@ -155,7 +155,7 @@
                                                                 <i class="fas fa-trash-alt me-2 w-20"></i>Delete
                                                             </button>
                                                         </li>
-                                                    {% elif course.status == 'draft' and course.enrollments.exists %}
+                                                    {% elif course.status == 'draft' and course.enrollment_count %}
                                                         <li>
                                                             <span class="dropdown-item text-muted disabled" title="Cannot delete: has enrollments">
                                                                 <i class="fas fa-trash-alt me-2 w-20"></i>Delete <small>(has enrollments)</small>
@@ -169,7 +169,7 @@
                                                                     data-course-id="{{ course.pk }}"
                                                                     data-course-name="{{ course.name }}"
                                                                     data-duplicate-url="{% url 'academics:course_duplicate' course.pk %}"
-                                                                    data-enrollment-count="{{ course.enrollments.count }}">
+                                                                    data-enrollment-count="{{ course.enrollment_count }}">
                                                                 <i class="fas fa-copy me-2 w-20"></i>Duplicate
                                                             </button>
                                                         </li>
@@ -183,7 +183,7 @@
                                                                     data-course-id="{{ course.pk }}"
                                                                     data-course-name="{{ course.name }}"
                                                                     data-duplicate-url="{% url 'academics:course_duplicate' course.pk %}"
-                                                                    data-enrollment-count="{{ course.enrollments.count }}">
+                                                                    data-enrollment-count="{{ course.enrollment_count }}">
                                                                 <i class="fas fa-copy me-2 w-20"></i>Duplicate
                                                             </button>
                                                         </li>
@@ -197,7 +197,7 @@
                                                                     data-course-id="{{ course.pk }}"
                                                                     data-course-name="{{ course.name }}"
                                                                     data-duplicate-url="{% url 'academics:course_duplicate' course.pk %}"
-                                                                    data-enrollment-count="{{ course.enrollments.count }}">
+                                                                    data-enrollment-count="{{ course.enrollment_count }}">
                                                                 <i class="fas fa-copy me-2 w-20"></i>Duplicate
                                                             </button>
                                                         </li>
@@ -363,10 +363,14 @@
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge rounded-pill step-indicator" id="stepBadge1">1</span>
                             <small class="text-muted me-3">Confirm</small>
-                            <span class="badge rounded-pill step-indicator" id="stepBadge2">2</span>
-                            <small class="text-muted me-3">Dates</small>
-                            <span class="badge rounded-pill step-indicator" id="stepBadge3">3</span>
-                            <small class="text-muted">Classes</small>
+                            <span id="stepGroup2">
+                                <span class="badge rounded-pill step-indicator" id="stepBadge2">2</span>
+                                <small class="text-muted me-3">Dates</small>
+                            </span>
+                            <span id="stepGroup3">
+                                <span class="badge rounded-pill step-indicator" id="stepBadge3">3</span>
+                                <small class="text-muted">Classes</small>
+                            </span>
                         </div>
                     </div>
 
@@ -374,6 +378,11 @@
                     <div id="wizardStep1">
                         <p>You are about to duplicate <strong id="bulkDuplicateCount">0</strong> course(s).</p>
                         <p class="text-muted small">New courses will be created in <strong>Draft</strong> status with "(Copy)" appended to names.</p>
+
+                        <div id="mixedPatternNotice" class="alert alert-secondary small mt-3 mb-3" style="display: none;">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Selected courses have mixed repeat patterns. Please edit dates individually after duplication.
+                        </div>
 
                         <div id="bulkEnrollmentSection" class="mt-3 p-3 bg-light rounded border">
                             <div class="form-check">
@@ -544,6 +553,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 
+// Prevent double-submit on bulk duplicate form
+const bulkForm = document.getElementById('bulkDuplicateForm');
+if (bulkForm) {
+    bulkForm.addEventListener('submit', function() {
+        const btn = document.getElementById('wizardSubmitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Duplicating...';
+    });
+}
+
 // --- Bulk Selection & Wizard ---
 let selectedCourses = new Set();
 let currentWizardStep = 1;
@@ -631,20 +650,35 @@ function openBulkDuplicateModal() {
         }
     });
 
+    // Show mixed pattern notice on Step 1 if not all weekly
+    document.getElementById('mixedPatternNotice').style.display = allWeekly ? 'none' : 'block';
+
     // Reset wizard to step 1
     currentWizardStep = 1;
     document.getElementById('bulkStartDate').value = '';
     document.getElementById('bulkEndDate').value = '';
     document.getElementById('bulkEarlyBirdDeadline').value = '';
     document.getElementById('bulkGenerateClasses').checked = false;
+
+    // Reset submit button state
+    const submitBtn = document.getElementById('wizardSubmitBtn');
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-copy me-1"></i>Duplicate <span id="bulkDuplicateCountBtn">' + ids.length + '</span> Courses';
+
     showWizardStep(1);
 
     const modal = new bootstrap.Modal(document.getElementById('bulkDuplicateModal'));
     modal.show();
 }
 
+function getLastStep() {
+    // Non-weekly courses skip Steps 2 and 3
+    return allWeekly ? 3 : 1;
+}
+
 function showWizardStep(step) {
     currentWizardStep = step;
+    const lastStep = getLastStep();
 
     // Hide all steps
     document.getElementById('wizardStep1').style.display = 'none';
@@ -654,7 +688,8 @@ function showWizardStep(step) {
     // Show current step
     document.getElementById('wizardStep' + step).style.display = 'block';
 
-    // Update step indicators
+    // Update step indicators — hide steps 2/3 badges when not applicable
+    const stepIndicators = document.querySelectorAll('.step-indicator-group');
     for (let i = 1; i <= 3; i++) {
         const badge = document.getElementById('stepBadge' + i);
         if (i === step) {
@@ -666,20 +701,24 @@ function showWizardStep(step) {
         }
     }
 
+    // Show/hide step indicator badges for steps 2 and 3
+    document.getElementById('stepGroup2').style.display = allWeekly ? 'inline' : 'none';
+    document.getElementById('stepGroup3').style.display = allWeekly ? 'inline' : 'none';
+
     // Update navigation buttons
     document.getElementById('wizardBackBtn').style.display = step > 1 ? 'inline-block' : 'none';
-    document.getElementById('wizardNextBtn').style.display = step < 3 ? 'inline-block' : 'none';
-    document.getElementById('wizardSubmitBtn').style.display = step === 3 ? 'inline-block' : 'none';
+    document.getElementById('wizardNextBtn').style.display = step < lastStep ? 'inline-block' : 'none';
+    document.getElementById('wizardSubmitBtn').style.display = step === lastStep ? 'inline-block' : 'none';
 
     // Step 2: show/hide date fields based on weekly check
     if (step === 2) {
-        document.getElementById('dateSettingsAvailable').style.display = allWeekly ? 'block' : 'none';
-        document.getElementById('dateSettingsUnavailable').style.display = allWeekly ? 'none' : 'block';
+        document.getElementById('dateSettingsAvailable').style.display = 'block';
+        document.getElementById('dateSettingsUnavailable').style.display = 'none';
     }
 
     // Step 3: show/hide class gen based on whether dates were set
     if (step === 3) {
-        const hasNewDates = allWeekly && document.getElementById('bulkStartDate').value && document.getElementById('bulkEndDate').value;
+        const hasNewDates = document.getElementById('bulkStartDate').value && document.getElementById('bulkEndDate').value;
         document.getElementById('classGenAvailable').style.display = hasNewDates ? 'block' : 'none';
         document.getElementById('classGenUnavailable').style.display = hasNewDates ? 'none' : 'block';
         if (!hasNewDates) {
@@ -689,7 +728,7 @@ function showWizardStep(step) {
 }
 
 function wizardNext() {
-    if (currentWizardStep < 3) {
+    if (currentWizardStep < getLastStep()) {
         showWizardStep(currentWizardStep + 1);
     }
 }
