@@ -139,3 +139,27 @@ python manage.py rqworker notifications default
 - RQ worker 需要 Redis 服务器正在运行
 - 确保你的 `.env` 文件中有正确的 Redis 配置(REDIS_HOST, REDIS_PORT 等)
 - worker 会处理异步的邮件发送任务,避免阻塞主进程
+
+## Google Drive 自动备份配置 (2026-04-05)
+
+### 已完成配置：
+- **rclone v1.73.3** 已安装（官方脚本）
+- **rclone 配置文件**: `/var/www/.config/rclone/rclone.conf`，owner 为 `www-data`，权限 `600`
+- **remote 名称**: `gdrive`（对应该 Google 账号的 Drive 根目录）
+- **备份脚本**: `/var/www/edupulse/backup_to_gdrive.sh`（已有，可执行）
+- **Cron job**: `/etc/cron.d/edupulse-backup`，每天 UTC 18:30（即 AWST 02:30）自动执行
+
+### 备份路径：
+- 数据库: `gdrive:EduPulse/backups/production/edupulse/database`
+- 媒体文件: `gdrive:EduPulse/backups/production/edupulse/media`
+- 保留策略: 30 天
+
+### 手动触发备份：
+```bash
+sudo -u www-data RCLONE_CONFIG=/var/www/.config/rclone/rclone.conf /var/www/edupulse/backup_to_gdrive.sh
+```
+
+### 查看备份日志：
+```bash
+tail -f /var/www/edupulse/.backups/backup.log
+```

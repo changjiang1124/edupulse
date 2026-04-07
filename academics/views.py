@@ -20,6 +20,76 @@ def _user_is_admin(user):
     return user.is_superuser or getattr(user, 'role', None) == 'admin'
 
 
+def _duplicate_single_course(course_pk, include_enrollments=False,
+                              new_start_date=None, new_end_date=None,
+                              new_early_bird_deadline=None,
+                              should_generate_classes=False):
+    """
+    Duplicate a single course.
+    Returns (new_course, enrollment_count, classes_count, error_msg).
+    """
+    try:
+        original = Course.objects.get(pk=course_pk)
+    except Course.DoesNotExist:
+        return None, 0, 0, f"Course {course_pk} not found."
+
+    original_pk = original.pk
+    original_name = original.name
+
+    # Clone the course by nulling pk (standard Django pattern)
+    original.pk = None
+    original.id = None
+    original._state.adding = True
+    original.name = f"{original_name} (Copy)"
+    original.status = 'draft'
+    original.external_id = None
+    original.woocommerce_last_synced_at = None
+
+    if new_start_date:
+        original.start_date = new_start_date
+    if new_end_date:
+        original.end_date = new_end_date
+    if new_early_bird_deadline:
+        original.early_bird_deadline = new_early_bird_deadline
+
+    original.save()
+    new_course = original  # After save, this is the new course
+
+    classes_count = 0
+    if should_generate_classes:
+        classes_count = new_course.generate_classes(replace_existing=True)
+
+    enrollment_count = 0
+    enrollment_error = None
+    if include_enrollments:
+        try:
+            from enrollment.models import Enrollment
+            original_enrollments = Enrollment.objects.filter(
+                course_id=original_pk,
+                status__in=['confirmed', 'pending', 'completed']
+            )
+            for old_enrollment in original_enrollments:
+                Enrollment.objects.create(
+                    student=old_enrollment.student,
+                    course=new_course,
+                    status='pending',
+                    source_channel='staff',
+                    registration_status='returning',
+                    is_new_student=False,
+                    matched_existing_student=True,
+                    registration_fee_paid=False,
+                    is_early_bird=new_course.is_early_bird_available(),
+                    course_fee=new_course.get_applicable_price(),
+                )
+                enrollment_count += 1
+        except ImportError:
+            enrollment_error = "Enrolment module unavailable."
+        except (IntegrityError, ValidationError) as e:
+            enrollment_error = str(e)
+
+    return new_course, enrollment_count, classes_count, enrollment_error
+
+
 class CourseDuplicateView(LoginRequiredMixin, View):
     """
     Duplicate an existing course.
@@ -27,71 +97,120 @@ class CourseDuplicateView(LoginRequiredMixin, View):
     Optionally includes existing enrollments as pending.
     """
     def post(self, request, pk):
-        original = get_object_or_404(Course, pk=pk)
-        
-        # Check if we should include enrollments
         include_enrollments = request.POST.get('include_enrollments') == 'on'
-        
-        # Create a copy by setting pk to None
-        original_pk = original.pk
-        original.pk = None
-        original.id = None
-        original._state.adding = True
-        
-        # Update fields for the copy BEFORE saving to prevent unique constraint violation
-        original.name = f"{original.name} (Copy)"
-        original.status = 'draft'
-        original.external_id = None
-        original.woocommerce_last_synced_at = None
-        
-        original.save()
-        
+        new_course, enrollment_count, _, error = _duplicate_single_course(
+            pk, include_enrollments=include_enrollments
+        )
+
+        if new_course is None:
+            messages.error(request, error or 'Failed to duplicate course.')
+            return redirect('academics:course_list')
+
         enrollments_msg = ""
-        if include_enrollments:
-            try:
-                from enrollment.models import Enrollment
-                # Get confirmed and pending enrollments from original course
-                # We skip cancelled ones as they are not relevant for next term mostly
-                original_enrollments = Enrollment.objects.filter(
-                    course_id=original_pk, 
-                    status__in=['confirmed', 'pending', 'completed']
-                )
-                
-                count = 0
-                for old_enrollment in original_enrollments:
-                    # Create new enrollment
-                    Enrollment.objects.create(
-                        student=old_enrollment.student,
-                        course=original,
-                        status='pending',
-                        source_channel='staff',
-                        registration_status='returning',
-                        is_new_student=False,
-                        matched_existing_student=True,
-                        # Reset fee flags
-                        registration_fee_paid=False,
-                        is_early_bird=original.is_early_bird_available(),
-                        # Recalculate fees based on NEW course
-                        course_fee=original.get_applicable_price(),
-                    )
-                    count += 1
-                
-                if count > 0:
-                    enrollments_msg = f" {count} existing enrollments have been copied as 'Pending'."
-            except ImportError:
-                pass
-            except Exception as e:
-                enrollments_msg = f" However, there was an error copying enrollments: {str(e)}"
-        
+        if enrollment_count > 0:
+            enrollments_msg = f" {enrollment_count} existing enrolments have been copied as 'Pending'."
+        if error:
+            enrollments_msg += f" However, there was an error copying enrolments: {error}"
+
         messages.success(
-            request, 
-            f'Course duplicated successfully as "{original.name}" (Draft).{enrollments_msg} Please review the new course.'
+            request,
+            f'Course duplicated successfully as "{new_course.name}" (Draft).{enrollments_msg} Please review the new course.'
         )
         return redirect('academics:course_list')
 
     def get(self, request, pk):
         # Allow GET request for easier linking, but ideally should be POST
         return self.post(request, pk)
+
+
+class BulkCourseDuplicateView(LoginRequiredMixin, View):
+    """Duplicate multiple courses at once with optional date override and class generation."""
+
+    @staticmethod
+    def _parse_date(value, field_name):
+        """Parse an optional date string. Returns (date_or_None, error_msg_or_None)."""
+        if not value:
+            return None, None
+        try:
+            return date.fromisoformat(value), None
+        except ValueError:
+            return None, f'Invalid {field_name} format.'
+
+    def post(self, request):
+        course_ids_str = request.POST.get('course_ids', '')
+        include_enrollments = request.POST.get('include_enrollments') == 'on'
+        should_generate_classes = request.POST.get('generate_classes') == 'on'
+
+        # Parse course IDs
+        try:
+            ids = [int(x.strip()) for x in course_ids_str.split(',') if x.strip()]
+        except ValueError:
+            messages.error(request, 'Invalid course selection.')
+            return redirect('academics:course_list')
+
+        if not ids:
+            messages.error(request, 'No courses selected for duplication.')
+            return redirect('academics:course_list')
+
+        MAX_BULK = 50
+        if len(ids) > MAX_BULK:
+            messages.error(request, f'Maximum {MAX_BULK} courses can be duplicated at once.')
+            return redirect('academics:course_list')
+
+        # Parse optional dates
+        date_fields = [
+            (request.POST.get('new_start_date') or None, 'start date'),
+            (request.POST.get('new_end_date') or None, 'end date'),
+            (request.POST.get('new_early_bird_deadline') or None, 'early bird deadline'),
+        ]
+        parsed_dates = []
+        for value, name in date_fields:
+            parsed, err = self._parse_date(value, name)
+            if err:
+                messages.error(request, err)
+                return redirect('academics:course_list')
+            parsed_dates.append(parsed)
+        parsed_start, parsed_end, parsed_early_bird = parsed_dates
+
+        success_count = 0
+        enrollment_total = 0
+        classes_total = 0
+        errors = []
+
+        for course_id in ids:
+            new_course, enroll_count, cls_count, error = _duplicate_single_course(
+                course_id,
+                include_enrollments=include_enrollments,
+                new_start_date=parsed_start,
+                new_end_date=parsed_end,
+                new_early_bird_deadline=parsed_early_bird,
+                should_generate_classes=should_generate_classes,
+            )
+            if new_course is None:
+                errors.append(error or f'Course {course_id} failed.')
+            else:
+                success_count += 1
+                enrollment_total += enroll_count
+                classes_total += cls_count
+                if error:
+                    errors.append(f"{new_course.name}: enrolment error - {error}")
+
+        # Build result message
+        msg_parts = [f'{success_count} course(s) duplicated successfully as Draft.']
+        if enrollment_total > 0:
+            msg_parts.append(f'{enrollment_total} enrolments copied as Pending.')
+        if classes_total > 0:
+            msg_parts.append(f'{classes_total} classes generated.')
+        if errors:
+            msg_parts.append(f'{len(errors)} error(s): {"; ".join(errors)}')
+
+        msg = ' '.join(msg_parts)
+        if errors:
+            messages.warning(request, msg)
+        else:
+            messages.success(request, msg)
+
+        return redirect('academics:course_list')
 
 
 class CourseArchiveView(LoginRequiredMixin, View):

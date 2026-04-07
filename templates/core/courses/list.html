@@ -72,7 +72,11 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="ps-4">Course Name</th>
+                                    <th width="40" class="ps-3 text-center">
+                                        <input type="checkbox" class="form-check-input" id="selectAllCourses"
+                                               onchange="toggleAllCourses()" title="Select all">
+                                    </th>
+                                    <th class="ps-2">Course Name</th>
                                     <th>Type</th>
                                     <th>Teacher</th>
                                     <th>Start Date</th>
@@ -83,7 +87,14 @@
                             <tbody class="border-top-0">
                                 {% for course in courses %}
                                 <tr class="clickable-row align-middle" data-href="{% url 'academics:course_detail' course.pk %}" style="cursor: pointer;">
-                                    <td class="ps-4 py-3">
+                                    <td class="ps-3 text-center" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="form-check-input course-checkbox"
+                                               value="{{ course.pk }}"
+                                               data-enrollment-count="{{ course.enrollments.count }}"
+                                               data-repeat-pattern="{{ course.repeat_pattern }}"
+                                               onchange="toggleCourseSelection({{ course.pk }}, this.checked)">
+                                    </td>
+                                    <td class="ps-2 py-3">
                                         <div class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">{{ course.name }}</div>
                                         {% if course.short_description %}
                                             <small class="text-muted d-block text-truncate" style="max-width: 320px;">{{ course.short_description }}</small>
@@ -321,6 +332,134 @@
     </div>
 </div>
 
+<!-- Bulk Actions Floating Bar -->
+<div id="bulkActionsBar" class="position-fixed bottom-0 start-50 translate-middle-x mb-4 px-4 py-3 bg-primary text-white rounded-pill shadow-lg align-items-center gap-3" style="display: none; z-index: 1050;">
+    <span><strong id="selectedCourseCount">0</strong> course(s) selected</span>
+    <button type="button" class="btn btn-light btn-sm ms-2" onclick="openBulkDuplicateModal()">
+        <i class="fas fa-copy me-1"></i>Bulk Duplicate
+    </button>
+    <button type="button" class="btn btn-outline-light btn-sm ms-1" onclick="clearAllSelections()">
+        <i class="fas fa-times me-1"></i>Clear
+    </button>
+</div>
+
+<!-- Bulk Duplicate Wizard Modal -->
+<div class="modal fade" id="bulkDuplicateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-copy me-2"></i>Bulk Duplicate Courses
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bulkDuplicateForm" method="post" action="{% url 'academics:course_bulk_duplicate' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="course_ids" id="bulkCourseIds">
+
+                    <!-- Step indicators -->
+                    <div class="d-flex justify-content-center mb-4">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge rounded-pill step-indicator" id="stepBadge1">1</span>
+                            <small class="text-muted me-3">Confirm</small>
+                            <span class="badge rounded-pill step-indicator" id="stepBadge2">2</span>
+                            <small class="text-muted me-3">Dates</small>
+                            <span class="badge rounded-pill step-indicator" id="stepBadge3">3</span>
+                            <small class="text-muted">Classes</small>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Basic confirmation -->
+                    <div id="wizardStep1">
+                        <p>You are about to duplicate <strong id="bulkDuplicateCount">0</strong> course(s).</p>
+                        <p class="text-muted small">New courses will be created in <strong>Draft</strong> status with "(Copy)" appended to names.</p>
+
+                        <div id="bulkEnrollmentSection" class="mt-3 p-3 bg-light rounded border">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="include_enrollments" id="bulkIncludeEnrollments">
+                                <label class="form-check-label fw-medium" for="bulkIncludeEnrollments">
+                                    Include existing enrolments as 'Pending'
+                                </label>
+                            </div>
+                            <div class="form-text mt-1 text-primary">
+                                <span id="bulkEnrollmentCount">0</span> total enrolments across selected courses.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Date settings (conditional) -->
+                    <div id="wizardStep2" style="display: none;">
+                        <div id="dateSettingsAvailable">
+                            <div class="alert alert-info small mb-3">
+                                <i class="fas fa-info-circle me-1"></i>
+                                All selected courses are weekly. You can set new term dates for all of them at once.
+                                Leave blank to keep original dates.
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <label class="form-label fw-medium">New Start Date</label>
+                                    <input type="date" class="form-control" name="new_start_date" id="bulkStartDate">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-medium">New End Date</label>
+                                    <input type="date" class="form-control" name="new_end_date" id="bulkEndDate">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-medium">New Early Bird Deadline</label>
+                                    <input type="date" class="form-control" name="new_early_bird_deadline" id="bulkEarlyBirdDeadline">
+                                    <div class="form-text">Optional. Set the early bird pricing cutoff for the new term.</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="dateSettingsUnavailable" style="display: none;">
+                            <div class="alert alert-warning small mb-0">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                Selected courses have mixed repeat patterns. Please edit dates individually after duplication.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Generate classes (conditional) -->
+                    <div id="wizardStep3" style="display: none;">
+                        <div id="classGenAvailable">
+                            <div class="alert alert-info small mb-3">
+                                <i class="fas fa-calendar-alt me-1"></i>
+                                New dates have been set. Would you like to generate class instances for all duplicated courses?
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="generate_classes" id="bulkGenerateClasses">
+                                <label class="form-check-label fw-medium" for="bulkGenerateClasses">
+                                    Generate classes for new courses
+                                </label>
+                            </div>
+                            <div class="form-text mt-1">Classes will be generated based on each course's weekly schedule within the new date range.</div>
+                        </div>
+                        <div id="classGenUnavailable" style="display: none;">
+                            <div class="alert alert-secondary small mb-0">
+                                <i class="fas fa-info-circle me-1"></i>
+                                No new dates were set. You can generate classes later from each course's detail page.
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-outline-primary" id="wizardBackBtn" onclick="wizardPrev()" style="display: none;">
+                    <i class="fas fa-arrow-left me-1"></i>Back
+                </button>
+                <button type="button" class="btn btn-primary" id="wizardNextBtn" onclick="wizardNext()">
+                    Next <i class="fas fa-arrow-right ms-1"></i>
+                </button>
+                <button type="submit" form="bulkDuplicateForm" class="btn btn-primary" id="wizardSubmitBtn" style="display: none;">
+                    <i class="fas fa-copy me-1"></i>Duplicate <span id="bulkDuplicateCountBtn">0</span> Courses
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Row click handler
@@ -328,7 +467,7 @@ document.addEventListener('DOMContentLoaded', function() {
     rows.forEach(row => {
         row.addEventListener('click', function(e) {
             // Prevent navigation if clicking buttons, links or dropdowns
-            if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.dropdown-menu')) {
+            if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.dropdown-menu') || e.target.closest('input')) {
                 return;
             }
             const href = this.getAttribute('data-href');
@@ -372,20 +511,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const duplicateButtons = document.querySelectorAll('.duplicate-course-btn');
         duplicateButtons.forEach(btn => {
             btn.addEventListener('click', function(e) {
-                e.preventDefault(); 
+                e.preventDefault();
                 e.stopPropagation();
-                
+
                 const courseName = this.getAttribute('data-course-name');
                 const duplicateUrl = this.getAttribute('data-duplicate-url');
                 const enrollmentCount = parseInt(this.getAttribute('data-enrollment-count') || '0');
-                
+
                 // Update modal content
                 document.getElementById('duplicateCourseName').textContent = courseName;
                 document.getElementById('duplicateCourseForm').action = duplicateUrl;
-                
+
                 const enrollmentSection = document.getElementById('enrollmentOptionSection');
                 const countDisplay = document.getElementById('enrollmentCountDisplay');
-                
+
                 if (enrollmentCount > 0) {
                     enrollmentSection.classList.remove('d-none');
                     countDisplay.textContent = enrollmentCount;
@@ -395,7 +534,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     enrollmentSection.classList.add('d-none');
                     document.getElementById('includeEnrollments').checked = false;
                 }
-                
+
                 // Show modal
                 const modal = new bootstrap.Modal(duplicateModal);
                 modal.show();
@@ -403,4 +542,162 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+});
+
+// --- Bulk Selection & Wizard ---
+let selectedCourses = new Set();
+let currentWizardStep = 1;
+let allWeekly = false;
+
+function toggleCourseSelection(courseId, checked) {
+    if (checked) {
+        selectedCourses.add(courseId);
+    } else {
+        selectedCourses.delete(courseId);
+    }
+    updateSelectionUI();
+}
+
+function toggleAllCourses() {
+    const selectAll = document.getElementById('selectAllCourses');
+    document.querySelectorAll('.course-checkbox').forEach(cb => {
+        cb.checked = selectAll.checked;
+        const id = parseInt(cb.value);
+        if (selectAll.checked) {
+            selectedCourses.add(id);
+        } else {
+            selectedCourses.delete(id);
+        }
+    });
+    updateSelectionUI();
+}
+
+function updateSelectionUI() {
+    const count = selectedCourses.size;
+    document.getElementById('selectedCourseCount').textContent = count;
+
+    const bar = document.getElementById('bulkActionsBar');
+    bar.style.display = count > 0 ? 'flex' : 'none';
+
+    // Update select-all checkbox state
+    const checkboxes = document.querySelectorAll('.course-checkbox');
+    const selectAllCb = document.getElementById('selectAllCourses');
+    if (checkboxes.length > 0) {
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+        selectAllCb.checked = allChecked;
+        selectAllCb.indeterminate = someChecked && !allChecked;
+    }
+
+    // Highlight selected rows
+    document.querySelectorAll('.clickable-row').forEach(row => {
+        const cb = row.querySelector('.course-checkbox');
+        if (cb && selectedCourses.has(parseInt(cb.value))) {
+            row.classList.add('table-primary');
+        } else {
+            row.classList.remove('table-primary');
+        }
+    });
+}
+
+function clearAllSelections() {
+    selectedCourses.clear();
+    document.querySelectorAll('.course-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllCourses').checked = false;
+    document.getElementById('selectAllCourses').indeterminate = false;
+    updateSelectionUI();
+}
+
+function openBulkDuplicateModal() {
+    const ids = Array.from(selectedCourses);
+    document.getElementById('bulkCourseIds').value = ids.join(',');
+    document.getElementById('bulkDuplicateCount').textContent = ids.length;
+    document.getElementById('bulkDuplicateCountBtn').textContent = ids.length;
+
+    // Calculate total enrolments
+    let totalEnrollments = 0;
+    document.querySelectorAll('.course-checkbox:checked').forEach(cb => {
+        totalEnrollments += parseInt(cb.dataset.enrollmentCount || 0);
+    });
+    document.getElementById('bulkEnrollmentCount').textContent = totalEnrollments;
+    document.getElementById('bulkEnrollmentSection').style.display = totalEnrollments > 0 ? 'block' : 'none';
+    document.getElementById('bulkIncludeEnrollments').checked = false;
+
+    // Check if all selected courses are weekly
+    allWeekly = true;
+    document.querySelectorAll('.course-checkbox:checked').forEach(cb => {
+        if (cb.dataset.repeatPattern !== 'weekly') {
+            allWeekly = false;
+        }
+    });
+
+    // Reset wizard to step 1
+    currentWizardStep = 1;
+    document.getElementById('bulkStartDate').value = '';
+    document.getElementById('bulkEndDate').value = '';
+    document.getElementById('bulkEarlyBirdDeadline').value = '';
+    document.getElementById('bulkGenerateClasses').checked = false;
+    showWizardStep(1);
+
+    const modal = new bootstrap.Modal(document.getElementById('bulkDuplicateModal'));
+    modal.show();
+}
+
+function showWizardStep(step) {
+    currentWizardStep = step;
+
+    // Hide all steps
+    document.getElementById('wizardStep1').style.display = 'none';
+    document.getElementById('wizardStep2').style.display = 'none';
+    document.getElementById('wizardStep3').style.display = 'none';
+
+    // Show current step
+    document.getElementById('wizardStep' + step).style.display = 'block';
+
+    // Update step indicators
+    for (let i = 1; i <= 3; i++) {
+        const badge = document.getElementById('stepBadge' + i);
+        if (i === step) {
+            badge.className = 'badge rounded-pill bg-primary';
+        } else if (i < step) {
+            badge.className = 'badge rounded-pill bg-success';
+        } else {
+            badge.className = 'badge rounded-pill bg-secondary';
+        }
+    }
+
+    // Update navigation buttons
+    document.getElementById('wizardBackBtn').style.display = step > 1 ? 'inline-block' : 'none';
+    document.getElementById('wizardNextBtn').style.display = step < 3 ? 'inline-block' : 'none';
+    document.getElementById('wizardSubmitBtn').style.display = step === 3 ? 'inline-block' : 'none';
+
+    // Step 2: show/hide date fields based on weekly check
+    if (step === 2) {
+        document.getElementById('dateSettingsAvailable').style.display = allWeekly ? 'block' : 'none';
+        document.getElementById('dateSettingsUnavailable').style.display = allWeekly ? 'none' : 'block';
+    }
+
+    // Step 3: show/hide class gen based on whether dates were set
+    if (step === 3) {
+        const hasNewDates = allWeekly && document.getElementById('bulkStartDate').value && document.getElementById('bulkEndDate').value;
+        document.getElementById('classGenAvailable').style.display = hasNewDates ? 'block' : 'none';
+        document.getElementById('classGenUnavailable').style.display = hasNewDates ? 'none' : 'block';
+        if (!hasNewDates) {
+            document.getElementById('bulkGenerateClasses').checked = false;
+        }
+    }
+}
+
+function wizardNext() {
+    if (currentWizardStep < 3) {
+        showWizardStep(currentWizardStep + 1);
+    }
+}
+
+function wizardPrev() {
+    if (currentWizardStep > 1) {
+        showWizardStep(currentWizardStep - 1);
+    }
+}
+</script>
 {% endblock %}

@@ -187,6 +187,7 @@ Temporary Items
 
 # Media files (uploaded content)
 media/
+.backups/
 
 # Static files (collected)
 staticfiles/
