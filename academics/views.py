@@ -12,6 +12,8 @@ from django.utils import timezone
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+from accounts.models import Staff
+
 from .models import Course, Class
 from .forms import CourseForm, CourseUpdateForm, ClassForm, ClassUpdateForm
 
@@ -332,9 +334,25 @@ class CourseListView(LoginRequiredMixin, ListView):
     template_name = 'core/courses/list.html'
     context_object_name = 'courses'
     paginate_by = 20
+
+    def _get_selected_teacher(self):
+        if hasattr(self, '_selected_teacher'):
+            return self._selected_teacher
+
+        teacher_id = self.request.GET.get('teacher')
+        if not teacher_id:
+            self._selected_teacher = None
+            return self._selected_teacher
+
+        try:
+            self._selected_teacher = Staff.objects.get(pk=int(teacher_id))
+        except (Staff.DoesNotExist, TypeError, ValueError):
+            self._selected_teacher = None
+
+        return self._selected_teacher
     
     def get_queryset(self):
-        queryset = Course.objects.annotate(
+        queryset = Course.objects.select_related('teacher').annotate(
             enrollment_count=Count('enrollments')
         )
 
@@ -343,6 +361,10 @@ class CourseListView(LoginRequiredMixin, ListView):
 
         if status_filter != 'all':
             queryset = queryset.filter(status=status_filter)
+
+        selected_teacher = self._get_selected_teacher()
+        if selected_teacher is not None:
+            queryset = queryset.filter(teacher=selected_teacher)
 
         search = self.request.GET.get('search')
         if search:
@@ -356,11 +378,18 @@ class CourseListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         current_status = self.request.GET.get('status', 'published')
+        selected_teacher = self._get_selected_teacher()
+
         context['current_status'] = current_status
         context['status_choices'] = Course.STATUS_CHOICES
+        context['selected_teacher'] = selected_teacher
+        context['selected_teacher_id'] = str(selected_teacher.pk) if selected_teacher else ''
         
         # Calculate counts for tabs
         base_queryset = Course.objects.all()
+        if selected_teacher is not None:
+            base_queryset = base_queryset.filter(teacher=selected_teacher)
+
         search = self.request.GET.get('search')
         if search:
             base_queryset = base_queryset.filter(
@@ -709,8 +738,11 @@ class ClassListView(LoginRequiredMixin, ListView):
         # Get filter options for dropdowns (only if user is admin)
         if not context['is_teacher']:
             context['courses'] = Course.objects.filter(status='published').order_by('name')
-            from accounts.models import Staff
-            context['teachers'] = Staff.objects.filter(role='teacher', is_active=True).order_by('first_name', 'last_name')
+            teachers = Staff.objects.filter(role='teacher', is_active=True)
+            selected_teacher_id = context['selected_teacher']
+            if selected_teacher_id:
+                teachers = teachers | Staff.objects.filter(pk=selected_teacher_id)
+            context['teachers'] = teachers.distinct().order_by('first_name', 'last_name')
             from facilities.models import Facility, Classroom
             context['facilities'] = Facility.objects.filter(is_active=True).order_by('name')
             context['classrooms'] = Classroom.objects.filter(is_active=True).order_by('name')

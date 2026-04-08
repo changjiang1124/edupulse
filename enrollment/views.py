@@ -30,6 +30,174 @@ from .services import AttendanceRosterService
 from core.utils.url_utils import get_public_site_domain
 
 
+CURRENT_COURSE_VIEW = 'current'
+HISTORICAL_COURSE_VIEW = 'historical'
+CURRENT_COURSE_STATUSES = ('published',)
+HISTORICAL_COURSE_STATUSES = ('draft', 'expired', 'archived')
+ALL_COURSE_STATUSES = tuple(status for status, _ in Course.STATUS_CHOICES)
+VALID_ENROLLMENT_STATUSES = {
+    choice[0] for choice in Enrollment._meta.get_field('status').choices
+}
+
+
+def _normalise_integer_query_param(value):
+    value = str(value).strip() if value is not None else ''
+    return value if value.isdigit() else ''
+
+
+def _build_querystring(params, **updates):
+    merged = {
+        key: value for key, value in params.items()
+        if value not in (None, '')
+    }
+
+    for key, value in updates.items():
+        if value in (None, ''):
+            merged.pop(key, None)
+        else:
+            merged[key] = value
+
+    from urllib.parse import urlencode
+
+    return urlencode(merged)
+
+
+def resolve_enrollment_course_filters(request):
+    course_view = request.GET.get('course_view')
+    raw_course_status = request.GET.get('course_status')
+    student_id = _normalise_integer_query_param(request.GET.get('student'))
+    course_id = _normalise_integer_query_param(request.GET.get('course'))
+    enrollment_status = request.GET.get('status', '').strip()
+
+    if course_view not in {CURRENT_COURSE_VIEW, HISTORICAL_COURSE_VIEW}:
+        course_view = None
+
+    if raw_course_status not in {*ALL_COURSE_STATUSES, 'all'}:
+        raw_course_status = None
+
+    if enrollment_status not in VALID_ENROLLMENT_STATUSES:
+        enrollment_status = ''
+
+    legacy_all_course_status = False
+
+    if raw_course_status == 'all':
+        course_view = HISTORICAL_COURSE_VIEW
+        course_status = 'all'
+        resolved_statuses = ALL_COURSE_STATUSES
+        legacy_all_course_status = True
+    elif course_view is None:
+        if raw_course_status == 'published':
+            course_view = CURRENT_COURSE_VIEW
+            course_status = ''
+            resolved_statuses = CURRENT_COURSE_STATUSES
+        elif raw_course_status in HISTORICAL_COURSE_STATUSES:
+            course_view = HISTORICAL_COURSE_VIEW
+            course_status = raw_course_status
+            resolved_statuses = (raw_course_status,)
+        elif raw_course_status == 'all':
+            course_view = HISTORICAL_COURSE_VIEW
+            course_status = 'all'
+            resolved_statuses = ALL_COURSE_STATUSES
+            legacy_all_course_status = True
+        else:
+            course_view = CURRENT_COURSE_VIEW
+            course_status = ''
+            resolved_statuses = CURRENT_COURSE_STATUSES
+    elif course_view == CURRENT_COURSE_VIEW:
+        course_status = ''
+        resolved_statuses = CURRENT_COURSE_STATUSES
+    else:
+        if raw_course_status in HISTORICAL_COURSE_STATUSES:
+            course_status = raw_course_status
+            resolved_statuses = (raw_course_status,)
+        else:
+            course_status = ''
+            resolved_statuses = HISTORICAL_COURSE_STATUSES
+
+    selected_course = None
+    if course_id:
+        selected_course = Course.objects.filter(pk=course_id).only('pk', 'status').first()
+
+    if selected_course and selected_course.status not in resolved_statuses:
+        legacy_all_course_status = False
+        if selected_course.status == 'published':
+            course_view = CURRENT_COURSE_VIEW
+            course_status = ''
+            resolved_statuses = CURRENT_COURSE_STATUSES
+        elif selected_course.status in HISTORICAL_COURSE_STATUSES:
+            course_view = HISTORICAL_COURSE_VIEW
+            course_status = selected_course.status
+            resolved_statuses = (selected_course.status,)
+
+    query_params = {
+        'course_view': course_view,
+        'student': student_id,
+        'course': course_id,
+        'status': enrollment_status,
+    }
+    if course_status:
+        query_params['course_status'] = course_status
+
+    current_view_querystring = _build_querystring(
+        {
+            'student': student_id,
+            'status': enrollment_status,
+            'course_view': CURRENT_COURSE_VIEW,
+        },
+        course=course_id if selected_course and selected_course.status == 'published' else None,
+    )
+    historical_view_querystring = _build_querystring(
+        {
+            'student': student_id,
+            'status': enrollment_status,
+            'course_view': HISTORICAL_COURSE_VIEW,
+        },
+        course=(
+            course_id
+            if selected_course and selected_course.status in HISTORICAL_COURSE_STATUSES
+            else None
+        ),
+        course_status=(
+            course_status
+            if course_view == HISTORICAL_COURSE_VIEW and course_status not in ('', 'all')
+            else None
+        ),
+    )
+
+    course_scope_mode = (
+        'all'
+        if legacy_all_course_status
+        else (
+            HISTORICAL_COURSE_VIEW
+            if course_view == HISTORICAL_COURSE_VIEW
+            else CURRENT_COURSE_VIEW
+        )
+    )
+
+    return {
+        'course_view': course_view,
+        'course_status': course_status,
+        'course_statuses': resolved_statuses,
+        'student_id': student_id,
+        'course_id': course_id,
+        'enrollment_status': enrollment_status,
+        'selected_course': selected_course,
+        'query_params': query_params,
+        'filter_querystring': _build_querystring(query_params),
+        'current_view_querystring': current_view_querystring,
+        'historical_view_querystring': historical_view_querystring,
+        'is_historical_view': course_view == HISTORICAL_COURSE_VIEW,
+        'course_scope_mode': course_scope_mode,
+        'legacy_all_course_status': legacy_all_course_status,
+        'has_secondary_filters': any([
+            student_id,
+            course_id,
+            enrollment_status,
+            course_status not in ('', 'all'),
+        ]),
+    }
+
+
 
 class AdminRequiredMixin(UserPassesTestMixin):
     """Admin permission check mixin"""
@@ -45,42 +213,92 @@ class EnrollmentListView(LoginRequiredMixin, ListView):
     template_name = 'core/enrollments/list.html'
     context_object_name = 'enrollments'
     paginate_by = 20
+
+    def get_resolved_filters(self):
+        if not hasattr(self, '_resolved_filters'):
+            self._resolved_filters = resolve_enrollment_course_filters(self.request)
+        return self._resolved_filters
     
     def get_queryset(self):
         queryset = Enrollment.objects.select_related('student', 'course').all()
-        
+
+        resolved_filters = self.get_resolved_filters()
+
         # Filter by student if specified
-        student_id = self.request.GET.get('student')
+        student_id = resolved_filters['student_id']
         if student_id:
             queryset = queryset.filter(student_id=student_id)
-            
+
         # Filter by course if specified
-        course_id = self.request.GET.get('course')
+        course_id = resolved_filters['course_id']
         if course_id:
             queryset = queryset.filter(course_id=course_id)
-            
+
         # Filter by status if specified
-        status = self.request.GET.get('status')
+        status = resolved_filters['enrollment_status']
         if status:
             queryset = queryset.filter(status=status)
-            
-        # Filter by course status (default to published)
-        course_status = self.request.GET.get('course_status', 'published')
-        if course_status and course_status != 'all':
-            queryset = queryset.filter(course__status=course_status)
-            
+
+        queryset = queryset.filter(course__status__in=resolved_filters['course_statuses'])
+
         return queryset.order_by('-created_at')
     
     def get_context_data(self, **kwargs):
         from core.models import OrganisationSettings
         context = super().get_context_data(**kwargs)
+        resolved_filters = self.get_resolved_filters()
+
         # Add filter options
         context['students'] = Student.objects.all().order_by('first_name', 'last_name')
-        # Show all courses in the filter dropdown, potentially grouped or indicated by status
-        context['courses'] = Course.objects.all().order_by('name')
-        context['course_status_choices'] = Course.STATUS_CHOICES
-        # Pass current filter for UI state
-        context['current_course_status'] = self.request.GET.get('course_status', 'published')
+
+        context['courses'] = Course.objects.filter(
+            status__in=resolved_filters['course_statuses']
+        ).order_by('name')
+        context['historical_course_status_choices'] = [
+            (status_code, status_label)
+            for status_code, status_label in Course.STATUS_CHOICES
+            if status_code in HISTORICAL_COURSE_STATUSES
+        ]
+        context['current_course_view'] = resolved_filters['course_view']
+        context['current_course_status'] = resolved_filters['course_status']
+        context['selected_student_id'] = resolved_filters['student_id']
+        context['selected_course_id'] = resolved_filters['course_id']
+        context['selected_enrollment_status'] = resolved_filters['enrollment_status']
+        context['filter_querystring'] = resolved_filters['filter_querystring']
+        context['current_view_querystring'] = resolved_filters['current_view_querystring']
+        context['historical_view_querystring'] = resolved_filters['historical_view_querystring']
+        context['is_historical_view'] = resolved_filters['is_historical_view']
+        context['course_scope_mode'] = resolved_filters['course_scope_mode']
+        context['is_legacy_all_course_status'] = resolved_filters['legacy_all_course_status']
+        context['has_secondary_filters'] = resolved_filters['has_secondary_filters']
+        context['is_current_courses_active'] = resolved_filters['course_scope_mode'] == CURRENT_COURSE_VIEW
+        context['is_historical_courses_active'] = resolved_filters['course_scope_mode'] == HISTORICAL_COURSE_VIEW
+        context['course_scope_description'] = {
+            'current': 'Showing published courses only.',
+            'historical': 'Showing draft, expired, and archived courses.',
+            'all': 'Showing all course statuses via a legacy compatibility link.',
+        }[resolved_filters['course_scope_mode']]
+        context['course_option_label'] = {
+            'current': 'All Current Courses',
+            'historical': 'All Historical Courses',
+            'all': 'All Courses',
+        }[resolved_filters['course_scope_mode']]
+        context['course_status_label'] = (
+            'Course Status'
+            if resolved_filters['legacy_all_course_status']
+            else 'Historical Status'
+        )
+        context['all_course_status_label'] = (
+            'All Statuses'
+            if resolved_filters['legacy_all_course_status']
+            else 'All Historical'
+        )
+        context['enrollment_export_url'] = reverse('enrollment:enrollment_export')
+        if resolved_filters['filter_querystring']:
+            context['enrollment_export_url'] = (
+                f"{context['enrollment_export_url']}?{resolved_filters['filter_querystring']}"
+            )
+
         # Add organisation settings for bank details
         context['organisation_settings'] = OrganisationSettings.get_instance()
         return context
@@ -282,24 +500,21 @@ class EnrollmentExportView(AdminRequiredMixin, View):
             'Is New Student'
         ])
 
-        # Get course status filter (default to published)
-        course_status = request.GET.get('course_status', 'published')
-        if course_status and course_status != 'all':
-            enrollments = Enrollment.objects.filter(
-                course__status=course_status
-            )
-        else:
-            enrollments = Enrollment.objects.all()
+        resolved_filters = resolve_enrollment_course_filters(request)
 
-        student_id = request.GET.get('student')
+        enrollments = Enrollment.objects.filter(
+            course__status__in=resolved_filters['course_statuses']
+        )
+
+        student_id = resolved_filters['student_id']
         if student_id:
             enrollments = enrollments.filter(student_id=student_id)
 
-        course_id = request.GET.get('course')
+        course_id = resolved_filters['course_id']
         if course_id:
             enrollments = enrollments.filter(course_id=course_id)
 
-        status = request.GET.get('status')
+        status = resolved_filters['enrollment_status']
         if status:
             enrollments = enrollments.filter(status=status)
 

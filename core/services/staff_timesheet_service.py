@@ -311,7 +311,7 @@ class StaffTimesheetService:
             staff_summaries = []
             overall_total_hours = 0
             overall_total_sessions = 0
-            active_staff_count = 0
+            staff_with_activity_count = 0
             
             # Process each staff member
             for staff in staff_queryset:
@@ -346,14 +346,18 @@ class StaffTimesheetService:
                     
                     overall_total_hours += total_hours
                     overall_total_sessions += sessions
-                    active_staff_count += 1
+                    staff_with_activity_count += 1
             
             # Calculate overall summary
-            average_hours_per_staff = overall_total_hours / active_staff_count if active_staff_count > 0 else 0
+            average_hours_per_staff = (
+                overall_total_hours / staff_with_activity_count
+                if staff_with_activity_count > 0 else 0
+            )
             
             overall_summary = {
                 'total_hours': round(overall_total_hours, 2),
-                'active_staff_count': active_staff_count,
+                'staff_with_activity_count': staff_with_activity_count,
+                'active_staff_count': staff_with_activity_count,
                 'total_sessions': overall_total_sessions,
                 'average_hours_per_staff': round(average_hours_per_staff, 2)
             }
@@ -376,6 +380,7 @@ class StaffTimesheetService:
                 },
                 'overall_summary': {
                     'total_hours': 0,
+                    'staff_with_activity_count': 0,
                     'active_staff_count': 0,
                     'total_sessions': 0,
                     'average_hours_per_staff': 0

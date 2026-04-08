@@ -14,6 +14,55 @@ from .forms import StaffForm, StaffCreationForm, StaffAttendanceManualEntryForm
 from .mixins import AdminRequiredMixin
 
 
+def _parse_optional_date(raw_value):
+    from datetime import datetime
+
+    if not raw_value:
+        return None
+
+    try:
+        return datetime.strptime(raw_value, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+def _build_staff_detail_context(request, staff_member):
+    context = {}
+
+    try:
+        from academics.models import Course, Class
+        from core.services.staff_timesheet_service import StaffTimesheetService
+
+        taught_courses = Course.objects.filter(
+            teacher=staff_member
+        ).order_by('-start_date', 'name')
+        taught_classes = Class.objects.filter(
+            course__teacher=staff_member
+        ).select_related('course').order_by('-date', '-start_time')[:5]
+
+        start_date = _parse_optional_date(request.GET.get('timesheet_start'))
+        end_date = _parse_optional_date(request.GET.get('timesheet_end'))
+        timesheet_data = StaffTimesheetService.get_staff_timesheet_data(
+            staff_member, start_date, end_date
+        )
+
+        context.update({
+            'taught_courses': taught_courses,
+            'taught_classes': taught_classes,
+            'timesheet_data': timesheet_data,
+            'timesheet_start_date': timesheet_data['date_range']['start_date'],
+            'timesheet_end_date': timesheet_data['date_range']['end_date'],
+        })
+    except ImportError:
+        context.update({
+            'taught_courses': [],
+            'taught_classes': [],
+            'timesheet_data': {'paired_records': [], 'summary': {}},
+        })
+
+    return context
+
+
 class ProfileView(LoginRequiredMixin, DetailView):
     """User profile view - shows current user's staff profile"""
     model = Staff
@@ -26,47 +75,7 @@ class ProfileView(LoginRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Add teacher-related courses and classes - with try/except to avoid errors
-        try:
-            # Import here to avoid circular imports
-            from academics.models import Course, Class
-            from core.services.staff_timesheet_service import StaffTimesheetService
-            from datetime import datetime, timedelta
-            
-            context['taught_courses'] = Course.objects.filter(teacher=self.object, status='published')
-            context['taught_classes'] = Class.objects.filter(
-                course__teacher=self.object
-            ).select_related('course').order_by('-date')[:5]
-            
-            # Add timesheet data
-            start_date = self.request.GET.get('timesheet_start')
-            end_date = self.request.GET.get('timesheet_end')
-            
-            # Parse dates if provided
-            if start_date:
-                try:
-                    start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-                except ValueError:
-                    start_date = None
-            if end_date:
-                try:
-                    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-                except ValueError:
-                    end_date = None
-            
-            # Get timesheet data
-            timesheet_data = StaffTimesheetService.get_staff_timesheet_data(
-                self.object, start_date, end_date
-            )
-            
-            context['timesheet_data'] = timesheet_data
-            context['timesheet_start_date'] = timesheet_data['date_range']['start_date']
-            context['timesheet_end_date'] = timesheet_data['date_range']['end_date']
-            
-        except ImportError:
-            context['taught_courses'] = []
-            context['taught_classes'] = []
-            context['timesheet_data'] = {'paired_records': [], 'summary': {}}
+        context.update(_build_staff_detail_context(self.request, self.object))
         # Add context flag to indicate this is profile view
         context['is_profile_view'] = True
         return context
@@ -134,47 +143,7 @@ class StaffDetailView(AdminRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Add teacher-related courses and classes - with try/except to avoid errors
-        try:
-            # Import here to avoid circular imports
-            from academics.models import Course, Class
-            from core.services.staff_timesheet_service import StaffTimesheetService
-            from datetime import datetime, timedelta
-            
-            context['taught_courses'] = Course.objects.filter(teacher=self.object, status='published')
-            context['taught_classes'] = Class.objects.filter(
-                course__teacher=self.object
-            ).select_related('course').order_by('-date')[:5]
-            
-            # Add timesheet data
-            start_date = self.request.GET.get('timesheet_start')
-            end_date = self.request.GET.get('timesheet_end')
-            
-            # Parse dates if provided
-            if start_date:
-                try:
-                    start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-                except ValueError:
-                    start_date = None
-            if end_date:
-                try:
-                    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-                except ValueError:
-                    end_date = None
-            
-            # Get timesheet data
-            timesheet_data = StaffTimesheetService.get_staff_timesheet_data(
-                self.object, start_date, end_date
-            )
-            
-            context['timesheet_data'] = timesheet_data
-            context['timesheet_start_date'] = timesheet_data['date_range']['start_date']
-            context['timesheet_end_date'] = timesheet_data['date_range']['end_date']
-            
-        except ImportError:
-            context['taught_courses'] = []
-            context['taught_classes'] = []
-            context['timesheet_data'] = {'paired_records': [], 'summary': {}}
+        context.update(_build_staff_detail_context(self.request, self.object))
         return context
 
 
@@ -542,7 +511,7 @@ class StaffAttendanceManualBaseView(AdminRequiredMixin, View):
     submit_label = 'Save Timesheet Entry'
 
     def dispatch(self, request, *args, **kwargs):
-        self.staff = get_object_or_404(Staff, pk=kwargs['pk'], is_active_staff=True)
+        self.staff = get_object_or_404(Staff, pk=kwargs['pk'])
         self.next_url = self._get_next_url()
         self.existing_records = self.get_existing_records()
         return super().dispatch(request, *args, **kwargs)
@@ -865,7 +834,7 @@ class StaffTimesheetOverviewView(AdminRequiredMixin, ListView):
     paginate_by = 20
 
     def get_base_queryset(self):
-        return Staff.objects.filter(is_active_staff=True).order_by('last_name', 'first_name')
+        return Staff.objects.order_by('last_name', 'first_name')
 
     def get_selected_staff(self):
         if hasattr(self, '_selected_staff'):
@@ -979,7 +948,7 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
     """Export all staff timesheet data in CSV or Excel format"""
 
     def _get_staff_queryset(self, request):
-        queryset = Staff.objects.filter(is_active_staff=True).order_by('last_name', 'first_name')
+        queryset = Staff.objects.order_by('last_name', 'first_name')
         staff_id = request.GET.get('staff')
         if not staff_id:
             return queryset
@@ -1060,7 +1029,7 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
             summary = overview_data['overall_summary']
             writer.writerow(['OVERALL SUMMARY'])
             writer.writerow(['Total Hours:', f"{summary.get('total_hours', 0)}h"])
-            writer.writerow(['Active Staff Count:', summary.get('active_staff_count', 0)])
+            writer.writerow(['Staff With Activity:', summary.get('staff_with_activity_count', 0)])
             writer.writerow(['Total Sessions:', summary.get('total_sessions', 0)])
             writer.writerow(['Average Hours per Staff:', f"{summary.get('average_hours_per_staff', 0)}h"])
             writer.writerow([])  # Empty row
@@ -1134,8 +1103,8 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
             summary_sheet[f'B{row}'] = f"{summary.get('total_hours', 0)}h"
             row += 1
             
-            summary_sheet[f'A{row}'] = 'Active Staff Count:'
-            summary_sheet[f'B{row}'] = summary.get('active_staff_count', 0)
+            summary_sheet[f'A{row}'] = 'Staff With Activity:'
+            summary_sheet[f'B{row}'] = summary.get('staff_with_activity_count', 0)
             row += 1
             
             summary_sheet[f'A{row}'] = 'Total Sessions:'
