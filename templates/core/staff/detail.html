@@ -49,9 +49,166 @@
     </div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h5 class="mb-1">
+                <i class="fas fa-clock me-2"></i>Timesheet
+            </h5>
+            <small class="text-muted">Payroll-ready time records for the selected period.</small>
+        </div>
+        <div class="btn-group btn-group-sm" role="group">
+            {% if user.role == 'admin' and not is_profile_view %}
+            <a href="{% url 'accounts:staff_attendance_manual_entry' staff.pk %}?next={{ request.get_full_path|urlencode }}"
+               class="btn btn-outline-primary">
+                <i class="fas fa-plus me-1"></i>Add Entry
+            </a>
+            {% endif %}
+            <a href="{% url 'accounts:staff_timesheet_export' staff.pk %}?start_date={{ timesheet_start_date|date:'Y-m-d' }}&end_date={{ timesheet_end_date|date:'Y-m-d' }}&format=excel"
+               class="btn btn-outline-success">
+                <i class="fas fa-file-excel me-1"></i>Excel
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3 mb-4" id="timesheetFilterForm">
+            <div class="col-lg-4 col-md-6">
+                <label for="timesheet_start" class="form-label small">From Date</label>
+                <input type="date" id="timesheet_start" name="timesheet_start"
+                       value="{{ timesheet_start_date|date:'Y-m-d' }}" class="form-control">
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <label for="timesheet_end" class="form-label small">To Date</label>
+                <input type="date" id="timesheet_end" name="timesheet_end"
+                       value="{{ timesheet_end_date|date:'Y-m-d' }}" class="form-control">
+            </div>
+            <div class="col-lg-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i>Filter
+                </button>
+            </div>
+        </form>
+
+        {% if timesheet_data.summary %}
+        <div class="row text-center mb-4">
+            <div class="col-lg-3 col-md-6 col-6 mb-3 mb-lg-0">
+                <div class="text-primary fw-bold fs-4">{{ timesheet_data.summary.total_hours }}h</div>
+                <small class="text-muted">Total Hours</small>
+            </div>
+            <div class="col-lg-3 col-md-6 col-6 mb-3 mb-lg-0">
+                <div class="text-success fw-bold fs-4">{{ timesheet_data.summary.total_days }}</div>
+                <small class="text-muted">Days</small>
+            </div>
+            <div class="col-lg-3 col-md-6 col-6">
+                <div class="text-info fw-bold fs-4">{{ timesheet_data.summary.completed_sessions }}</div>
+                <small class="text-muted">Sessions</small>
+            </div>
+            <div class="col-lg-3 col-md-6 col-6">
+                <div class="text-warning fw-bold fs-4">{{ timesheet_data.summary.avg_hours_per_day }}h</div>
+                <small class="text-muted">Avg/Day</small>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if timesheet_data.paired_records %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Clock In</th>
+                        <th>Clock Out</th>
+                        <th>Classes</th>
+                        <th>Facility</th>
+                        <th class="text-end">Hours</th>
+                        {% if user.role == 'admin' and not is_profile_view %}
+                        <th class="text-end">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in timesheet_data.paired_records|slice:"-50:" %}
+                    <tr>
+                        <td class="text-nowrap">{{ record.date|date:"d/m/Y" }}</td>
+                        <td class="text-nowrap">
+                            {% if record.clock_in_time %}
+                                {{ record.clock_in_time|time:"H:i" }}
+                            {% else %}
+                                <span class="text-muted">--</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            {% if record.clock_out_time %}
+                                {{ record.clock_out_time|time:"H:i" }}
+                            {% else %}
+                                {% if record.clock_in_time %}
+                                    <span class="badge bg-warning text-dark">In Progress</span>
+                                {% else %}
+                                    <span class="text-muted">--</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record.classes %}
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for class in record.classes %}
+                                <span class="badge bg-info text-white">{{ class.course.name }}</span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                                <span class="text-muted">General Work</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record.facility %}
+                                <small class="text-muted">{{ record.facility.name }}</small>
+                            {% else %}
+                                <small class="text-muted">--</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if record.duration_hours %}
+                                <span class="fw-medium">{{ record.duration_hours|format_duration }}</span>
+                            {% else %}
+                                {% if record.clock_in_time and not record.clock_out_time %}
+                                    <span class="text-warning">--</span>
+                                {% else %}
+                                    <span class="text-muted">--</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        {% if user.role == 'admin' and not is_profile_view %}
+                        <td class="text-end text-nowrap">
+                            <a href="{% url 'accounts:staff_attendance_manual_edit' staff.pk record.primary_record.pk %}?{% if record.clock_out %}clock_out={{ record.clock_out.pk }}&{% endif %}next={{ request.get_full_path|urlencode }}"
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-pen me-1"></i>Edit
+                            </a>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if timesheet_data.paired_records|length > 50 %}
+        <div class="text-center mt-3">
+            <small class="text-muted">Showing the latest 50 records. Use the date filter for a narrower payroll window.</small>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-clock fa-2x text-muted mb-3"></i>
+            <p class="text-muted mb-0">No timesheet records found for the selected period</p>
+            <small class="text-muted">Adjust the date range to see timesheet data</small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 <div class="row">
-    <!-- Personal Information -->
-    <div class="col-md-6">
+    <div class="col-xl-5">
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0">Personal Information</h5>
@@ -61,12 +218,12 @@
                     <div class="col-sm-4"><strong>Full Name:</strong></div>
                     <div class="col-sm-8">{{ staff.first_name }} {{ staff.last_name }}</div>
                 </div>
-                
+
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>Username:</strong></div>
                     <div class="col-sm-8">{{ staff.username }}</div>
                 </div>
-                
+
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>Email:</strong></div>
                     <div class="col-sm-8">
@@ -77,7 +234,7 @@
                         {% endif %}
                     </div>
                 </div>
-                
+
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>Phone:</strong></div>
                     <div class="col-sm-8">
@@ -88,7 +245,7 @@
                         {% endif %}
                     </div>
                 </div>
-                
+
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>Role:</strong></div>
                     <div class="col-sm-8">
@@ -97,7 +254,7 @@
                         </span>
                     </div>
                 </div>
-                
+
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>Status:</strong></div>
                     <div class="col-sm-8">
@@ -106,17 +263,17 @@
                         </span>
                     </div>
                 </div>
-                
+
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>Date Joined:</strong></div>
                     <div class="col-sm-8">{{ staff.created_at|date:"d F Y g:i A" }}</div>
                 </div>
-                
+
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>Last Updated:</strong></div>
                     <div class="col-sm-8">{{ staff.updated_at|date:"d F Y g:i A" }}</div>
                 </div>
-                
+
                 <div class="row">
                     <div class="col-sm-4"><strong>Last Login:</strong></div>
                     <div class="col-sm-8">
@@ -129,8 +286,7 @@
                 </div>
             </div>
         </div>
-        
-        <!-- System Access -->
+
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0">System Access</h5>
@@ -145,7 +301,7 @@
                         <br><small class="text-muted">User can log in and access the system</small>
                     </div>
                 </div>
-                
+
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>System Privileges:</strong></div>
                     <div class="col-sm-8">
@@ -172,13 +328,13 @@
                         {% endif %}
                     </div>
                 </div>
-                
+
                 {% if user.role == 'admin' and staff.role == 'admin' and not staff.is_staff %}
                 <div class="row">
                     <div class="col-12">
                         <div class="alert alert-warning alert-sm">
                             <i class="fas fa-exclamation-triangle me-1"></i>
-                            <strong>Notice:</strong> This administrator cannot access Django admin panel. 
+                            <strong>Notice:</strong> This administrator cannot access Django admin panel.
                             <small class="d-block mt-1">Contact system administrator to enable backend access if needed.</small>
                         </div>
                     </div>
@@ -188,18 +344,19 @@
         </div>
     </div>
 
-    <!-- Teaching and Activity -->
-    <div class="col-md-6">
-        <!-- Courses Teaching -->
+    <div class="col-xl-7">
         <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Teaching Assignments</h5>
-                <small class="text-muted">({{ taught_courses.count }} courses)</small>
+            <div class="card-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <h5 class="mb-1">Teaching Assignments</h5>
+                    <small class="text-muted">Published, draft, expired and archived courses assigned to this staff member.</small>
+                </div>
+                <small class="text-muted">{{ taught_courses.count }} total</small>
             </div>
             <div class="card-body">
                 {% if taught_courses.exists %}
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="table table-sm align-middle">
                             <thead>
                                 <tr>
                                     <th>Course</th>
@@ -218,11 +375,8 @@
                                         <span class="badge bg-info">{{ course.get_course_type_display }}</span>
                                     </td>
                                     <td>
-                                        <span class="badge {% if course.status == 'published' %}bg-success{% elif course.status == 'draft' %}bg-warning{% else %}bg-secondary{% endif %}">
-                                            {% if course.status == 'published' %}Published
-                                            {% elif course.status == 'draft' %}Draft  
-                                            {% elif course.status == 'expired' %}Expired
-                                            {% endif %}
+                                        <span class="badge {% if course.status == 'published' %}bg-success{% elif course.status == 'draft' %}bg-warning text-dark{% elif course.status == 'expired' %}bg-secondary{% else %}bg-dark{% endif %}">
+                                            {{ course.get_status_display }}
                                         </span>
                                     </td>
                                 </tr>
@@ -230,31 +384,34 @@
                             </tbody>
                         </table>
                     </div>
-                    
-                    {% if taught_courses.count > 10 %}
-                    <div class="text-center mt-3">
-                        <a href="{% url 'academics:course_list' %}?teacher={{ staff.pk }}" class="btn btn-sm btn-outline-primary">
-                            View All Courses ({{ taught_courses.count }})
+
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+                        {% if taught_courses.count > 10 %}
+                        <small class="text-muted">Showing the first 10 assigned courses on this page.</small>
+                        {% else %}
+                        <span></span>
+                        {% endif %}
+                        <a href="{% url 'academics:course_list' %}?status=all&teacher={{ staff.pk }}" class="btn btn-sm btn-outline-primary">
+                            View All Courses
                         </a>
                     </div>
-                    {% endif %}
                 {% else %}
-                    <div class="text-center py-3">
-                        <p class="text-muted mb-0">No teaching assignments</p>
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-0">No assigned courses across any status</p>
                     </div>
                 {% endif %}
             </div>
         </div>
-        
-        <!-- Recent Classes -->
+
         <div class="card mb-4">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h5 class="mb-0">Recent Classes</h5>
+                <small class="text-muted">Latest 5 scheduled classes</small>
             </div>
             <div class="card-body">
                 {% if taught_classes %}
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="table table-sm align-middle">
                             <thead>
                                 <tr>
                                     <th>Course</th>
@@ -281,178 +438,20 @@
                             </tbody>
                         </table>
                     </div>
-                    
-                    <div class="text-center mt-3">
+
+                    <div class="text-end mt-3">
                         <a href="{% url 'academics:class_list' %}?teacher={{ staff.pk }}" class="btn btn-sm btn-outline-primary">
-                            View All Classes
+                            View Class Schedule
                         </a>
                     </div>
                 {% else %}
-                    <div class="text-center py-3">
+                    <div class="text-center py-4">
                         <p class="text-muted mb-0">No recent classes</p>
                     </div>
                 {% endif %}
             </div>
         </div>
-        
-        <!-- Timesheet Panel -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-clock me-2"></i>Timesheet
-                </h5>
-                <div class="btn-group btn-group-sm" role="group">
-                    {% if user.role == 'admin' and not is_profile_view %}
-                    <a href="{% url 'accounts:staff_attendance_manual_entry' staff.pk %}?next={{ request.get_full_path|urlencode }}"
-                       class="btn btn-outline-primary">
-                        <i class="fas fa-plus me-1"></i>Add Entry
-                    </a>
-                    {% endif %}
-                    <a href="{% url 'accounts:staff_timesheet_export' staff.pk %}?start_date={{ timesheet_start_date|date:'Y-m-d' }}&end_date={{ timesheet_end_date|date:'Y-m-d' }}&format=excel" 
-                       class="btn btn-outline-success">
-                        <i class="fas fa-file-excel me-1"></i>Excel
-                    </a>
-                </div>
-            </div>
-            <div class="card-body">
-                <!-- Date Range Filter -->
-                <form method="get" class="row g-2 mb-3" id="timesheetFilterForm">
-                    <div class="col-md-4">
-                        <label for="timesheet_start" class="form-label small">From Date</label>
-                        <input type="date" id="timesheet_start" name="timesheet_start" 
-                               value="{{ timesheet_start_date|date:'Y-m-d' }}" class="form-control form-control-sm">
-                    </div>
-                    <div class="col-md-4">
-                        <label for="timesheet_end" class="form-label small">To Date</label>
-                        <input type="date" id="timesheet_end" name="timesheet_end" 
-                               value="{{ timesheet_end_date|date:'Y-m-d' }}" class="form-control form-control-sm">
-                    </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary btn-sm w-100">
-                            <i class="fas fa-filter me-1"></i>Filter
-                        </button>
-                    </div>
-                </form>
 
-                <!-- Summary Statistics -->
-                {% if timesheet_data.summary %}
-                <div class="row text-center mb-3">
-                    <div class="col-3">
-                        <div class="text-primary fw-bold fs-4">{{ timesheet_data.summary.total_hours }}h</div>
-                        <small class="text-muted">Total Hours</small>
-                    </div>
-                    <div class="col-3">
-                        <div class="text-success fw-bold fs-4">{{ timesheet_data.summary.total_days }}</div>
-                        <small class="text-muted">Days</small>
-                    </div>
-                    <div class="col-3">
-                        <div class="text-info fw-bold fs-4">{{ timesheet_data.summary.completed_sessions }}</div>
-                        <small class="text-muted">Sessions</small>
-                    </div>
-                    <div class="col-3">
-                        <div class="text-warning fw-bold fs-4">{{ timesheet_data.summary.avg_hours_per_day }}h</div>
-                        <small class="text-muted">Avg/Day</small>
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- Timesheet Records -->
-                {% if timesheet_data.paired_records %}
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Date</th>
-                                <th>Clock In</th>
-                                <th>Clock Out</th>
-                                <th>Classes</th>
-                                <th>Facility</th>
-                                <th class="text-end">Hours</th>
-                                {% if user.role == 'admin' and not is_profile_view %}
-                                <th class="text-end">Actions</th>
-                                {% endif %}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for record in timesheet_data.paired_records|slice:"-50:" %}
-                            <tr>
-                                <td class="text-nowrap">{{ record.date|date:"d/m/Y" }}</td>
-                                <td class="text-nowrap">
-                                    {% if record.clock_in_time %}
-                                        {{ record.clock_in_time|time:"H:i" }}
-                                    {% else %}
-                                        <span class="text-muted">--</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-nowrap">
-                                    {% if record.clock_out_time %}
-                                        {{ record.clock_out_time|time:"H:i" }}
-                                    {% else %}
-                                        {% if record.clock_in_time %}
-                                            <span class="badge bg-warning text-dark">In Progress</span>
-                                        {% else %}
-                                            <span class="text-muted">--</span>
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if record.classes %}
-                                        {% for class in record.classes %}
-                                            <span class="badge bg-info text-white me-1">{{ class.course.name }}</span>
-                                        {% endfor %}
-                                    {% else %}
-                                        <span class="text-muted">General Work</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if record.facility %}
-                                        <small class="text-muted">{{ record.facility.name }}</small>
-                                    {% else %}
-                                        <small class="text-muted">--</small>
-                                    {% endif %}
-                                </td>
-                                <td class="text-end">
-                                    {% if record.duration_hours %}
-                                        <span class="fw-medium">{{ record.duration_hours|format_duration }}</span>
-                                    {% else %}
-                                        {% if record.clock_in_time and not record.clock_out_time %}
-                                            <span class="text-warning">--</span>
-                                        {% else %}
-                                            <span class="text-muted">--</span>
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                                {% if user.role == 'admin' and not is_profile_view %}
-                                <td class="text-end text-nowrap">
-                                    <a href="{% url 'accounts:staff_attendance_manual_edit' staff.pk record.primary_record.pk %}?{% if record.clock_out %}clock_out={{ record.clock_out.pk }}&{% endif %}next={{ request.get_full_path|urlencode }}"
-                                       class="btn btn-outline-secondary btn-sm">
-                                        <i class="fas fa-pen me-1"></i>Edit
-                                    </a>
-                                </td>
-                                {% endif %}
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                {% if timesheet_data.paired_records|length > 50 %}
-                <div class="text-center mt-3">
-                    <small class="text-muted">Showing latest 50 records. Use date filter for specific ranges.</small>
-                </div>
-                {% endif %}
-                
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-clock fa-2x text-muted mb-3"></i>
-                    <p class="text-muted mb-0">No timesheet records found for the selected period</p>
-                    <small class="text-muted">Adjust the date range to see timesheet data</small>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        
-        <!-- Quick Actions -->
         {% if user.role == 'admin' and not is_profile_view %}
         <div class="card">
             <div class="card-header">
@@ -460,7 +459,7 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'academics:course_list' %}?teacher={{ staff.pk }}" class="btn btn-outline-info">View Teaching Assignments</a>
+                    <a href="{% url 'academics:course_list' %}?status=all&teacher={{ staff.pk }}" class="btn btn-outline-info">View Teaching Assignments</a>
                     <a href="{% url 'academics:class_list' %}?teacher={{ staff.pk }}" class="btn btn-outline-success">View Class Schedule</a>
                 </div>
             </div>

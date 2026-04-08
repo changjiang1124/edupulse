@@ -11,12 +11,31 @@
     </div>
 </div>
 
+{% if selected_teacher %}
+<div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <strong>Teacher filter:</strong>
+        Showing courses taught by {{ selected_teacher.first_name }} {{ selected_teacher.last_name }}.
+        {% if not selected_teacher.is_active_staff %}
+        <span class="text-muted">This staff member is currently inactive.</span>
+        {% endif %}
+    </div>
+    <a href="{% url 'academics:course_list' %}?status={{ current_status }}{% if request.GET.search %}&search={{ request.GET.search|urlencode }}{% endif %}"
+       class="btn btn-sm btn-outline-primary">
+        Clear Teacher Filter
+    </a>
+</div>
+{% endif %}
+
 <div class="row mb-4">
     <div class="col-md-6">
         <div class="search-box">
             <form method="get" class="d-flex gap-2">
                 <input type="hidden" name="status" value="{{ current_status }}">
-                <input type="text" name="search" class="form-control" 
+                {% if selected_teacher_id %}
+                <input type="hidden" name="teacher" value="{{ selected_teacher_id }}">
+                {% endif %}
+                <input type="text" name="search" class="form-control"
                        placeholder="Search courses..." value="{{ request.GET.search|default:'' }}">
                 <button type="submit" class="btn btn-outline-primary">Search</button>
             </form>
@@ -24,7 +43,7 @@
     </div>
     <div class="col-md-6 text-end">
         <div class="btn-group me-3" role="group" aria-label="View options">
-            <a href="{% url 'academics:class_list' %}" class="btn btn-outline-info" title="View All Classes">
+            <a href="{% url 'academics:class_list' %}{% if selected_teacher_id %}?teacher={{ selected_teacher_id }}{% endif %}" class="btn btn-outline-info" title="View All Classes">
                 <i class="fas fa-calendar-alt me-2"></i>View All Classes
             </a>
         </div>
@@ -40,27 +59,27 @@
             <div class="card-header bg-white border-bottom-0 pb-0">
                 <ul class="nav nav-tabs card-header-tabs" role="tablist">
                     <li class="nav-item">
-                        <a class="nav-link {% if current_status == 'published' %}active{% endif %}" href="?status=published{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                        <a class="nav-link {% if current_status == 'published' %}active{% endif %}" href="?status=published{% if request.GET.search %}&search={{ request.GET.search|urlencode }}{% endif %}{% if selected_teacher_id %}&teacher={{ selected_teacher_id }}{% endif %}">
                             Published <span class="badge bg-secondary ms-1">{{ counts.published }}</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if current_status == 'draft' %}active{% endif %}" href="?status=draft{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                        <a class="nav-link {% if current_status == 'draft' %}active{% endif %}" href="?status=draft{% if request.GET.search %}&search={{ request.GET.search|urlencode }}{% endif %}{% if selected_teacher_id %}&teacher={{ selected_teacher_id }}{% endif %}">
                             Draft <span class="badge bg-secondary ms-1">{{ counts.draft }}</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if current_status == 'expired' %}active{% endif %}" href="?status=expired{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                        <a class="nav-link {% if current_status == 'expired' %}active{% endif %}" href="?status=expired{% if request.GET.search %}&search={{ request.GET.search|urlencode }}{% endif %}{% if selected_teacher_id %}&teacher={{ selected_teacher_id }}{% endif %}">
                             Expired <span class="badge bg-secondary ms-1">{{ counts.expired }}</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if current_status == 'archived' %}active{% endif %}" href="?status=archived{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                        <a class="nav-link {% if current_status == 'archived' %}active{% endif %}" href="?status=archived{% if request.GET.search %}&search={{ request.GET.search|urlencode }}{% endif %}{% if selected_teacher_id %}&teacher={{ selected_teacher_id }}{% endif %}">
                             Archived <span class="badge bg-secondary ms-1">{{ counts.archived }}</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if current_status == 'all' %}active{% endif %}" href="?status=all{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                        <a class="nav-link {% if current_status == 'all' %}active{% endif %}" href="?status=all{% if request.GET.search %}&search={{ request.GET.search|urlencode }}{% endif %}{% if selected_teacher_id %}&teacher={{ selected_teacher_id }}{% endif %}">
                             All <span class="badge bg-secondary ms-1">{{ counts.all }}</span>
                         </a>
                     </li>
@@ -249,13 +268,18 @@
 {% else %}
                     <div class="text-center py-5">
                         <i class="fas fa-folder-open fa-3x text-muted mb-3 opacity-50"></i>
-                        <p class="text-muted mb-3">No courses found with status "<strong>{{ current_status }}</strong>"</p>
+                        <p class="text-muted mb-3">
+                            No courses found with status "<strong>{{ current_status }}</strong>"
+                            {% if selected_teacher %}
+                            for {{ selected_teacher.first_name }} {{ selected_teacher.last_name }}
+                            {% endif %}
+                        </p>
                         {% if request.GET.search %}
-                            <a href="{% url 'academics:course_list' %}?status={{ current_status }}" class="btn btn-outline-primary btn-sm">Clear Search</a>
+                            <a href="{% url 'academics:course_list' %}?status={{ current_status }}{% if selected_teacher_id %}&teacher={{ selected_teacher_id }}{% endif %}" class="btn btn-outline-primary btn-sm">Clear Search</a>
                         {% endif %}
                         {% if current_status != 'published' and current_status != 'all' %}
                              <br><br>
-                             <a href="?status=all" class="text-decoration-none">View all courses</a>
+                             <a href="?status=all{% if request.GET.search %}&search={{ request.GET.search|urlencode }}{% endif %}{% if selected_teacher_id %}&teacher={{ selected_teacher_id }}{% endif %}" class="text-decoration-none">View all courses</a>
                         {% endif %}
                     </div>
                 {% endif %}

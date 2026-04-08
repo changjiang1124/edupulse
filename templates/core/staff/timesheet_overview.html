@@ -14,7 +14,7 @@
 <div class="d-flex justify-content-between align-items-start mb-4">
     <div>
         <h1 class="h2 fw-bold mb-2">Staff Timesheet Overview</h1>
-        <p class="text-muted">Monitor and analyse all staff working hours and attendance</p>
+        <p class="text-muted">Monitor and analyse staff working hours and attendance, including inactive staff with recorded time.</p>
     </div>
     <div class="btn-group btn-group-sm" role="group">
         {% if selected_staff %}
@@ -71,6 +71,9 @@
                     <i class="fas fa-filter me-1"></i>Apply Filter
                 </button>
             </div>
+            <div class="col-12">
+                <small class="text-muted">Staff filters include active and inactive team members.</small>
+            </div>
         </form>
     </div>
 </div>
@@ -88,8 +91,8 @@
     <div class="col-md-3">
         <div class="card text-center h-100">
             <div class="card-body">
-                <div class="text-success fw-bold display-6">{{ timesheet_overview.overall_summary.active_staff_count }}</div>
-                <small class="text-muted">Active Staff</small>
+                <div class="text-success fw-bold display-6">{{ timesheet_overview.overall_summary.staff_with_activity_count }}</div>
+                <small class="text-muted">Staff With Activity</small>
             </div>
         </div>
     </div>
@@ -389,68 +392,9 @@
 {% block extra_js %}
 <script src="{% static 'js/timesheet.js' %}"></script>
 <script>
-function setOverviewDateRange(period) {
-    const startInput = document.getElementById('overview_start_date');
-    const endInput = document.getElementById('overview_end_date');
-    const form = document.getElementById('timesheetOverviewFilterForm');
-
-    if (!startInput || !endInput) return;
-
-    const today = new Date();
-    let startDate, endDate;
-
-    switch (period) {
-        case 'today':
-            startDate = endDate = today;
-            break;
-        case 'week':
-            const dayOfWeek = today.getDay();
-            const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-            startDate = new Date(today);
-            startDate.setDate(today.getDate() - daysToMonday);
-            endDate = today;
-            break;
-        case 'month':
-            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-            endDate = today;
-            break;
-        case 'last30':
-            startDate = new Date(today);
-            startDate.setDate(today.getDate() - 30);
-            endDate = today;
-            break;
-        default:
-            return;
-    }
-
-    startInput.value = formatDateForInput(startDate);
-    endInput.value = formatDateForInput(endDate);
-
-    if (form) {
-        form.submit();
-    }
-}
-
 document.addEventListener('DOMContentLoaded', function() {
-    const startDateInput = document.getElementById('overview_start_date');
-    const endDateInput = document.getElementById('overview_end_date');
-    const form = document.getElementById('timesheetOverviewFilterForm');
     const addTimesheetSelect = document.getElementById('addTimesheetStaffSelect');
     const addTimesheetContinue = document.getElementById('addTimesheetContinue');
-
-    if (startDateInput && endDateInput && form) {
-        startDateInput.addEventListener('change', function() {
-            if (this.value && endDateInput.value) {
-                form.submit();
-            }
-        });
-
-        endDateInput.addEventListener('change', function() {
-            if (this.value && startDateInput.value) {
-                form.submit();
-            }
-        });
-    }
 
     function syncAddTimesheetState() {
         if (!addTimesheetSelect || !addTimesheetContinue) {

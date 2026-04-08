@@ -273,6 +273,38 @@ class StaffAttendanceManualEntryViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, edit_url)
 
+    def test_staff_detail_shows_all_assignment_statuses_and_filtered_course_links(self):
+        self.client.login(username='admin-user', password='Admin123!')
+
+        Course.objects.create(
+            name='Archived Assignment Course',
+            short_description='Historical teaching assignment',
+            price=Decimal('95.00'),
+            course_type='group',
+            category='term_courses',
+            status='archived',
+            repeat_pattern='once',
+            start_date=timezone.localdate() - timedelta(days=60),
+            start_time=self.course.start_time,
+            duration_minutes=90,
+            vacancy=10,
+            is_online_bookable=False,
+            bookable_state='closed',
+            teacher=self.teacher,
+            facility=self.facility,
+            classroom=self.classroom,
+        )
+
+        response = self.client.get(reverse('accounts:staff_detail', args=[self.teacher.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Published, draft, expired and archived courses assigned to this staff member.')
+        self.assertContains(response, 'Archived Assignment Course')
+        self.assertContains(
+            response,
+            f"{reverse('academics:course_list')}?status=all&teacher={self.teacher.pk}",
+        )
+
     def test_timesheet_overview_supports_staff_filter_and_edit_links(self):
         self.client.login(username='admin-user', password='Admin123!')
 
@@ -382,3 +414,62 @@ class StaffAttendanceManualEntryViewTests(TestCase):
             response,
             reverse('accounts:staff_timesheet_export', args=[self.teacher.pk])
         )
+
+    def test_admin_can_add_timesheet_for_inactive_staff(self):
+        self.client.login(username='admin-user', password='Admin123!')
+        self.office_admin.is_active_staff = False
+        self.office_admin.save(update_fields=['is_active_staff'])
+
+        response = self.client.get(
+            reverse('accounts:staff_attendance_manual_entry', args=[self.office_admin.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Add Timesheet Entry')
+        self.assertContains(response, 'Office Admin')
+
+    def test_timesheet_overview_supports_inactive_staff_filters(self):
+        self.client.login(username='admin-user', password='Admin123!')
+        self.office_admin.is_active_staff = False
+        self.office_admin.save(update_fields=['is_active_staff'])
+
+        start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) - timedelta(hours=7)
+        end = start + timedelta(hours=3)
+        self._create_manual_session(start, end, staff=self.office_admin)
+
+        response = self.client.get(
+            reverse('accounts:staff_timesheet_overview'),
+            {
+                'staff': str(self.office_admin.pk),
+                'start_date': timezone.localtime(start).strftime('%Y-%m-%d'),
+                'end_date': timezone.localtime(end).strftime('%Y-%m-%d'),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Staff filters include active and inactive team members.')
+        self.assertContains(response, 'Office Admin Entries')
+        self.assertContains(response, f'value="{self.office_admin.pk}" selected')
+
+    def test_timesheet_overview_export_supports_inactive_staff_filters(self):
+        self.client.login(username='admin-user', password='Admin123!')
+        self.office_admin.is_active_staff = False
+        self.office_admin.save(update_fields=['is_active_staff'])
+
+        start = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) - timedelta(hours=6)
+        end = start + timedelta(hours=2)
+        self._create_manual_session(start, end, staff=self.office_admin)
+
+        response = self.client.get(
+            reverse('accounts:staff_timesheet_overview_export'),
+            {
+                'staff': str(self.office_admin.pk),
+                'start_date': timezone.localtime(start).strftime('%Y-%m-%d'),
+                'end_date': timezone.localtime(end).strftime('%Y-%m-%d'),
+                'format': 'csv',
+            },
+        )
+
+        content = response.content.decode('utf-8')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Office Admin', content)
