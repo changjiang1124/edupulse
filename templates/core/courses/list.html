@@ -121,6 +121,23 @@
                                         {% if course.status == 'published' and course.bookable_state != 'bookable' %}
                                             <span class="badge bg-warning text-dark mt-2 font-monospace">{{ course.get_bookable_state_display }}</span>
                                         {% endif %}
+                                        <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+                                            <span class="badge rounded-pill {{ course.woocommerce_summary.health_badge_class }} px-3 py-2">
+                                                <i class="fas {{ course.woocommerce_summary.health_icon }} me-1"></i>{{ course.woocommerce_summary.health_label }}
+                                            </span>
+                                            <span class="badge rounded-pill {{ course.woocommerce_summary.remote_status_badge_class }} px-3 py-2">
+                                                <i class="fas {{ course.woocommerce_summary.remote_status_icon }} me-1"></i>Woo: {{ course.woocommerce_summary.remote_status_label }}
+                                            </span>
+                                            {% if course.woocommerce_summary.last_synced_at %}
+                                            <small class="text-muted">
+                                                Last sync {{ course.woocommerce_summary.last_synced_at|date:"d M Y, g:i A T" }}
+                                            </small>
+                                            {% elif course.woocommerce_summary.last_attempt_at %}
+                                            <small class="text-muted">
+                                                Last attempt {{ course.woocommerce_summary.last_attempt_at|date:"d M Y, g:i A T" }}
+                                            </small>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                     <td class="py-3">
                                         <span class="badge rounded-pill bg-light text-dark border fw-normal px-3 py-2">

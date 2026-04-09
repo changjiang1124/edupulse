@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib import messages
 from .models import Course, Class
 from core.woocommerce_api import WooCommerceSyncService
+from .services import CourseWooCommerceService
 
 
 @admin.register(Course)
@@ -46,21 +47,81 @@ class CourseAdmin(admin.ModelAdmin):
     
     def publish_courses(self, request, queryset):
         """Admin action to publish courses"""
-        updated = queryset.update(status='published')
-        self.message_user(
+        self._bulk_update_course_status(
             request,
-            f"{updated} courses were successfully published."
+            queryset,
+            new_status='published',
+            action_label='published',
+            skip_auto_status_update=True,
         )
     publish_courses.short_description = "Mark selected courses as published"
     
     def unpublish_courses(self, request, queryset):
         """Admin action to unpublish courses"""
-        updated = queryset.update(status='draft')
-        self.message_user(
+        self._bulk_update_course_status(
             request,
-            f"{updated} courses were marked as draft."
+            queryset,
+            new_status='draft',
+            action_label='marked as draft',
         )
     unpublish_courses.short_description = "Mark selected courses as draft"
+
+    def _bulk_update_course_status(self, request, queryset, new_status, action_label, skip_auto_status_update=False):
+        updated_count = 0
+        sync_success_count = 0
+        sync_skipped_count = 0
+        sync_failures = []
+        update_failures = []
+
+        for course in queryset:
+            try:
+                course.status = new_status
+                sync_result = CourseWooCommerceService.save_course_and_sync(
+                    course,
+                    skip_auto_status_update=skip_auto_status_update,
+                )
+                updated_count += 1
+
+                if sync_result.get('status') == 'success':
+                    sync_success_count += 1
+                elif sync_result.get('status') == 'skipped':
+                    sync_skipped_count += 1
+                else:
+                    sync_failures.append(
+                        f'{course.name} ({sync_result.get("message") or "Unknown error"})'
+                    )
+            except Exception as exc:
+                update_failures.append(f'{course.name} ({exc})')
+
+        if updated_count:
+            summary = f'{updated_count} course(s) were successfully {action_label}.'
+            if sync_success_count:
+                summary = f'{summary} WooCommerce synced {sync_success_count} course(s).'
+            if sync_skipped_count:
+                summary = f'{summary} WooCommerce sync was not required for {sync_skipped_count} course(s).'
+            self.message_user(request, summary, level=messages.SUCCESS)
+
+        if sync_failures:
+            preview = '; '.join(sync_failures[:3])
+            remaining = len(sync_failures) - 3
+            if remaining > 0:
+                preview = f'{preview}; and {remaining} more'
+            self.message_user(
+                request,
+                f'WooCommerce sync failed for {len(sync_failures)} course(s): {preview}. Local status changes were saved.',
+                level=messages.WARNING,
+            )
+
+        if update_failures:
+            preview = '; '.join(update_failures[:3])
+            remaining = len(update_failures) - 3
+            if remaining > 0:
+                preview = f'{preview}; and {remaining} more'
+            self.message_user(
+                request,
+                f'Failed to update {len(update_failures)} course(s): {preview}.',
+                level=messages.ERROR,
+            )
     
     def wc_sync_status(self, obj):
         """Display WooCommerce sync status"""

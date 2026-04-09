@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 from dotenv import load_dotenv
 
 # 加载环境变量
@@ -31,6 +32,11 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-c@=gl@5kfa53m#+pq-_=ih_-hy
 # SECURITY WARNING: don't run with debug turned on in production!
 # Set DEBUG = False in your production environment.
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
+RUNNING_TESTS = len(sys.argv) > 1 and sys.argv[1] == 'test'
+WOOCOMMERCE_SYNC_ENABLED = os.getenv(
+    'WOOCOMMERCE_SYNC_ENABLED',
+    'False' if DEBUG or RUNNING_TESTS else 'True',
+) == 'True'
 
 # Define allowed hosts. For production, set this to your domain name in environment variables.
 # e.g., ALLOWED_HOSTS=edupulse.perthartschool.com.au

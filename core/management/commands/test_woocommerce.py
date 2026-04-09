@@ -2,6 +2,7 @@
 Django management command to test WooCommerce API connection and sync courses
 """
 from django.core.management.base import BaseCommand, CommandError
+from django.conf import settings
 from django.utils import timezone
 from core.woocommerce_api import WooCommerceSyncService, WooCommerceAPI
 from academics.models import Course
@@ -37,19 +38,45 @@ class Command(BaseCommand):
             action='store_true',
             help='Create a test course and sync to WooCommerce',
         )
+        parser.add_argument(
+            '--allow-write',
+            action='store_true',
+            help='Explicitly allow write operations against WooCommerce',
+        )
 
     def handle(self, *args, **options):
-        sync_service = WooCommerceSyncService()
+        write_action_requested = any([
+            options['sync_course'],
+            options['sync_all'],
+            options['create_test_course'],
+        ])
+
+        if write_action_requested and not options['allow_write']:
+            raise CommandError(
+                'WooCommerce write actions require --allow-write. '
+                'Use staging credentials or clean up any created products immediately after testing.'
+            )
+
+        if write_action_requested and not settings.WOOCOMMERCE_SYNC_ENABLED:
+            raise CommandError(
+                'WooCommerce writes are disabled in this environment. '
+                'Set WOOCOMMERCE_SYNC_ENABLED=True only when you intentionally want to write to a non-production WooCommerce instance.'
+            )
 
         if options['test_connection']:
+            sync_service = WooCommerceSyncService()
             self.test_connection(sync_service)
         elif options['sync_course']:
+            sync_service = WooCommerceSyncService()
             self.sync_single_course(sync_service, options['sync_course'])
         elif options['sync_all']:
+            sync_service = WooCommerceSyncService()
             self.sync_all_courses(sync_service)
         elif options['list_products']:
+            sync_service = WooCommerceSyncService()
             self.list_products(sync_service)
         elif options['create_test_course']:
+            sync_service = WooCommerceSyncService()
             self.create_test_course(sync_service)
         else:
             self.stdout.write(

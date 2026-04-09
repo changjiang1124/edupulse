@@ -69,6 +69,7 @@ comments and UI in Australian English.
 ### testing 
 for new features, after implementation, always try to generate test data to verify the implementation. 
 keep testing data summary in a test-data.md file, in case you need it to verify relevant logic in the future. 
+never use the production WordPress / WooCommerce website as a sink for automated tests, local regression runs, or disposable test courses. local development and `manage.py test` must keep `WOOCOMMERCE_SYNC_ENABLED=False` unless there is an explicit staged end-to-end verification plan. if a manual WooCommerce write test is intentionally performed, use staging credentials where possible; otherwise clean up the created WooCommerce product and local course record immediately after verification.
 
 ## iterative 
 in `next-step.md` file, i will keep it updated as the project goes, indicating what should be implemented in the next step. 

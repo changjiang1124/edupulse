@@ -17,6 +17,10 @@ def sync_course_to_woocommerce(sender, instance, created, **kwargs):
     Automatically sync course to WooCommerce when saved
     Only sync published courses
     """
+    if getattr(instance, '_skip_woocommerce_sync_signal', False):
+        logger.debug(f"Skipping automatic WooCommerce sync for course: {instance.name}")
+        return
+
     try:
         # Only sync published courses to avoid draft products in WooCommerce
         if instance.status == 'published':

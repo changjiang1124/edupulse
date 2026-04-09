@@ -16,6 +16,7 @@ from accounts.models import Staff
 
 from .models import Course, Class
 from .forms import CourseForm, CourseUpdateForm, ClassForm, ClassUpdateForm
+from .services import CourseWooCommerceService
 
 
 def _user_is_admin(user):
@@ -234,8 +235,13 @@ class CourseArchiveView(LoginRequiredMixin, View):
             messages.error(request, 'Only published courses can be archived.')
         else:
             course.status = 'archived'
-            course.save()
-            messages.success(request, f'Course "{course.name}" has been archived.')
+            sync_result = CourseWooCommerceService.save_course_and_sync(course)
+            success_message = f'Course "{course.name}" has been archived.'
+            if sync_result.get('status') == 'success':
+                success_message = f'{success_message} {CourseWooCommerceService.get_success_suffix(course)}'
+            messages.success(request, success_message)
+            if sync_result.get('status') not in {'success', 'skipped'}:
+                messages.warning(request, CourseWooCommerceService.get_failure_message(sync_result))
             
         return redirect('academics:course_list')
 
@@ -253,8 +259,13 @@ class CourseRestoreView(LoginRequiredMixin, View):
             messages.error(request, 'Only archived courses can be restored.')
         else:
             course.status = 'draft'
-            course.save()
-            messages.success(request, f'Course "{course.name}" has been restored to Draft status.')
+            sync_result = CourseWooCommerceService.save_course_and_sync(course)
+            success_message = f'Course "{course.name}" has been restored to Draft status.'
+            if sync_result.get('status') == 'success':
+                success_message = f'{success_message} {CourseWooCommerceService.get_success_suffix(course)}'
+            messages.success(request, success_message)
+            if sync_result.get('status') not in {'success', 'skipped'}:
+                messages.warning(request, CourseWooCommerceService.get_failure_message(sync_result))
             
         return redirect('academics:course_list')
 
@@ -379,6 +390,7 @@ class CourseListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         current_status = self.request.GET.get('status', 'published')
         selected_teacher = self._get_selected_teacher()
+        context['courses'] = CourseWooCommerceService.attach_sync_summaries(context['courses'])
 
         context['current_status'] = current_status
         context['status_choices'] = Course.STATUS_CHOICES
@@ -416,13 +428,21 @@ class CourseCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy('academics:course_list')
     
     def form_valid(self, form):
-        response = super().form_valid(form)
+        CourseWooCommerceService.mark_manual_sync(form.instance)
+        try:
+            response = super().form_valid(form)
+        finally:
+            CourseWooCommerceService.clear_manual_sync(form.instance)
+
+        sync_result = CourseWooCommerceService.sync_saved_course(self.object)
         # Auto-generate classes based on course schedule
         classes_created = self.object.generate_classes()
-        messages.success(
-            self.request, 
-            f'Course "{self.object.name}" created successfully! {classes_created} class(es) generated.'
-        )
+        success_message = f'Course "{self.object.name}" created successfully! {classes_created} class(es) generated.'
+        if sync_result.get('status') == 'success':
+            success_message = f'{success_message} {CourseWooCommerceService.get_success_suffix(self.object)}'
+        messages.success(self.request, success_message)
+        if sync_result.get('status') not in {'success', 'skipped'}:
+            messages.warning(self.request, CourseWooCommerceService.get_failure_message(sync_result))
         return response
 
 
@@ -460,6 +480,7 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
             'is_active': self.object.is_early_bird_available() if early_bird_price else False,
             'regular_price': regular_price,
         }
+        context['woocommerce_summary'] = CourseWooCommerceService.build_sync_summary(self.object)
         return context
 
 
@@ -497,7 +518,13 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
         original = Course.objects.get(pk=form.instance.pk)
         original_repeat_weekday = original.repeat_weekday
 
-        response = super().form_valid(form)
+        CourseWooCommerceService.mark_manual_sync(form.instance)
+        try:
+            response = super().form_valid(form)
+        finally:
+            CourseWooCommerceService.clear_manual_sync(form.instance)
+
+        sync_result = CourseWooCommerceService.sync_saved_course(self.object)
 
         new_repeat_pattern = self.object.repeat_pattern
         new_repeat_weekday = self.object.repeat_weekday
@@ -571,6 +598,8 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
 
             # Provide success message
             base_message = 'Course updated successfully!'
+            if sync_result.get('status') == 'success':
+                base_message = f'{base_message} {CourseWooCommerceService.get_success_suffix(self.object)}'
             if updated_count > 0:
                 details = [f'Course changes applied to {updated_count} selected class(es).']
                 if supports_weekday_shift and weekday_changed:
@@ -591,7 +620,13 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
                     'Some class dates were moved beyond the current course end date; please review the schedule and adjust the course end date if necessary.'
                 )
         else:
-            messages.success(self.request, f'Course updated successfully!')
+            success_message = 'Course updated successfully!'
+            if sync_result.get('status') == 'success':
+                success_message = f'{success_message} {CourseWooCommerceService.get_success_suffix(self.object)}'
+            messages.success(self.request, success_message)
+
+        if sync_result.get('status') not in {'success', 'skipped'}:
+            messages.warning(self.request, CourseWooCommerceService.get_failure_message(sync_result))
 
 
         return response

@@ -17,6 +17,14 @@ from core.utils.url_utils import build_absolute_url
 logger = logging.getLogger(__name__)
 
 
+def _woocommerce_writes_disabled_result():
+    return {
+        'status': 'disabled',
+        'message': 'WooCommerce sync is disabled in this environment.',
+        'data': None,
+    }
+
+
 class WooCommerceAPI:
     """
     WooCommerce API client for course synchronization
@@ -581,6 +589,13 @@ class WooCommerceSyncService:
         """
         Sync a course to WooCommerce as external product with comprehensive logging
         """
+        if not getattr(settings, 'WOOCOMMERCE_SYNC_ENABLED', True):
+            logger.warning(
+                'Skipping WooCommerce sync for course %s because writes are disabled in this environment.',
+                course.id,
+            )
+            return _woocommerce_writes_disabled_result()
+
         from django.urls import reverse
         from core.models import WooCommerceSyncLog
         
@@ -790,6 +805,13 @@ class WooCommerceSyncService:
         """
         Remove course product from WooCommerce with comprehensive logging
         """
+        if not getattr(settings, 'WOOCOMMERCE_SYNC_ENABLED', True):
+            logger.warning(
+                'Skipping WooCommerce delete for course %s because writes are disabled in this environment.',
+                course.id,
+            )
+            return _woocommerce_writes_disabled_result()
+
         from core.models import WooCommerceSyncLog
         
         if not course.external_id:

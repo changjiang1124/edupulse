@@ -103,7 +103,10 @@ TWILIO_FROM_NUMBER=your-twilio-number
 WOOCOMMERCE_URL=https://perthartschool.com.au
 WOOCOMMERCE_CONSUMER_KEY=your-consumer-key
 WOOCOMMERCE_CONSUMER_SECRET=your-consumer-secret
+WOOCOMMERCE_SYNC_ENABLED=True
 ```
+
+`WOOCOMMERCE_SYNC_ENABLED` must remain `False` for local development and automated tests. Only enable it for environments that are intentionally allowed to write to WooCommerce, ideally staging first. Never point local regression runs at the live production WooCommerce site.
 
 ### 5. Directory Structure Setup
 
