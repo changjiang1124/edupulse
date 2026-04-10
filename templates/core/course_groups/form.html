@@ -2,6 +2,10 @@
 
 {% block title %}{% if form.instance.pk %}Edit Course Group{% else %}Add Course Group{% endif %} - EduPulse{% endblock %}
 
+{% block extra_head %}
+{{ form.media }}
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-12">
@@ -52,4 +56,8 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% include 'core/includes/tinymce_description_editor.html' %}
 {% endblock %}

@@ -1,15 +1,17 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Course Groups - EduPulse{% endblock %}
+{% block title %}Course Management - EduPulse{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
-        <h1 class="page-title">Course Groups</h1>
-        <p class="page-subtitle">Manage template groups and the child courses that belong to them</p>
+        <h1 class="page-title">Course Management</h1>
+        <p class="page-subtitle">Course Groups are the primary template layer for recurring term offerings.</p>
     </div>
 </div>
+
+{% include 'core/includes/course_section_tabs.html' with active_course_section='groups' %}
 
 <div class="row mb-4">
     <div class="col-md-6">
@@ -20,11 +22,6 @@
         </form>
     </div>
     <div class="col-md-6 text-end">
-        <div class="btn-group me-3">
-            <a href="{% url 'academics:course_list' %}" class="btn btn-outline-secondary">
-                <i class="fas fa-table-list me-2"></i>Standalone Courses
-            </a>
-        </div>
         <a href="{% url 'academics:course_group_add' %}" class="btn btn-primary">
             <i class="fas fa-plus me-2"></i>Add Course Group
         </a>

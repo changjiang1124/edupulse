@@ -1,15 +1,17 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Standalone Course Management - EduPulse{% endblock %}
+{% block title %}Course Management - EduPulse{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
-        <h1 class="page-title">Standalone Course Management</h1>
-        <p class="page-subtitle">Manage standalone courses and their class schedules</p>
+        <h1 class="page-title">Course Management</h1>
+        <p class="page-subtitle">Standalone Courses are one-off offerings managed outside any Course Group.</p>
     </div>
 </div>
+
+{% include 'core/includes/course_section_tabs.html' with active_course_section='standalone' %}
 
 {% if selected_teacher %}
 <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -43,9 +45,6 @@
     </div>
     <div class="col-md-6 text-end">
         <div class="btn-group me-3" role="group" aria-label="View options">
-            <a href="{% url 'academics:course_group_list' %}" class="btn btn-outline-secondary" title="Manage Course Groups">
-                <i class="fas fa-layer-group me-2"></i>Course Groups
-            </a>
             <a href="{% url 'academics:class_list' %}{% if selected_teacher_id %}?teacher={{ selected_teacher_id }}{% endif %}" class="btn btn-outline-info" title="View All Classes">
                 <i class="fas fa-calendar-alt me-2"></i>View All Classes
             </a>

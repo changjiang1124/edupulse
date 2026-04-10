@@ -55,9 +55,24 @@ ensure_requirements() {
 
 check_port() {
   if command -v lsof >/dev/null 2>&1 && lsof -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-    echo "[ERROR] Port $PORT is already in use." >&2
-    echo "[ERROR] Stop the existing process or run with a different PORT." >&2
-    exit 1
+    echo "[WARN] Port $PORT is already in use by the following process(es):" >&2
+    lsof -iTCP:"$PORT" -sTCP:LISTEN >&2 || true
+    
+    printf "\nDo you want to kill these processes and continue? [y/N]: " >&2
+    read -r response < /dev/tty
+    
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+      local pids
+      pids=$(lsof -t -iTCP:"$PORT" -sTCP:LISTEN)
+      if [[ -n "$pids" ]]; then
+        echo "[INFO] Killing processes: $pids" >&2
+        kill -9 $pids 2>/dev/null || true
+        sleep 1
+      fi
+    else
+      echo "[ERROR] Stop the existing process or run with a different PORT." >&2
+      exit 1
+    fi
   fi
 }
 

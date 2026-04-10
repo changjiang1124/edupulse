@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from academics.models import Course, CourseGroup
-from academics.services import CourseWooCommerceService
+from academics.services import CourseStatusService, CourseWooCommerceService
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -225,3 +225,20 @@ class CourseGroupTests(TestCase):
         self.assertIn(bookable_course, public_courses)
         self.assertNotIn(closed_course, public_courses)
         self.assertNotIn(deadline_passed_course, public_courses)
+
+    def test_child_courses_are_included_in_expiry_updates(self):
+        group = self.create_group(status='published')
+        child_course = self.create_child_course(
+            group,
+            status='draft',
+            start_date=timezone.localdate() - timedelta(days=70),
+            end_date=timezone.localdate() - timedelta(days=7),
+            enrollment_deadline=timezone.localdate() - timedelta(days=30),
+        )
+        Course.objects.filter(pk=child_course.pk).update(status='published')
+
+        result = CourseStatusService.update_expired_courses()
+
+        child_course.refresh_from_db()
+        self.assertEqual(child_course.status, 'expired')
+        self.assertEqual(result['updated'], 1)
