@@ -125,6 +125,8 @@ url: https://edupulse.perthartschool.com.au/
 macOS
 with venv as environment in .venv folder. so activate it before make any changes.
 
+- **Workflow**: ALWAYS work directly in the current working directory and active branch. DO NOT use `git worktree` or create separate directories for tasks. This ensures seamless access to the local `.venv`, `db.sqlite3`, and other untracked configuration files.
+
 the account for test: 
 username: admin
 password: Wasd!234
