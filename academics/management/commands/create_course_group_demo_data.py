@@ -1,6 +1,7 @@
 from datetime import time, timedelta
 
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from accounts.models import Staff
@@ -12,12 +13,110 @@ from facilities.models import Classroom, Facility
 class Command(BaseCommand):
     help = 'Create reusable demo Course Group data for local UI review.'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            help='Allow this command to run when DEBUG is False.',
+        )
+
     def handle(self, *args, **options):
+        self._ensure_safe_environment(force=options['force'])
+
         today = timezone.localdate()
         teachers = self._get_demo_teachers()
         locations = self._get_demo_locations()
+        demo_groups = self._get_demo_groups(today)
 
-        demo_groups = [
+        group_count = 0
+        child_count = 0
+        removed_child_count = 0
+
+        for group_definition in demo_groups:
+            group_defaults = {
+                'name': group_definition['name'],
+                'status': group_definition['status'],
+                'short_description': group_definition['short_description'],
+                'description': group_definition['description'],
+                'category': 'term_courses',
+                'course_type': 'group',
+                'repeat_pattern': 'weekly',
+                'price': group_definition['price'],
+                'registration_fee': group_definition['registration_fee'],
+                'early_bird_price': group_definition['early_bird_price'],
+                'early_bird_deadline': group_definition['early_bird_deadline'],
+            }
+            group, _ = CourseGroup.objects.update_or_create(
+                slug=group_definition['slug'],
+                defaults=group_defaults,
+            )
+            group_count += 1
+
+            existing_children = {
+                self._get_course_key(course): course
+                for course in group.courses.all().select_related('teacher', 'facility', 'classroom')
+            }
+
+            for child_definition in group_definition['children']:
+                teacher = teachers[child_definition['teacher_index'] % len(teachers)]
+                facility, classroom = locations[child_definition['location_index'] % len(locations)]
+                child_key = self._get_child_definition_key(child_definition)
+                course = existing_children.pop(child_key, None)
+                needs_regeneration = (
+                    course is None or
+                    self._needs_class_regeneration(course, child_definition, teacher, facility, classroom)
+                )
+
+                if course is None:
+                    course = Course(group=group)
+
+                CourseGroupCreationService.apply_group_snapshot(course, group)
+                course.start_date = child_definition['start_date']
+                course.end_date = child_definition['end_date']
+                course.repeat_pattern = 'weekly'
+                course.repeat_weekday = child_definition['repeat_weekday']
+                course.start_time = child_definition['start_time']
+                course.duration_minutes = child_definition['duration_minutes']
+                course.status = child_definition['status']
+                course.bookable_state = child_definition['bookable_state']
+                course.is_online_bookable = child_definition['is_online_bookable']
+                course.vacancy = child_definition['vacancy']
+                course.enrollment_deadline = child_definition['enrollment_deadline']
+                course.teacher = teacher
+                course.facility = facility
+                course.classroom = classroom
+                course.save()
+
+                if needs_regeneration or not course.classes.exists():
+                    course.generate_classes(replace_existing=True)
+
+                child_count += 1
+
+            for stale_course in existing_children.values():
+                stale_course.delete()
+                removed_child_count += 1
+
+        summary = f'Created or updated {group_count} demo course groups and {child_count} child courses.'
+        if removed_child_count:
+            summary += f' Removed {removed_child_count} stale demo child course(s).'
+        self.stdout.write(self.style.SUCCESS(summary))
+
+    def _ensure_safe_environment(self, *, force):
+        if settings.DEBUG:
+            return
+
+        if not force:
+            raise CommandError(
+                'create_course_group_demo_data only runs when DEBUG=True. '
+                'Re-run with --force if you intentionally want demo data in a non-debug environment.'
+            )
+
+        self.stdout.write(self.style.WARNING(
+            'Running demo Course Group data creation outside DEBUG because --force was provided.'
+        ))
+
+    def _get_demo_groups(self, today):
+        return [
             {
                 'slug': 'demo-early-years-art-lab',
                 'name': 'Demo Early Years Art Lab',
@@ -83,10 +182,10 @@ class Command(BaseCommand):
                         'status': 'expired',
                         'bookable_state': 'closed',
                         'is_online_bookable': False,
-                        'vacancy': 12,
-                        'teacher_index': 1,
+                        'vacancy': 0,
+                        'teacher_index': 2,
                         'location_index': 1,
-                        'enrollment_deadline': today - timedelta(days=30),
+                        'enrollment_deadline': today - timedelta(days=90),
                     },
                 ],
             },
@@ -94,19 +193,18 @@ class Command(BaseCommand):
                 'slug': 'demo-teen-portfolio-studio',
                 'name': 'Demo Teen Portfolio Studio',
                 'status': 'published',
-                'short_description': 'A portfolio-focused group for older students preparing for exhibitions and applications.',
+                'short_description': 'Designed to showcase multiple after-school options across the term.',
                 'description': (
-                    '<p>This demo group is designed to show how a long-running template can hold multiple term instances.</p>'
-                    '<p>Use it to review archived and active child rows together.</p>'
+                    '<p>This group demonstrates how teen-focused options can be grouped with shared marketing content.</p>'
                 ),
                 'price': 980,
                 'registration_fee': 160,
                 'early_bird_price': 920,
-                'early_bird_deadline': today + timedelta(days=7),
+                'early_bird_deadline': today + timedelta(days=14),
                 'children': [
                     {
-                        'start_date': today + timedelta(days=16),
-                        'end_date': today + timedelta(days=93),
+                        'start_date': today + timedelta(days=9),
+                        'end_date': today + timedelta(days=79),
                         'repeat_weekday': 3,
                         'start_time': time(16, 30),
                         'duration_minutes': 150,
@@ -115,26 +213,26 @@ class Command(BaseCommand):
                         'is_online_bookable': True,
                         'vacancy': 10,
                         'teacher_index': 2,
-                        'location_index': 1,
-                        'enrollment_deadline': today + timedelta(days=14),
+                        'location_index': 0,
+                        'enrollment_deadline': today + timedelta(days=7),
                     },
                     {
-                        'start_date': today + timedelta(days=18),
-                        'end_date': today + timedelta(days=95),
+                        'start_date': today + timedelta(days=11),
+                        'end_date': today + timedelta(days=81),
                         'repeat_weekday': 5,
                         'start_time': time(13, 0),
                         'duration_minutes': 180,
                         'status': 'published',
                         'bookable_state': 'bookable',
                         'is_online_bookable': True,
-                        'vacancy': 6,
-                        'teacher_index': 2,
-                        'location_index': 0,
-                        'enrollment_deadline': today + timedelta(days=16),
+                        'vacancy': 12,
+                        'teacher_index': 1,
+                        'location_index': 1,
+                        'enrollment_deadline': today + timedelta(days=8),
                     },
                     {
-                        'start_date': today - timedelta(days=170),
-                        'end_date': today - timedelta(days=90),
+                        'start_date': today - timedelta(days=140),
+                        'end_date': today - timedelta(days=70),
                         'repeat_weekday': 3,
                         'start_time': time(16, 30),
                         'duration_minutes': 150,
@@ -222,61 +320,35 @@ class Command(BaseCommand):
             },
         ]
 
-        group_count = 0
-        child_count = 0
+    def _get_child_definition_key(self, child_definition):
+        return (
+            child_definition['start_date'],
+            child_definition['end_date'],
+            child_definition['repeat_weekday'],
+            child_definition['start_time'],
+        )
 
-        for group_definition in demo_groups:
-            group_defaults = {
-                'name': group_definition['name'],
-                'status': group_definition['status'],
-                'short_description': group_definition['short_description'],
-                'description': group_definition['description'],
-                'category': 'term_courses',
-                'course_type': 'group',
-                'repeat_pattern': 'weekly',
-                'price': group_definition['price'],
-                'registration_fee': group_definition['registration_fee'],
-                'early_bird_price': group_definition['early_bird_price'],
-                'early_bird_deadline': group_definition['early_bird_deadline'],
-            }
-            group, _ = CourseGroup.objects.update_or_create(
-                slug=group_definition['slug'],
-                defaults=group_defaults,
-            )
-            group_count += 1
+    def _get_course_key(self, course):
+        return (
+            course.start_date,
+            course.end_date,
+            course.repeat_weekday,
+            course.start_time,
+        )
 
-            for child_definition in group_definition['children']:
-                course = Course.objects.filter(
-                    group=group,
-                    start_date=child_definition['start_date'],
-                    start_time=child_definition['start_time'],
-                ).first()
-                if course is None:
-                    course = Course(group=group)
-
-                CourseGroupCreationService.apply_group_snapshot(course, group)
-                course.start_date = child_definition['start_date']
-                course.end_date = child_definition['end_date']
-                course.repeat_pattern = 'weekly'
-                course.repeat_weekday = child_definition['repeat_weekday']
-                course.start_time = child_definition['start_time']
-                course.duration_minutes = child_definition['duration_minutes']
-                course.status = child_definition['status']
-                course.bookable_state = child_definition['bookable_state']
-                course.is_online_bookable = child_definition['is_online_bookable']
-                course.vacancy = child_definition['vacancy']
-                course.enrollment_deadline = child_definition['enrollment_deadline']
-                course.teacher = teachers[child_definition['teacher_index'] % len(teachers)]
-                facility, classroom = locations[child_definition['location_index'] % len(locations)]
-                course.facility = facility
-                course.classroom = classroom
-                course.save()
-                course.generate_classes(replace_existing=True)
-                child_count += 1
-
-        self.stdout.write(self.style.SUCCESS(
-            f'Created or updated {group_count} demo course groups and {child_count} child courses.'
-        ))
+    def _needs_class_regeneration(self, course, child_definition, teacher, facility, classroom):
+        comparisons = {
+            'start_date': child_definition['start_date'],
+            'end_date': child_definition['end_date'],
+            'repeat_pattern': 'weekly',
+            'repeat_weekday': child_definition['repeat_weekday'],
+            'start_time': child_definition['start_time'],
+            'duration_minutes': child_definition['duration_minutes'],
+            'teacher_id': teacher.pk,
+            'facility_id': facility.pk,
+            'classroom_id': classroom.pk,
+        }
+        return any(getattr(course, field_name) != value for field_name, value in comparisons.items())
 
     def _get_demo_teachers(self):
         teacher_specs = [
@@ -286,19 +358,24 @@ class Command(BaseCommand):
         ]
         teachers = []
         for username, first_name, last_name in teacher_specs:
-            teacher, created = Staff.objects.get_or_create(
+            teacher, _ = Staff.objects.get_or_create(
                 username=username,
                 defaults={
                     'first_name': first_name,
                     'last_name': last_name,
                     'email': f'{username}@example.com',
                     'role': 'teacher',
-                    'is_active_staff': True,
+                    'is_active_staff': False,
                 },
             )
-            if created:
-                teacher.set_password('DemoTeacher123!')
-                teacher.save()
+            teacher.first_name = first_name
+            teacher.last_name = last_name
+            teacher.email = f'{username}@example.com'
+            teacher.role = 'teacher'
+            teacher.is_active = True
+            teacher.is_active_staff = False
+            teacher.set_unusable_password()
+            teacher.save()
             teachers.append(teacher)
         return teachers
 

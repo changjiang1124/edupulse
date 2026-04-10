@@ -31,7 +31,7 @@ class CourseGroupForm(forms.ModelForm):
             'status': forms.Select(attrs={'class': 'form-select'}),
             'short_description': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 500}),
             'description': TinyMCE(attrs={'cols': 80, 'rows': 30}),
-            'featured_image': forms.FileInput(attrs={
+            'featured_image': forms.ClearableFileInput(attrs={
                 'class': 'form-control',
                 'accept': 'image/*',
                 'title': 'Select course group feature image',

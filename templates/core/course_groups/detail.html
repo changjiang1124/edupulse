@@ -93,7 +93,12 @@
 <div class="card">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <h5 class="mb-0">Child Courses</h5>
+            <div>
+                <h5 class="mb-1">Child Courses</h5>
+                <div class="small text-muted">
+                    Shared content is managed in the Course Group. Scheduling and existing class updates are managed from each child course.
+                </div>
+            </div>
             <ul class="nav nav-pills gap-2">
                 <li class="nav-item"><a class="nav-link {% if child_status == 'all' %}active{% endif %}" href="?child_status=all">All <span class="badge bg-light text-dark ms-1">{{ child_counts.all }}</span></a></li>
                 <li class="nav-item"><a class="nav-link {% if child_status == 'published' %}active{% endif %}" href="?child_status=published">Published <span class="badge bg-light text-dark ms-1">{{ child_counts.published }}</span></a></li>

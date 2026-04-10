@@ -6,8 +6,9 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from academics.models import Course, CourseGroup
+from academics.models import Class, Course, CourseGroup
 from academics.services import CourseGroupCreationService, CourseStatusService, CourseWooCommerceService
+from facilities.models import Classroom, Facility
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -178,13 +179,20 @@ class CourseGroupTests(TestCase):
 
     def test_group_child_edit_form_renders_description_as_read_only(self):
         group = self.create_group(description='<p>Group content</p>')
-        child_course = self.create_child_course(group, description='<p>Frozen child content</p>')
+        child_course = self.create_child_course(
+            group,
+            short_description='Frozen child short description.',
+            description='<p>Frozen child content</p>',
+        )
 
         response = self.client.get(reverse('academics:course_edit', kwargs={'pk': child_course.pk}))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Shared Course Group Content')
         self.assertContains(response, 'Inherited from Course Group')
+        self.assertContains(response, 'Frozen child short description.')
         self.assertContains(response, 'Frozen child content')
+        self.assertNotContains(response, 'id="id_short_description"')
         self.assertNotContains(response, 'id="id_description"')
 
     def test_group_update_without_sync_keeps_current_child_snapshots_and_future_children_inherit_new_values(self):
@@ -286,6 +294,89 @@ class CourseGroupTests(TestCase):
         self.assertEqual(draft_child.short_description, 'Draft child short description.')
         self.assertEqual(draft_child.description, '<p>Draft child description.</p>')
         self.assertEqual(str(draft_child.price), '899.00')
+
+    def test_group_update_with_sync_does_not_modify_existing_classes(self):
+        group = self.create_group(
+            name='Original Group Name',
+            short_description='Original shared short description.',
+            description='<p>Original shared description.</p>',
+            price=899,
+        )
+        published_child = self.create_child_course(
+            group,
+            status='published',
+            short_description='Published child short description.',
+            description='<p>Published child description.</p>',
+            price=899,
+            is_online_bookable=True,
+            bookable_state='bookable',
+        )
+        facility = Facility.objects.create(
+            name='Review Facility',
+            address='100 Review Street, Perth WA',
+            phone='08 6111 1111',
+            email='review-facility@example.com',
+        )
+        classroom = Classroom.objects.create(
+            facility=facility,
+            name='Room 1',
+            capacity=12,
+        )
+        class_instance = Class.objects.create(
+            course=published_child,
+            date=date(2026, 5, 20),
+            start_time=time(16, 0),
+            duration_minutes=120,
+            teacher=self.teacher,
+            facility=facility,
+            classroom=classroom,
+        )
+
+        response = self.client.post(
+            reverse('academics:course_group_edit', kwargs={'pk': group.pk}),
+            self.build_group_update_payload(
+                group,
+                name='Updated Group Name',
+                short_description='Updated group short description.',
+                description='<p>Updated group description.</p>',
+                price='960.00',
+                sync_published_children='1',
+            ),
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('academics:course_group_detail', kwargs={'pk': group.pk}))
+
+        published_child.refresh_from_db()
+        class_instance.refresh_from_db()
+
+        self.assertEqual(published_child.short_description, 'Updated group short description.')
+        self.assertEqual(published_child.description, '<p>Updated group description.</p>')
+        self.assertEqual(str(published_child.price), '960.00')
+        self.assertEqual(class_instance.date, date(2026, 5, 20))
+        self.assertEqual(class_instance.start_time, time(16, 0))
+        self.assertEqual(class_instance.duration_minutes, 120)
+        self.assertEqual(class_instance.teacher_id, self.teacher.pk)
+        self.assertEqual(class_instance.facility_id, facility.pk)
+        self.assertEqual(class_instance.classroom_id, classroom.pk)
+
+    def test_group_edit_modal_explains_classes_are_not_changed(self):
+        group = self.create_group(status='published')
+        self.create_child_course(group, status='published')
+
+        response = self.client.get(reverse('academics:course_group_edit', kwargs={'pk': group.pk}))
+
+        self.assertContains(response, 'Existing classes will not be changed.')
+        self.assertContains(response, 'edit the child course itself and use its class update controls')
+
+    def test_group_detail_explains_child_course_owns_schedule_and_class_updates(self):
+        group = self.create_group(status='published')
+        self.create_child_course(group, status='published')
+
+        response = self.client.get(reverse('academics:course_group_detail', kwargs={'pk': group.pk}))
+
+        self.assertContains(response, 'Shared content is managed in the Course Group.')
+        self.assertContains(response, 'Scheduling and existing class updates are managed from each child course.')
 
     def test_course_group_delete_post_is_blocked_when_children_exist(self):
         group = self.create_group()
