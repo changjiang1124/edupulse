@@ -1,8 +1,16 @@
 from django.contrib import admin
 from django.contrib import messages
-from .models import Course, Class
+from .models import Course, Class, CourseGroup
 from core.woocommerce_api import WooCommerceSyncService
 from .services import CourseWooCommerceService
+
+
+@admin.register(CourseGroup)
+class CourseGroupAdmin(admin.ModelAdmin):
+    list_display = ('name', 'status', 'course_type', 'price', 'updated_at')
+    list_filter = ('status', 'course_type')
+    search_fields = ('name', 'description', 'short_description')
+    ordering = ('name',)
 
 
 @admin.register(Course)

@@ -1,9 +1,166 @@
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
+from django.urls import reverse
 from tinymce.models import HTMLField
 from datetime import timedelta
 from accounts.models import Staff
 from facilities.models import Facility, Classroom
+
+
+class CourseGroup(models.Model):
+    """Template-style grouping for related course instances."""
+
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('archived', 'Archived'),
+    ]
+
+    CATEGORY_CHOICES = [
+        ('term_courses', 'Term Courses'),
+    ]
+
+    REPEAT_PATTERN_CHOICES = [
+        ('weekly', 'Weekly'),
+    ]
+
+    COURSE_TYPE_CHOICES = [
+        ('group', 'Group Class'),
+        ('private', 'Private Lesson'),
+    ]
+
+    name = models.CharField(
+        max_length=200,
+        verbose_name='Course Group Name'
+    )
+    slug = models.SlugField(
+        max_length=220,
+        unique=True,
+        blank=True,
+        verbose_name='Slug'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='draft',
+        verbose_name='Status'
+    )
+    short_description = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='Short Description'
+    )
+    description = HTMLField(
+        blank=True,
+        verbose_name='Full Description'
+    )
+    featured_image = models.ImageField(
+        upload_to='course_group_images/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name='Featured Image'
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        default='term_courses',
+        verbose_name='Category'
+    )
+    course_type = models.CharField(
+        max_length=20,
+        choices=COURSE_TYPE_CHOICES,
+        default='group',
+        verbose_name='Course Type'
+    )
+    repeat_pattern = models.CharField(
+        max_length=20,
+        choices=REPEAT_PATTERN_CHOICES,
+        default='weekly',
+        verbose_name='Repeat Pattern'
+    )
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name='Course Fee'
+    )
+    early_bird_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Early Bird Price'
+    )
+    early_bird_deadline = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Early Bird Deadline'
+    )
+    registration_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name='Registration Fee'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Created'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Updated'
+    )
+
+    class Meta:
+        verbose_name = 'Course Group'
+        verbose_name_plural = 'Course Groups'
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_status_display()})"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.category != 'term_courses':
+            raise ValidationError({'category': 'Course groups currently support Term Courses only.'})
+
+        if self.repeat_pattern != 'weekly':
+            raise ValidationError({'repeat_pattern': 'Course groups currently support Weekly repeat only.'})
+
+        if self.early_bird_price is not None:
+            if self.early_bird_price >= self.price:
+                raise ValidationError({
+                    'early_bird_price': 'Early bird price must be lower than the regular course fee.'
+                })
+            if not self.early_bird_deadline:
+                raise ValidationError({
+                    'early_bird_deadline': 'Early bird deadline is required when early bird price is set.'
+                })
+
+        if self.early_bird_deadline and not self.early_bird_price:
+            raise ValidationError({
+                'early_bird_price': 'Early bird price is required when early bird deadline is set.'
+            })
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name) or 'course-group'
+            candidate = base_slug
+            suffix = 2
+            while CourseGroup.objects.exclude(pk=self.pk).filter(slug=candidate).exists():
+                candidate = f'{base_slug}-{suffix}'
+                suffix += 1
+            self.slug = candidate
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self):
+        return reverse('academics:course_group_detail', kwargs={'pk': self.pk})
+
+    def get_public_url(self):
+        return reverse('academics:course_group_public_detail', kwargs={'slug': self.slug})
 
 
 class Course(models.Model):
@@ -120,6 +277,14 @@ class Course(models.Model):
         blank=True,
         related_name='courses',
         verbose_name='Teacher'
+    )
+    group = models.ForeignKey(
+        CourseGroup,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='courses',
+        verbose_name='Course Group'
     )
     
     # Course schedule - enhanced for period management
@@ -262,6 +427,83 @@ class Course(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
+
+    @property
+    def is_group_child(self):
+        return bool(self.group_id)
+
+    def get_group_name_snapshot(self):
+        """Return the frozen name prefix used for generated child course names."""
+        if self.name and ' | ' in self.name:
+            return self.name.split(' | ', 1)[0].strip()
+        if self.name:
+            return self.name.strip()
+        if self.group_id and getattr(self, 'group', None):
+            return self.group.name
+        return 'Course'
+
+    def get_instance_date_range_display(self):
+        end_date = self.end_date or self.start_date
+        if not self.start_date:
+            return 'Date to be confirmed'
+        if end_date and end_date != self.start_date:
+            return f"{self.start_date.strftime('%d %b %Y')} to {end_date.strftime('%d %b %Y')}"
+        return self.start_date.strftime('%d %b %Y')
+
+    def get_instance_weekday_display(self):
+        if self.repeat_weekday is not None:
+            return dict(self.WEEKDAY_CHOICES).get(self.repeat_weekday, '')
+        if self.start_date:
+            return self.start_date.strftime('%A')
+        return ''
+
+    def get_instance_time_display(self):
+        if not self.start_time:
+            return 'Time to be confirmed'
+        return self.start_time.strftime('%I:%M %p').lstrip('0')
+
+    def get_instance_label(self):
+        parts = [
+            self.get_instance_date_range_display(),
+            self.get_instance_weekday_display() or 'Day to be confirmed',
+            self.get_instance_time_display(),
+            self.get_duration_display(),
+        ]
+        return " | ".join(parts)
+
+    def build_group_child_name(self, base_name=None):
+        """Build the generated child course name from a frozen group prefix and schedule fields."""
+        prefix = (base_name or self.get_group_name_snapshot() or '').strip() or 'Course'
+        weekday_display = self.get_instance_weekday_display() or 'Day TBD'
+        time_display = self.get_instance_time_display()
+        return (
+            f"{prefix} | {self.get_instance_date_range_display()} | "
+            f"{weekday_display} {time_display}"
+        )
+
+    @classmethod
+    def publicly_enrollable_queryset(cls, on_date=None):
+        """Return courses that should be surfaced on public enrolment entry points."""
+        check_date = on_date or timezone.localdate()
+        return cls.objects.filter(
+            status='published',
+            is_online_bookable=True,
+            bookable_state='bookable',
+        ).filter(
+            models.Q(enrollment_deadline__isnull=True) |
+            models.Q(enrollment_deadline__gte=check_date)
+        )
+
+    def is_publicly_enrollable(self, on_date=None):
+        """Return whether this course should accept public enrolments right now."""
+        check_date = on_date or timezone.localdate()
+        if self.status != 'published':
+            return False
+        if not self.is_online_bookable or self.bookable_state != 'bookable':
+            return False
+        if self.enrollment_deadline and self.enrollment_deadline < check_date:
+            return False
+        return True
     
     @property
     def is_single_session(self):
@@ -479,6 +721,9 @@ class Course(models.Model):
         # Auto-close booking when archived
         if self.status == 'archived':
             self.bookable_state = 'closed'
+
+        if self.group_id:
+            self.name = self.build_group_child_name()
         
         super().save(*args, **kwargs)
     

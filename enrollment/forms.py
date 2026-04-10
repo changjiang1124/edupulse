@@ -559,7 +559,7 @@ class PublicEnrollmentForm(forms.Form):
         
         # Populate course choices with pricing information
         if courses is None:
-            courses = Course.objects.filter(status='published', is_online_bookable=True).order_by('name')
+            courses = Course.publicly_enrollable_queryset().order_by('name')
             
         course_choices = [('', 'Select a course...')]
         

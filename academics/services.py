@@ -4,14 +4,63 @@ Course Status Management Service
 Centralized service for managing course status updates and consistency checks.
 """
 
+from copy import copy
+
 from django.utils import timezone
 from django.conf import settings
 from django.db.models import Q
-from academics.models import Course
+from academics.models import Course, CourseGroup
 from core.woocommerce_api import WooCommerceSyncService
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+GROUP_OWNED_COURSE_FIELDS = [
+    'short_description',
+    'description',
+    'featured_image',
+    'category',
+    'course_type',
+    'repeat_pattern',
+    'price',
+    'registration_fee',
+    'early_bird_price',
+    'early_bird_deadline',
+]
+
+
+class CourseGroupCreationService:
+    """Helpers for creating and maintaining child courses from a group template."""
+
+    GROUP_OWNED_FIELDS = GROUP_OWNED_COURSE_FIELDS
+
+    @classmethod
+    def apply_group_snapshot(cls, course, group):
+        course.group = group
+        for field_name in cls.GROUP_OWNED_FIELDS:
+            setattr(course, field_name, getattr(group, field_name))
+        course.name = course.build_group_child_name(base_name=group.name)
+        return course
+
+    @classmethod
+    def build_child_from_group(cls, *, group, course):
+        cls.apply_group_snapshot(course, group)
+        return course
+
+    @classmethod
+    def duplicate_child_course(cls, course):
+        duplicate = copy(course)
+        duplicate.pk = None
+        duplicate.id = None
+        duplicate._state.adding = True
+        duplicate.status = 'draft'
+        duplicate.external_id = None
+        duplicate.woocommerce_last_synced_at = None
+        duplicate.enrollment_deadline = None
+        duplicate.name = duplicate.build_group_child_name(base_name=course.get_group_name_snapshot())
+        duplicate.save()
+        return duplicate
 
 
 class CourseWooCommerceService:
@@ -30,6 +79,8 @@ class CourseWooCommerceService:
 
     @staticmethod
     def should_sync(course):
+        if course.is_group_child:
+            return False
         return course.status == 'published' or bool(course.external_id)
 
     @classmethod

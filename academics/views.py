@@ -1,26 +1,48 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponseRedirect
-from django.core.exceptions import ValidationError
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
 from django.views import View
 from django.urls import reverse_lazy, reverse
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Prefetch
 from django.db import IntegrityError
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from accounts.models import Staff
+from core.utils.url_utils import build_absolute_url
 
-from .models import Course, Class
-from .forms import CourseForm, CourseUpdateForm, ClassForm, ClassUpdateForm
-from .services import CourseWooCommerceService
+from .models import Course, Class, CourseGroup
+from .forms import CourseForm, CourseUpdateForm, ClassForm, ClassUpdateForm, CourseGroupForm
+from .services import CourseWooCommerceService, CourseGroupCreationService
 
 
 def _user_is_admin(user):
     return user.is_superuser or getattr(user, 'role', None) == 'admin'
+
+
+class AdminRequiredMixin(UserPassesTestMixin):
+    """Restrict access to administrators for management views."""
+
+    def test_func(self):
+        return _user_is_admin(self.request.user)
+
+
+def _get_group_child_queryset(group, *, status='all'):
+    queryset = group.courses.select_related('teacher', 'facility', 'classroom')
+    if status != 'all':
+        queryset = queryset.filter(status=status)
+    return queryset.order_by('start_date', 'repeat_weekday', 'start_time', 'pk')
+
+
+def _get_course_parent_redirect_url(course):
+    if getattr(course, 'group_id', None):
+        return reverse('academics:course_group_detail', kwargs={'pk': course.group_id})
+    return reverse('academics:course_list')
 
 
 def _duplicate_single_course(course_pk, include_enrollments=False,
@@ -38,12 +60,14 @@ def _duplicate_single_course(course_pk, include_enrollments=False,
 
     original_pk = original.pk
     original_name = original.name
+    original_group = original.group
 
     # Clone the course by nulling pk (standard Django pattern)
     original.pk = None
     original.id = None
     original._state.adding = True
-    original.name = f"{original_name} (Copy)"
+    if not original_group:
+        original.name = f"{original_name} (Copy)"
     original.status = 'draft'
     original.external_id = None
     original.woocommerce_last_synced_at = None
@@ -56,6 +80,8 @@ def _duplicate_single_course(course_pk, include_enrollments=False,
     if new_early_bird_deadline:
         original.early_bird_deadline = new_early_bird_deadline
 
+    if original_group:
+        original.group = original_group
     original.save()
     new_course = original  # After save, this is the new course
 
@@ -123,7 +149,7 @@ class CourseDuplicateView(LoginRequiredMixin, View):
             request,
             f'Course duplicated successfully as "{new_course.name}" (Draft).{enrollments_msg} Please review the new course.'
         )
-        return redirect('academics:course_list')
+        return redirect(_get_course_parent_redirect_url(new_course))
 
     def get(self, request, pk):
         # Allow GET request for easier linking, but ideally should be POST
@@ -243,7 +269,7 @@ class CourseArchiveView(LoginRequiredMixin, View):
             if sync_result.get('status') not in {'success', 'skipped'}:
                 messages.warning(request, CourseWooCommerceService.get_failure_message(sync_result))
             
-        return redirect('academics:course_list')
+        return redirect(_get_course_parent_redirect_url(course))
 
     def get(self, request, pk):
         return self.post(request, pk)
@@ -267,7 +293,7 @@ class CourseRestoreView(LoginRequiredMixin, View):
             if sync_result.get('status') not in {'success', 'skipped'}:
                 messages.warning(request, CourseWooCommerceService.get_failure_message(sync_result))
             
-        return redirect('academics:course_list')
+        return redirect(_get_course_parent_redirect_url(course))
 
     def get(self, request, pk):
         return self.post(request, pk)
@@ -280,64 +306,235 @@ class CourseDeleteView(LoginRequiredMixin, DeleteView):
     model = Course
     template_name = 'core/courses/course_confirm_delete.html'
     success_url = reverse_lazy('academics:course_list')
+
+    def _get_blocking_response(self, request):
+        self.object = self.get_object()
+        parent_redirect = _get_course_parent_redirect_url(self.object)
+
+        if self.object.enrollments.exists():
+            enrollment_count = self.object.enrollments.count()
+            messages.warning(
+                request,
+                f'Cannot delete course "{self.object.name}" because it has {enrollment_count} enrollment(s). '
+                f'Please change the course status to "Archived" instead to preserve data integrity.'
+            )
+            return redirect(parent_redirect)
+
+        if self.object.status != 'draft':
+            messages.error(
+                request,
+                'Only draft courses can be deleted. Please archive published courses instead.'
+            )
+            return redirect(parent_redirect)
+
+        return None
+
+    def get_success_url(self):
+        return _get_course_parent_redirect_url(self.object)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Check if course has enrollments and add to context for template warning
         context['has_enrollments'] = self.object.enrollments.exists()
         context['enrollment_count'] = self.object.enrollments.count()
+        context['cancel_url'] = _get_course_parent_redirect_url(self.object)
         return context
     
     def get(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        
-        # Pre-check: if course has enrollments, redirect with friendly message
-        if self.object.enrollments.exists():
-            enrollment_count = self.object.enrollments.count()
-            messages.warning(
-                request,
-                f'Cannot delete course "{self.object.name}" because it has {enrollment_count} enrollment(s). '
-                f'Please change the course status to "Archived" instead to preserve data integrity.'
-            )
-            return redirect('academics:course_detail', pk=self.object.pk)
-        
-        # Pre-check: if course is not draft, redirect with friendly message
-        if self.object.status != 'draft':
-            messages.error(
-                request, 
-                f'Only draft courses can be deleted. Please archive published courses instead.'
-            )
-            return redirect('academics:course_detail', pk=self.object.pk)
-        
+        blocking_response = self._get_blocking_response(request)
+        if blocking_response:
+            return blocking_response
         return super().get(request, *args, **kwargs)
-    
-    def delete(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        
-        # Check if course is not draft
-        if self.object.status != 'draft':
-            messages.error(request, 'Only draft courses can be deleted. Please archive published courses instead.')
-            return redirect('academics:course_list')
-        
-        # Check if course has enrollments
-        if self.object.enrollments.exists():
-            enrollment_count = self.object.enrollments.count()
-            messages.warning(
-                request,
-                f'Cannot delete course "{self.object.name}" because it has {enrollment_count} enrollment(s). '
-                f'Please change the course status to "Archived" instead to preserve data integrity.'
-            )
-            return redirect('academics:course_detail', pk=self.object.pk)
-            
+
+    def post(self, request, *args, **kwargs):
+        blocking_response = self._get_blocking_response(request)
+        if blocking_response:
+            return blocking_response
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        parent_redirect = _get_course_parent_redirect_url(self.object)
         try:
             course_name = self.object.name
-            self.object.delete()
-            messages.success(request, f'Course "{course_name}" has been deleted.')
-            return HttpResponseRedirect(self.get_success_url())
+            response = super().form_valid(form)
+            messages.success(self.request, f'Course "{course_name}" has been deleted.')
+            return response
         except ValidationError as e:
             # Fallback error handling in case model validation raises an error
-            messages.error(request, ", ".join(e.messages))
-            return redirect('academics:course_detail', pk=self.object.pk)
+            messages.error(self.request, ", ".join(e.messages))
+            return redirect(parent_redirect)
+        except ProtectedError:
+            messages.error(
+                self.request,
+                f'Cannot delete course "{self.object.name}" because related records still exist.',
+            )
+            return redirect(parent_redirect)
+
+
+class CourseGroupListView(LoginRequiredMixin, AdminRequiredMixin, ListView):
+    model = CourseGroup
+    template_name = 'core/course_groups/list.html'
+    context_object_name = 'groups'
+    paginate_by = 20
+
+    def get_queryset(self):
+        status_filter = self.request.GET.get('status', 'published')
+        child_queryset = Course.objects.select_related('teacher', 'facility', 'classroom').order_by(
+            'start_date', 'repeat_weekday', 'start_time', 'pk'
+        )
+        queryset = CourseGroup.objects.prefetch_related(
+            Prefetch('courses', queryset=child_queryset)
+        ).annotate(
+            child_count=Count('courses', distinct=True),
+            published_count=Count('courses', filter=Q(courses__status='published'), distinct=True),
+            draft_count=Count('courses', filter=Q(courses__status='draft'), distinct=True),
+            expired_count=Count('courses', filter=Q(courses__status='expired'), distinct=True),
+            archived_count=Count('courses', filter=Q(courses__status='archived'), distinct=True),
+        )
+
+        if status_filter != 'all':
+            queryset = queryset.filter(status=status_filter)
+
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(description__icontains=search) |
+                Q(short_description__icontains=search)
+            )
+
+        return queryset.order_by('name')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        current_status = self.request.GET.get('status', 'published')
+        search = self.request.GET.get('search', '')
+        base_queryset = CourseGroup.objects.all()
+        if search:
+            base_queryset = base_queryset.filter(
+                Q(name__icontains=search) |
+                Q(description__icontains=search) |
+                Q(short_description__icontains=search)
+            )
+        context['current_status'] = current_status
+        context['counts'] = {
+            'published': base_queryset.filter(status='published').count(),
+            'draft': base_queryset.filter(status='draft').count(),
+            'archived': base_queryset.filter(status='archived').count(),
+            'all': base_queryset.count(),
+        }
+        return context
+
+
+class CourseGroupCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateView):
+    model = CourseGroup
+    form_class = CourseGroupForm
+    template_name = 'core/course_groups/form.html'
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f'Course group "{self.object.name}" created successfully.')
+        return response
+
+    def get_success_url(self):
+        return reverse('academics:course_group_detail', kwargs={'pk': self.object.pk})
+
+
+class CourseGroupDetailView(LoginRequiredMixin, AdminRequiredMixin, DetailView):
+    model = CourseGroup
+    template_name = 'core/course_groups/detail.html'
+    context_object_name = 'group'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        child_status = self.request.GET.get('child_status', 'all')
+        child_courses = _get_group_child_queryset(self.object, status=child_status)
+        context['child_status'] = child_status
+        context['child_courses'] = child_courses
+        context['public_url'] = build_absolute_url(self.object.get_public_url(), app_domain=True)
+        context['child_counts'] = {
+            'all': self.object.courses.count(),
+            'published': self.object.courses.filter(status='published').count(),
+            'draft': self.object.courses.filter(status='draft').count(),
+            'expired': self.object.courses.filter(status='expired').count(),
+            'archived': self.object.courses.filter(status='archived').count(),
+        }
+        return context
+
+
+class CourseGroupUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
+    model = CourseGroup
+    form_class = CourseGroupForm
+    template_name = 'core/course_groups/form.html'
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f'Course group "{self.object.name}" updated successfully.')
+        return response
+
+    def get_success_url(self):
+        return reverse('academics:course_group_detail', kwargs={'pk': self.object.pk})
+
+
+class CourseGroupDeleteView(LoginRequiredMixin, AdminRequiredMixin, DeleteView):
+    model = CourseGroup
+    template_name = 'core/course_groups/confirm_delete.html'
+    success_url = reverse_lazy('academics:course_group_list')
+
+    def _get_blocking_response(self, request):
+        self.object = self.get_object()
+        if self.object.courses.exists():
+            messages.error(
+                request,
+                f'Cannot delete course group "{self.object.name}" because it still has child courses.',
+            )
+            return redirect('academics:course_group_detail', pk=self.object.pk)
+        return None
+
+    def get(self, request, *args, **kwargs):
+        blocking_response = self._get_blocking_response(request)
+        if blocking_response:
+            return blocking_response
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        blocking_response = self._get_blocking_response(request)
+        if blocking_response:
+            return blocking_response
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        group_name = self.object.name
+        try:
+            response = super().form_valid(form)
+        except ProtectedError:
+            messages.error(
+                self.request,
+                f'Cannot delete course group "{self.object.name}" because it still has child courses.',
+            )
+            return redirect('academics:course_group_detail', pk=self.object.pk)
+        messages.success(self.request, f'Course group "{group_name}" has been deleted.')
+        return response
+
+
+class CourseGroupPublicDetailView(DetailView):
+    model = CourseGroup
+    template_name = 'core/course_groups/public_detail.html'
+    context_object_name = 'group'
+    slug_field = 'slug'
+    slug_url_kwarg = 'slug'
+
+    def get_queryset(self):
+        return CourseGroup.objects.filter(status='published')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['child_courses'] = Course.publicly_enrollable_queryset().filter(
+            group=self.object,
+        ).select_related('teacher', 'facility', 'classroom').order_by(
+            'start_date', 'repeat_weekday', 'start_time', 'pk'
+        )
+        return context
 
 
 class CourseListView(LoginRequiredMixin, ListView):
@@ -363,7 +560,7 @@ class CourseListView(LoginRequiredMixin, ListView):
         return self._selected_teacher
     
     def get_queryset(self):
-        queryset = Course.objects.select_related('teacher').annotate(
+        queryset = Course.objects.filter(group__isnull=True).select_related('teacher').annotate(
             enrollment_count=Count('enrollments')
         )
 
@@ -398,7 +595,7 @@ class CourseListView(LoginRequiredMixin, ListView):
         context['selected_teacher_id'] = str(selected_teacher.pk) if selected_teacher else ''
         
         # Calculate counts for tabs
-        base_queryset = Course.objects.all()
+        base_queryset = Course.objects.filter(group__isnull=True)
         if selected_teacher is not None:
             base_queryset = base_queryset.filter(teacher=selected_teacher)
 
@@ -426,8 +623,32 @@ class CourseCreateView(LoginRequiredMixin, CreateView):
     form_class = CourseForm
     template_name = 'core/courses/form.html'
     success_url = reverse_lazy('academics:course_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if kwargs.get('group_pk') and request.user.is_authenticated and not _user_is_admin(request.user):
+            raise PermissionDenied('Only administrators can create child courses from a course group.')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_group(self):
+        if hasattr(self, '_group'):
+            return self._group
+        group_pk = self.kwargs.get('group_pk')
+        self._group = get_object_or_404(CourseGroup, pk=group_pk) if group_pk else None
+        return self._group
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        group = self.get_group()
+        if group:
+            kwargs['group'] = group
+            kwargs['lock_group_fields'] = True
+        return kwargs
     
     def form_valid(self, form):
+        group = self.get_group()
+        if group:
+            CourseGroupCreationService.build_child_from_group(group=group, course=form.instance)
+
         CourseWooCommerceService.mark_manual_sync(form.instance)
         try:
             response = super().form_valid(form)
@@ -435,8 +656,8 @@ class CourseCreateView(LoginRequiredMixin, CreateView):
             CourseWooCommerceService.clear_manual_sync(form.instance)
 
         sync_result = CourseWooCommerceService.sync_saved_course(self.object)
-        # Auto-generate classes based on course schedule
-        classes_created = self.object.generate_classes()
+        should_generate_classes = self.request.POST.get('generate_classes') == 'on'
+        classes_created = self.object.generate_classes() if should_generate_classes else 0
         success_message = f'Course "{self.object.name}" created successfully! {classes_created} class(es) generated.'
         if sync_result.get('status') == 'success':
             success_message = f'{success_message} {CourseWooCommerceService.get_success_suffix(self.object)}'
@@ -444,6 +665,17 @@ class CourseCreateView(LoginRequiredMixin, CreateView):
         if sync_result.get('status') not in {'success', 'skipped'}:
             messages.warning(self.request, CourseWooCommerceService.get_failure_message(sync_result))
         return response
+
+    def get_success_url(self):
+        group = self.get_group()
+        if group:
+            return reverse('academics:course_group_detail', kwargs={'pk': group.pk})
+        return super().get_success_url()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['selected_group'] = self.get_group()
+        return context
 
 
 class CourseDetailView(LoginRequiredMixin, DetailView):
@@ -481,6 +713,11 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
             'regular_price': regular_price,
         }
         context['woocommerce_summary'] = CourseWooCommerceService.build_sync_summary(self.object)
+        context['selected_group'] = self.object.group
+        context['group_public_url'] = (
+            build_absolute_url(self.object.group.get_public_url(), app_domain=True)
+            if self.object.group_id else ''
+        )
         return context
 
 
@@ -512,6 +749,13 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
     model = Course
     form_class = CourseUpdateForm
     template_name = 'core/courses/form.html'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if self.object and self.object.group_id:
+            kwargs['group'] = self.object.group
+            kwargs['lock_group_fields'] = True
+        return kwargs
     
     def form_valid(self, form):
         # Capture original repeat configuration from the database before saving
@@ -636,6 +880,7 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['selected_group'] = self.object.group
         
         # Check for pending enrollments count
         try:

@@ -1017,11 +1017,8 @@ class PublicEnrollmentView(TemplateView):
         course_id = self.kwargs.get('course_id') or self.request.GET.get('course')
         selected_course = None
         
-        # Only show published courses that allow online bookings
-        courses_qs = Course.objects.filter(
-            status='published', 
-            is_online_bookable=True
-        )
+        # Only show courses that are currently open for public enrolment
+        courses_qs = Course.publicly_enrollable_queryset()
         
         # Sort courses by Group -> Weekday -> Name using the helper method
         courses = sorted(courses_qs, key=self._get_course_sort_key)
@@ -1067,7 +1064,7 @@ class PublicEnrollmentView(TemplateView):
         course_id = self.kwargs.get('course_id') or request.GET.get('course')
         selected_course = None
         
-        courses_qs = Course.objects.filter(status='published', is_online_bookable=True)
+        courses_qs = Course.publicly_enrollable_queryset()
         
         # Sort courses by Group -> Weekday -> Name using the helper method
         courses = sorted(courses_qs, key=self._get_course_sort_key)

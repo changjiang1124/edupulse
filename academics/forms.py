@@ -1,8 +1,71 @@
 from django import forms
 from django.db.models import Q
 from tinymce.widgets import TinyMCE
-from .models import Course, Class
+from .models import Course, Class, CourseGroup
+from .services import GROUP_OWNED_COURSE_FIELDS
 from .widgets import DurationField
+
+
+GROUP_LOCKED_COURSE_FIELDS = ['name'] + GROUP_OWNED_COURSE_FIELDS
+
+
+class CourseGroupForm(forms.ModelForm):
+    """Course group form for template-level defaults."""
+
+    class Meta:
+        model = CourseGroup
+        fields = [
+            'name', 'slug', 'status', 'short_description', 'description', 'featured_image',
+            'category', 'course_type', 'repeat_pattern', 'price', 'registration_fee',
+            'early_bird_price', 'early_bird_deadline',
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter course group name'}),
+            'slug': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Auto-generated if left blank'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'short_description': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 500}),
+            'description': TinyMCE(attrs={'cols': 80, 'rows': 30}),
+            'featured_image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*',
+                'title': 'Select course group feature image',
+            }),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'course_type': forms.Select(attrs={'class': 'form-select'}),
+            'repeat_pattern': forms.Select(attrs={'class': 'form-select'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'registration_fee': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Leave blank if no registration fee applies',
+            }),
+            'early_bird_price': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Early bird price (optional)',
+            }),
+            'early_bird_deadline': forms.DateInput(format='%Y-%m-%d', attrs={
+                'class': 'form-control',
+                'type': 'date',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['category'].disabled = True
+        self.fields['repeat_pattern'].disabled = True
+        self.initial.setdefault('category', 'term_courses')
+        self.initial.setdefault('repeat_pattern', 'weekly')
+        self.fields['category'].help_text = 'Course groups currently support Term Courses only.'
+        self.fields['repeat_pattern'].help_text = 'Course groups currently support Weekly repeat only.'
+
+    def clean_featured_image(self):
+        image = self.cleaned_data.get('featured_image')
+        if image and image.size > 5 * 1024 * 1024:
+            raise forms.ValidationError('Image file size must be less than 5MB.')
+        return image
 
 
 class CourseForm(forms.ModelForm):
@@ -115,6 +178,8 @@ class CourseForm(forms.ModelForm):
         }
         
     def __init__(self, *args, **kwargs):
+        self.group = kwargs.pop('group', None)
+        self.lock_group_fields = kwargs.pop('lock_group_fields', False)
         super().__init__(*args, **kwargs)
 
         # For new courses, set defaults and limit repeat patterns to the most common options
@@ -214,6 +279,27 @@ class CourseForm(forms.ModelForm):
             # JavaScript will dynamically populate this when facility is selected
             self.fields['classroom'].queryset = Classroom.objects.none()
             self.fields['classroom'].empty_label = "Select facility first..."
+
+        self._apply_group_context()
+
+    def _apply_group_context(self):
+        group = self.group or getattr(self.instance, 'group', None)
+        if not group or not self.lock_group_fields:
+            return
+
+        for field_name in GROUP_OWNED_COURSE_FIELDS:
+            if field_name in self.fields:
+                self.fields[field_name].disabled = True
+                self.fields[field_name].help_text = 'Inherited from Course Group and cannot be changed here.'
+                self.initial[field_name] = getattr(self.instance, field_name, None) or getattr(group, field_name)
+
+        if 'name' in self.fields:
+            self.fields['name'].disabled = True
+            self.fields['name'].help_text = 'Generated automatically from the Course Group and schedule.'
+            if self.instance and self.instance.pk:
+                self.initial['name'] = self.instance.name
+            else:
+                self.initial['name'] = group.name
         
     def clean_featured_image(self):
         """Validate featured image file"""

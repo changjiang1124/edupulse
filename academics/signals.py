@@ -21,6 +21,10 @@ def sync_course_to_woocommerce(sender, instance, created, **kwargs):
         logger.debug(f"Skipping automatic WooCommerce sync for course: {instance.name}")
         return
 
+    if instance.is_group_child:
+        logger.debug(f"Skipping WooCommerce sync for child course: {instance.name}")
+        return
+
     try:
         # Only sync published courses to avoid draft products in WooCommerce
         if instance.status == 'published':
@@ -52,7 +56,7 @@ def remove_course_from_woocommerce(sender, instance, **kwargs):
     Remove course product from WooCommerce when course is deleted
     """
     try:
-        if instance.external_id:
+        if instance.external_id and not instance.is_group_child:
             sync_service = WooCommerceSyncService()
             result = sync_service.remove_course_from_woocommerce(instance)
             

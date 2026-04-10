@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ group.name }} - Perth Art School{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-10">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="row g-4 align-items-start">
+                        <div class="{% if group.featured_image %}col-lg-8{% else %}col-12{% endif %}">
+                            <h1 class="display-6 mb-3">{{ group.name }}</h1>
+                            {% if group.short_description %}
+                            <p class="lead">{{ group.short_description }}</p>
+                            {% endif %}
+                            {% if group.description %}
+                            <div>{{ group.description|safe }}</div>
+                            {% endif %}
+                            <div class="d-flex flex-wrap gap-2 mt-3">
+                                <span class="badge bg-light text-dark border">{{ group.get_course_type_display }}</span>
+                                <span class="badge bg-light text-dark border">Weekly</span>
+                                <span class="badge bg-light text-dark border">${{ group.price }}</span>
+                                {% if group.early_bird_price %}
+                                <span class="badge bg-warning text-dark">Early Bird ${{ group.early_bird_price }} until {{ group.early_bird_deadline|date:"d M Y" }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if group.featured_image %}
+                        <div class="col-lg-4">
+                            <img src="{{ group.featured_image.url }}" alt="{{ group.name }}" class="img-fluid rounded shadow-sm">
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white">
+                    <h2 class="h5 mb-0">Available Sessions</h2>
+                </div>
+                <div class="card-body p-0">
+                    {% if child_courses %}
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Date Range</th>
+                                    <th>Weekday</th>
+                                    <th>Start Time</th>
+                                    <th>Duration</th>
+                                    <th>Details</th>
+                                    <th class="text-end pe-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for course in child_courses %}
+                                <tr>
+                                    <td class="ps-4">{{ course.get_instance_date_range_display }}</td>
+                                    <td>{{ course.get_instance_weekday_display }}</td>
+                                    <td>{{ course.get_instance_time_display }}</td>
+                                    <td>{{ course.get_duration_display }}</td>
+                                    <td>
+                                        <div>{{ course.location_display }}</div>
+                                        {% if course.teacher %}
+                                        <small class="text-muted">{{ course.teacher.first_name }} {{ course.teacher.last_name }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <a href="{% url 'enrollment:public_enrollment' %}?course={{ course.pk }}" class="btn btn-primary btn-sm">
+                                            Enrol
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        No published sessions are currently available for online booking.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
