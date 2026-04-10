@@ -439,6 +439,11 @@ class CourseGroupCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateView):
     def get_success_url(self):
         return reverse('academics:course_group_detail', kwargs={'pk': self.object.pk})
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['published_child_count'] = 0
+        return context
+
 
 class CourseGroupDetailView(LoginRequiredMixin, AdminRequiredMixin, DetailView):
     model = CourseGroup
@@ -468,12 +473,35 @@ class CourseGroupUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
     template_name = 'core/course_groups/form.html'
 
     def form_valid(self, form):
+        changed_sync_fields = form.get_syncable_changed_fields()
+        should_sync_published_children = bool(changed_sync_fields) and form.should_sync_published_children()
         response = super().form_valid(form)
-        messages.success(self.request, f'Course group "{self.object.name}" updated successfully.')
+        if should_sync_published_children:
+            updated_children = CourseGroupCreationService.sync_group_snapshot_to_published_children(self.object)
+            messages.success(
+                self.request,
+                f'Course group "{self.object.name}" updated successfully. '
+                f'The public Course Group page now shows the latest shared content, '
+                f'and {updated_children} published child course(s) were updated to match.'
+            )
+        elif changed_sync_fields and self.object.courses.filter(status="published").exists():
+            messages.success(
+                self.request,
+                f'Course group "{self.object.name}" updated successfully. '
+                f'The public Course Group page now shows the latest shared content. '
+                f'Current child course snapshots were left unchanged, and only future child courses will inherit these new settings.'
+            )
+        else:
+            messages.success(self.request, f'Course group "{self.object.name}" updated successfully.')
         return response
 
     def get_success_url(self):
         return reverse('academics:course_group_detail', kwargs={'pk': self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['published_child_count'] = self.object.courses.filter(status='published').count()
+        return context
 
 
 class CourseGroupDeleteView(LoginRequiredMixin, AdminRequiredMixin, DeleteView):
@@ -675,6 +703,7 @@ class CourseCreateView(LoginRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['selected_group'] = self.get_group()
+        context['enable_description_editor'] = not bool(self.get_group())
         return context
 
 
@@ -881,6 +910,7 @@ class CourseUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['selected_group'] = self.object.group
+        context['enable_description_editor'] = not bool(self.object.group_id)
         
         # Check for pending enrollments count
         try:

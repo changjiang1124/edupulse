@@ -2,7 +2,7 @@ from django import forms
 from django.db.models import Q
 from tinymce.widgets import TinyMCE
 from .models import Course, Class, CourseGroup
-from .services import GROUP_OWNED_COURSE_FIELDS
+from .services import GROUP_OWNED_COURSE_FIELDS, GROUP_PROMPT_SYNC_FIELDS
 from .widgets import DurationField
 
 
@@ -11,6 +11,12 @@ GROUP_LOCKED_COURSE_FIELDS = ['name'] + GROUP_OWNED_COURSE_FIELDS
 
 class CourseGroupForm(forms.ModelForm):
     """Course group form for template-level defaults."""
+
+    sync_published_children = forms.CharField(
+        required=False,
+        initial='0',
+        widget=forms.HiddenInput(),
+    )
 
     class Meta:
         model = CourseGroup
@@ -60,6 +66,12 @@ class CourseGroupForm(forms.ModelForm):
         self.initial.setdefault('repeat_pattern', 'weekly')
         self.fields['category'].help_text = 'Course groups currently support Term Courses only.'
         self.fields['repeat_pattern'].help_text = 'Course groups currently support Weekly repeat only.'
+
+    def get_syncable_changed_fields(self):
+        return [field_name for field_name in self.changed_data if field_name in GROUP_PROMPT_SYNC_FIELDS]
+
+    def should_sync_published_children(self):
+        return self.cleaned_data.get('sync_published_children') == '1'
 
     def clean_featured_image(self):
         image = self.cleaned_data.get('featured_image')

@@ -21,7 +21,7 @@
                 <h5 class="mb-0">Course Group Information</h5>
             </div>
             <div class="card-body">
-                <form method="post" enctype="multipart/form-data">
+                <form method="post" enctype="multipart/form-data" class="course-group-form">
                     {% csrf_token %}
 
                     {% for hidden in form.hidden_fields %}
@@ -56,8 +56,114 @@
         </div>
     </div>
 </div>
+
+{% if form.instance.pk and published_child_count %}
+<div class="modal fade" id="groupSyncConfirmModal" tabindex="-1" aria-labelledby="groupSyncConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="groupSyncConfirmModalLabel">Update Published Child Courses?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="fw-medium mb-3">You are changing shared Course Group content.</p>
+                <p class="mb-3">
+                    These changes will appear on the public Course Group page immediately. This group currently has
+                    <strong>{{ published_child_count }}</strong> published child course{{ published_child_count|pluralize }}.
+                </p>
+                <div class="alert alert-info mb-3">
+                    If you sync now, the current published child courses will also be updated to match the new shared content.
+                    If you do not sync, the existing child courses will keep their current snapshots, and only future child courses
+                    will inherit these new settings.
+                </div>
+                <p class="text-muted small mb-0">
+                    This choice only affects the current published child courses. Draft, expired, and archived child courses will not be changed.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-outline-primary" id="saveGroupOnlyButton">Save Group Only</button>
+                <button type="button" class="btn btn-primary" id="saveAndSyncPublishedButton">Save Group and Update Published Courses</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 {% include 'core/includes/tinymce_description_editor.html' %}
+{% if form.instance.pk and published_child_count %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const courseGroupForm = document.querySelector('form.course-group-form');
+    const syncField = document.getElementById('id_sync_published_children');
+    const modalElement = document.getElementById('groupSyncConfirmModal');
+    const publishedChildCount = {{ published_child_count|default:0 }};
+
+    if (!courseGroupForm || !syncField || !modalElement || !publishedChildCount) {
+        return;
+    }
+
+    const syncModal = new bootstrap.Modal(modalElement);
+    let syncChoiceConfirmed = false;
+
+    function normaliseValue(value) {
+        return (value || '').trim();
+    }
+
+    function captureTrackedValues() {
+        if (typeof tinymce !== 'undefined' && tinymce.triggerSave) {
+            tinymce.triggerSave();
+        }
+
+        return {
+            name: normaliseValue(document.getElementById('id_name')?.value),
+            short_description: normaliseValue(document.getElementById('id_short_description')?.value),
+            description: normaliseValue(document.getElementById('id_description')?.value),
+            price: normaliseValue(document.getElementById('id_price')?.value),
+            registration_fee: normaliseValue(document.getElementById('id_registration_fee')?.value),
+            early_bird_price: normaliseValue(document.getElementById('id_early_bird_price')?.value),
+            early_bird_deadline: normaliseValue(document.getElementById('id_early_bird_deadline')?.value),
+            featured_image: document.getElementById('id_featured_image')?.files.length ? 'uploaded' : '',
+        };
+    }
+
+    function hasTrackedChanges(initialValues, currentValues) {
+        return Object.keys(initialValues).some((fieldName) => initialValues[fieldName] !== currentValues[fieldName]);
+    }
+
+    const initialValues = captureTrackedValues();
+
+    courseGroupForm.addEventListener('submit', function(event) {
+        if (syncChoiceConfirmed) {
+            return;
+        }
+
+        syncField.value = '0';
+        const currentValues = captureTrackedValues();
+        if (!hasTrackedChanges(initialValues, currentValues)) {
+            return;
+        }
+
+        event.preventDefault();
+        syncModal.show();
+    });
+
+    document.getElementById('saveGroupOnlyButton')?.addEventListener('click', function() {
+        syncChoiceConfirmed = true;
+        syncField.value = '0';
+        syncModal.hide();
+        courseGroupForm.requestSubmit();
+    });
+
+    document.getElementById('saveAndSyncPublishedButton')?.addEventListener('click', function() {
+        syncChoiceConfirmed = true;
+        syncField.value = '1';
+        syncModal.hide();
+        courseGroupForm.requestSubmit();
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

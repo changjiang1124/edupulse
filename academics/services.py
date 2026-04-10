@@ -29,6 +29,27 @@ GROUP_OWNED_COURSE_FIELDS = [
     'early_bird_deadline',
 ]
 
+GROUP_PROMPT_SYNC_FIELDS = [
+    'name',
+    'short_description',
+    'description',
+    'featured_image',
+    'price',
+    'registration_fee',
+    'early_bird_price',
+    'early_bird_deadline',
+]
+
+GROUP_PUBLISHED_CHILD_SYNC_FIELDS = [
+    'short_description',
+    'description',
+    'featured_image',
+    'price',
+    'registration_fee',
+    'early_bird_price',
+    'early_bird_deadline',
+]
+
 
 class CourseGroupCreationService:
     """Helpers for creating and maintaining child courses from a group template."""
@@ -61,6 +82,25 @@ class CourseGroupCreationService:
         duplicate.name = duplicate.build_group_child_name(base_name=course.get_group_name_snapshot())
         duplicate.save()
         return duplicate
+
+    @classmethod
+    def sync_group_snapshot_to_published_children(cls, group):
+        published_children = list(
+            group.courses.filter(status='published').select_related('group')
+        )
+
+        for course in published_children:
+            for field_name in GROUP_PUBLISHED_CHILD_SYNC_FIELDS:
+                setattr(course, field_name, getattr(group, field_name))
+            course.name = course.build_group_child_name(base_name=group.name)
+            course._skip_auto_status_update = True
+            try:
+                course.save()
+            finally:
+                if hasattr(course, '_skip_auto_status_update'):
+                    delattr(course, '_skip_auto_status_update')
+
+        return len(published_children)
 
 
 class CourseWooCommerceService:

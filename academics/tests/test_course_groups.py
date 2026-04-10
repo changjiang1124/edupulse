@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from academics.models import Course, CourseGroup
-from academics.services import CourseStatusService, CourseWooCommerceService
+from academics.services import CourseGroupCreationService, CourseStatusService, CourseWooCommerceService
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -92,6 +92,25 @@ class CourseGroupTests(TestCase):
         defaults.update(overrides)
         return Course.objects.create(**defaults)
 
+    def build_group_update_payload(self, group, **overrides):
+        payload = {
+            'name': group.name,
+            'slug': group.slug,
+            'status': group.status,
+            'short_description': group.short_description,
+            'description': group.description,
+            'course_type': group.course_type,
+            'price': str(group.price),
+            'registration_fee': '' if group.registration_fee is None else str(group.registration_fee),
+            'early_bird_price': '' if group.early_bird_price is None else str(group.early_bird_price),
+            'early_bird_deadline': (
+                group.early_bird_deadline.isoformat() if group.early_bird_deadline else ''
+            ),
+            'sync_published_children': '0',
+        }
+        payload.update(overrides)
+        return payload
+
     def test_teacher_cannot_access_course_group_management_views(self):
         group = self.create_group()
         teacher_client = Client()
@@ -156,6 +175,117 @@ class CourseGroupTests(TestCase):
         self.assertEqual(child_course.short_description, group.short_description)
         self.assertTrue(child_course.name.startswith(group.name))
         self.assertFalse(CourseWooCommerceService.should_sync(child_course))
+
+    def test_group_child_edit_form_renders_description_as_read_only(self):
+        group = self.create_group(description='<p>Group content</p>')
+        child_course = self.create_child_course(group, description='<p>Frozen child content</p>')
+
+        response = self.client.get(reverse('academics:course_edit', kwargs={'pk': child_course.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Inherited from Course Group')
+        self.assertContains(response, 'Frozen child content')
+        self.assertNotContains(response, 'id="id_description"')
+
+    def test_group_update_without_sync_keeps_current_child_snapshots_and_future_children_inherit_new_values(self):
+        group = self.create_group(
+            short_description='Original shared short description.',
+            description='<p>Original shared description.</p>',
+            price=899,
+        )
+        published_child = self.create_child_course(
+            group,
+            status='published',
+            short_description='Original child short description.',
+            description='<p>Original child description.</p>',
+            price=899,
+            is_online_bookable=True,
+            bookable_state='bookable',
+        )
+
+        response = self.client.post(
+            reverse('academics:course_group_edit', kwargs={'pk': group.pk}),
+            self.build_group_update_payload(
+                group,
+                short_description='Updated group short description.',
+                description='<p>Updated group description.</p>',
+                price='950.00',
+                sync_published_children='0',
+            ),
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('academics:course_group_detail', kwargs={'pk': group.pk}))
+
+        group.refresh_from_db()
+        published_child.refresh_from_db()
+
+        self.assertEqual(group.short_description, 'Updated group short description.')
+        self.assertEqual(group.description, '<p>Updated group description.</p>')
+        self.assertEqual(str(group.price), '950.00')
+
+        self.assertEqual(published_child.short_description, 'Original child short description.')
+        self.assertEqual(published_child.description, '<p>Original child description.</p>')
+        self.assertEqual(str(published_child.price), '899.00')
+
+        future_child = Course()
+        CourseGroupCreationService.build_child_from_group(group=group, course=future_child)
+        self.assertEqual(future_child.short_description, 'Updated group short description.')
+        self.assertEqual(future_child.description, '<p>Updated group description.</p>')
+        self.assertEqual(str(future_child.price), '950.00')
+
+    def test_group_update_with_sync_updates_only_published_children(self):
+        group = self.create_group(
+            name='Original Group Name',
+            short_description='Original shared short description.',
+            description='<p>Original shared description.</p>',
+            price=899,
+        )
+        published_child = self.create_child_course(
+            group,
+            status='published',
+            short_description='Published child short description.',
+            description='<p>Published child description.</p>',
+            price=899,
+            is_online_bookable=True,
+            bookable_state='bookable',
+        )
+        draft_child = self.create_child_course(
+            group,
+            status='draft',
+            repeat_weekday=4,
+            start_time=time(17, 0),
+            short_description='Draft child short description.',
+            description='<p>Draft child description.</p>',
+            price=899,
+        )
+
+        response = self.client.post(
+            reverse('academics:course_group_edit', kwargs={'pk': group.pk}),
+            self.build_group_update_payload(
+                group,
+                name='Updated Group Name',
+                short_description='Updated group short description.',
+                description='<p>Updated group description.</p>',
+                price='960.00',
+                sync_published_children='1',
+            ),
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('academics:course_group_detail', kwargs={'pk': group.pk}))
+
+        published_child.refresh_from_db()
+        draft_child.refresh_from_db()
+
+        self.assertEqual(published_child.short_description, 'Updated group short description.')
+        self.assertEqual(published_child.description, '<p>Updated group description.</p>')
+        self.assertEqual(str(published_child.price), '960.00')
+        self.assertTrue(published_child.name.startswith('Updated Group Name | '))
+
+        self.assertEqual(draft_child.short_description, 'Draft child short description.')
+        self.assertEqual(draft_child.description, '<p>Draft child description.</p>')
+        self.assertEqual(str(draft_child.price), '899.00')
 
     def test_course_group_delete_post_is_blocked_when_children_exist(self):
         group = self.create_group()

@@ -4,7 +4,9 @@
 {% block title %}{% if form.instance.pk %}Edit Course{% else %}Add Course{% endif %} - EduPulse{% endblock %}
 
 {% block extra_head %}
+{% if enable_description_editor %}
 {{ form.media }}
+{% endif %}
 <style>
 .status-indicator {
     padding: 1rem;
@@ -105,12 +107,41 @@
                         
                         <div class="mb-3">
                             <label for="{{ form.description.id_for_label }}" class="form-label">Full Description</label>
+                            {% if selected_group %}
+                            <div class="card border bg-light">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+                                        <div>
+                                            <div class="fw-semibold">Inherited from Course Group</div>
+                                            <div class="text-muted small">Edit this shared content from the Course Group instead of the child course.</div>
+                                        </div>
+                                        <a href="{% url 'academics:course_group_edit' selected_group.pk %}" class="btn btn-sm btn-outline-primary">
+                                            Edit Course Group
+                                        </a>
+                                    </div>
+                                    {% if form.instance.description %}
+                                    <div class="border rounded bg-white p-3">
+                                        {{ form.instance.description|safe }}
+                                    </div>
+                                    {% elif selected_group.description %}
+                                    <div class="border rounded bg-white p-3">
+                                        {{ selected_group.description|safe }}
+                                    </div>
+                                    {% else %}
+                                    <div class="border rounded bg-white p-3 text-muted">
+                                        No shared description has been added to this Course Group yet.
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% else %}
                             {{ form.description }}
                             {% if form.description.help_text %}
                                 <div class="form-text">{{ form.description.help_text }}</div>
                             {% endif %}
                             {% if form.description.errors %}
                                 <div class="invalid-feedback d-block">{{ form.description.errors.0 }}</div>
+                            {% endif %}
                             {% endif %}
                         </div>
                         
@@ -668,7 +699,9 @@
 <script>
 const isEditMode = {{ form.instance.pk|yesno:"true,false" }};
 </script>
+{% if enable_description_editor %}
 {% include 'core/includes/tinymce_description_editor.html' %}
+{% endif %}
 <script>
 // Repeat pattern change handler
 function handleRepeatPatternChange() {
