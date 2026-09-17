@@ -1,0 +1,124 @@
+{% load static %}
+<p>Clock in when you arrive at the campus and clock out before you leave. Use your phone. You must be at the campus for both, because EduPulse checks your location each time.</p>
+
+<h2>Before your first shift</h2>
+<ol class="help-steps">
+    <li>
+        <p>On your phone, go to <code>https://edupulse.perthartschool.com.au</code> and log in with the username and password the office gave you.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot help-screenshot--phone" src="{% static 'help_centre/img/clock-login.png' %}" alt="EduPulse login page on a phone" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>Open the clock page: tap the menu button at the top right, tap your name, then tap <span class="help-ui">Clock In/Out</span>.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot help-screenshot--phone" src="{% static 'help_centre/img/clock-menu.png' %}" alt="Phone menu open with Clock In/Out highlighted" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>Save the clock page to your home screen so you can open it with one tap next time.</p>
+        <ul>
+            <li><strong>iPhone (Safari):</strong> tap the Share button, then <span class="help-ui">Add to Home Screen</span>.</li>
+            <li><strong>Android (Chrome):</strong> tap the three dots at the top right, then <span class="help-ui">Add to Home screen</span>.</li>
+        </ul>
+    </li>
+</ol>
+
+<h2>Clock in</h2>
+<ol class="help-steps">
+    <li>
+        <p>When you arrive, open the clock page. If your phone asks to use your location, tap <span class="help-ui">Allow</span>.</p>
+    </li>
+    <li>
+        <p>Wait a few seconds. When the campus name and <span class="help-ui">Verified</span> appear, your location has been checked.</p>
+    </li>
+    <li>
+        <p>Tick the class you are teaching today. This is optional. If you do not tick a class, EduPulse asks you to confirm and records general work.</p>
+    </li>
+    <li>
+        <p>Tap <span class="help-ui">Clock In</span>.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot help-screenshot--phone" src="{% static 'help_centre/img/clock-ready.png' %}" alt="Clock page showing the verified campus, today's class and the Clock In button" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>The page reloads and shows <span class="help-ui">Currently Clocked In</span>. You are done.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot help-screenshot--phone" src="{% static 'help_centre/img/clock-clocked-in.png' %}" alt="Clock page showing Currently Clocked In and the Clock Out button" loading="lazy">
+        </figure>
+    </li>
+</ol>
+
+<h2>Clock out</h2>
+<ol class="help-steps">
+    <li>
+        <p>Before you leave the campus, open the clock page again and wait for <span class="help-ui">Verified</span>.</p>
+    </li>
+    <li>
+        <p>Tap <span class="help-ui">Clock Out</span>. The page reloads and shows <span class="help-ui">Currently Clocked Out</span>.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot help-screenshot--phone" src="{% static 'help_centre/img/clock-clock-out.png' %}" alt="Clock page with the Clock Out button" loading="lazy">
+        </figure>
+    </li>
+</ol>
+
+<h2>If you forgot to clock out</h2>
+<p>If you do not clock out within 12 hours, that shift is not counted. Next time you open the clock page, you will see <span class="help-ui">Missed Clock Out</span>.</p>
+<ul>
+    <li>Clock in for today as normal.</li>
+    <li>Tell the office what time you finished that day. They will add it so you are paid correctly.</li>
+</ul>
+<figure class="help-figure">
+    <img class="help-screenshot help-screenshot--phone" src="{% static 'help_centre/img/clock-missed-clock-out.png' %}" alt="Clock page showing the Missed Clock Out message and the Clock In button" loading="lazy">
+</figure>
+
+<h2>If something goes wrong</h2>
+<table class="table table-bordered align-middle">
+    <thead>
+        <tr>
+            <th scope="col">What you see</th>
+            <th scope="col">What to do</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Location is blocked for this website</strong></td>
+            <td>
+                <p class="mb-2">Your phone is not sharing your location with the browser.</p>
+                <p class="mb-2"><strong>iPhone:</strong> open Settings, then Privacy &amp; Security, then Location Services. Turn Location Services on. Tap Safari Websites and choose While Using the App.</p>
+                <p class="mb-2"><strong>Android:</strong> turn on Location in your phone settings. In Chrome, tap the icon to the left of the website address, tap Permissions, and allow Location.</p>
+                <p class="mb-0">Then go back to the clock page and tap <span class="help-ui">Try again</span>.</p>
+            </td>
+        </tr>
+        <tr>
+            <td><strong>Too far from</strong> a campus</td>
+            <td>
+                <p class="mb-2">Your phone thinks you are not at the campus. Go inside the building, turn on Wi-Fi (it makes the location more accurate) and tap <span class="help-ui">Try again</span>.</p>
+                <p class="mb-0">If it names a different campus from the one you are at, tell the office. That campus has not been set up yet.</p>
+            </td>
+        </tr>
+        <tr>
+            <td><strong>No internet connection</strong></td>
+            <td>Check your mobile data or Wi-Fi, then tap the button again. Nothing was recorded.</td>
+        </tr>
+        <tr>
+            <td><strong>You are already clocked in</strong></td>
+            <td>Your clock-in was already saved. Close the page and open it again. You will see the Clock Out button.</td>
+        </tr>
+        <tr>
+            <td><strong>No facilities found with GPS coordinates</strong></td>
+            <td>No campus has been set up for clock-in yet. Tell the office.</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="help-figure-row">
+    <figure class="help-figure">
+        <img class="help-screenshot help-screenshot--phone" src="{% static 'help_centre/img/clock-location-blocked.png' %}" alt="Clock page showing Location is blocked for this website and a Try again button" loading="lazy">
+        <figcaption>Location blocked</figcaption>
+    </figure>
+    <figure class="help-figure">
+        <img class="help-screenshot help-screenshot--phone" src="{% static 'help_centre/img/clock-too-far.png' %}" alt="Clock page showing Too far from Claremont Studio" loading="lazy">
+        <figcaption>Too far from the campus</figcaption>
+    </figure>
+</div>

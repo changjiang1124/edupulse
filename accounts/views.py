@@ -277,7 +277,7 @@ class StaffTimesheetExportView(LoginRequiredMixin, View):
             record.get('clock_out_time').strftime('%H:%M') if record.get('clock_out_time') else '--',
             classes_text,
             facility_name,
-            f"{duration}h" if duration is not None else '--',
+            round(duration, 2) if duration is not None else '--',
             clock_in.get_source_display() if clock_in else '--',
             clock_out.get_source_display() if clock_out else '--',
             self._get_location_verified_label(clock_in),
@@ -361,10 +361,10 @@ class StaffTimesheetExportView(LoginRequiredMixin, View):
         if timesheet_data['summary']:
             summary = timesheet_data['summary']
             writer.writerow(['SUMMARY'])
-            writer.writerow(['Total Hours:', f"{summary.get('total_hours', 0)}h"])
+            writer.writerow(['Total Hours:', summary.get('total_hours', 0)])
             writer.writerow(['Total Days:', summary.get('total_days', 0)])
             writer.writerow(['Completed Sessions:', summary.get('completed_sessions', 0)])
-            writer.writerow(['Average Hours per Day:', f"{summary.get('avg_hours_per_day', 0)}h"])
+            writer.writerow(['Average Hours per Day:', summary.get('avg_hours_per_day', 0)])
             writer.writerow([])  # Empty row
         
         # Detailed records
@@ -435,7 +435,7 @@ class StaffTimesheetExportView(LoginRequiredMixin, View):
             row += 1
             
             worksheet[f'A{row}'] = 'Total Hours:'
-            worksheet[f'B{row}'] = f"{summary.get('total_hours', 0)}h"
+            worksheet[f'B{row}'] = summary.get('total_hours', 0)
             row += 1
             
             worksheet[f'A{row}'] = 'Total Days:'
@@ -447,7 +447,7 @@ class StaffTimesheetExportView(LoginRequiredMixin, View):
             row += 1
             
             worksheet[f'A{row}'] = 'Average Hours per Day:'
-            worksheet[f'B{row}'] = f"{summary.get('avg_hours_per_day', 0)}h"
+            worksheet[f'B{row}'] = summary.get('avg_hours_per_day', 0)
             row += 2
         
         # Detailed records header
@@ -549,8 +549,8 @@ class StaffAttendanceManualBaseView(AdminRequiredMixin, View):
                 f"?timesheet_start={today}&timesheet_end={today}"
             )
 
-        start_date = min(record.timestamp.date() for record in records).isoformat()
-        end_date = max(record.timestamp.date() for record in records).isoformat()
+        start_date = min(timezone.localdate(record.timestamp) for record in records).isoformat()
+        end_date = max(timezone.localdate(record.timestamp) for record in records).isoformat()
         return (
             f"{reverse('accounts:staff_detail', kwargs={'pk': self.staff.pk})}"
             f"?timesheet_start={start_date}&timesheet_end={end_date}"
@@ -1028,10 +1028,10 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
         if overview_data['overall_summary']:
             summary = overview_data['overall_summary']
             writer.writerow(['OVERALL SUMMARY'])
-            writer.writerow(['Total Hours:', f"{summary.get('total_hours', 0)}h"])
+            writer.writerow(['Total Hours:', summary.get('total_hours', 0)])
             writer.writerow(['Staff With Activity:', summary.get('staff_with_activity_count', 0)])
             writer.writerow(['Total Sessions:', summary.get('total_sessions', 0)])
-            writer.writerow(['Average Hours per Staff:', f"{summary.get('average_hours_per_staff', 0)}h"])
+            writer.writerow(['Average Hours per Staff:', summary.get('average_hours_per_staff', 0)])
             writer.writerow([])  # Empty row
         
         # Staff summary
@@ -1041,10 +1041,10 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
         for staff_data in overview_data.get('staff_summaries', []):
             writer.writerow([
                 f"{staff_data['staff'].first_name} {staff_data['staff'].last_name}",
-                f"{staff_data.get('total_hours', 0)}h",
+                staff_data.get('total_hours', 0),
                 staff_data.get('working_days', 0),
                 staff_data.get('sessions', 0),
-                f"{staff_data.get('average_hours_per_day', 0)}h"
+                staff_data.get('average_hours_per_day', 0)
             ])
         
         return response
@@ -1100,7 +1100,7 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
             row += 1
             
             summary_sheet[f'A{row}'] = 'Total Hours:'
-            summary_sheet[f'B{row}'] = f"{summary.get('total_hours', 0)}h"
+            summary_sheet[f'B{row}'] = summary.get('total_hours', 0)
             row += 1
             
             summary_sheet[f'A{row}'] = 'Staff With Activity:'
@@ -1112,7 +1112,7 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
             row += 1
             
             summary_sheet[f'A{row}'] = 'Average Hours per Staff:'
-            summary_sheet[f'B{row}'] = f"{summary.get('average_hours_per_staff', 0)}h"
+            summary_sheet[f'B{row}'] = summary.get('average_hours_per_staff', 0)
             row += 2
         
         # Staff summary table
@@ -1134,10 +1134,10 @@ class StaffTimesheetOverviewExportView(AdminRequiredMixin, View):
         for staff_data in overview_data.get('staff_summaries', []):
             data = [
                 f"{staff_data['staff'].first_name} {staff_data['staff'].last_name}",
-                f"{staff_data.get('total_hours', 0)}h",
+                staff_data.get('total_hours', 0),
                 staff_data.get('working_days', 0),
                 staff_data.get('sessions', 0),
-                f"{staff_data.get('average_hours_per_day', 0)}h"
+                staff_data.get('average_hours_per_day', 0)
             ]
             
             for col, value in enumerate(data, 1):

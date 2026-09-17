@@ -297,8 +297,10 @@
                             {% if record.clock_out_time %}
                                 {{ record.clock_out_time|time:"H:i" }}
                             {% else %}
-                                {% if record.clock_in_time %}
+                                {% if record.clock_in_time and record.is_open %}
                                     <span class="badge bg-warning text-dark">In Progress</span>
+                                {% elif record.clock_in_time %}
+                                    <span class="badge bg-danger">Missing clock-out</span>
                                 {% else %}
                                     <span class="text-muted">--</span>
                                 {% endif %}

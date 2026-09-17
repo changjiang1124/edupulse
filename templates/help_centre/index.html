@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Help Centre - EduPulse{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/help-centre.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="help-centre">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="page-title">Help Centre</h1>
+            <p class="page-subtitle">Step-by-step guides for using EduPulse.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <h2 class="h5 fw-bold mt-3 mb-1">Teacher clock-in and timesheets</h2>
+            <p class="text-muted mb-3">Follow these guides in order the first time you set up clock-in.</p>
+
+            <ol class="help-guide-list">
+                {% for article in articles %}
+                <li class="help-guide-item">
+                    <a class="help-guide-link" href="{% url 'help_centre:article' article.slug %}">
+                        <div>
+                            <span class="help-audience">For {{ article.audience|lower }}</span>
+                            <div class="help-guide-title">{{ article.title }}</div>
+                            <p class="help-guide-summary">{{ article.summary }}</p>
+                        </div>
+                    </a>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}

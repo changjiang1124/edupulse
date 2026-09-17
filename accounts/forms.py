@@ -121,9 +121,12 @@ class StaffAttendanceManualEntryForm(forms.Form):
         initial='full_session',
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+    # Browser date and time inputs only accept ISO values (2026-09-15, 16:02),
+    # so render them in that format rather than the Australian display format.
     work_date = forms.DateField(
         initial=timezone.localdate,
         widget=forms.DateInput(
+            format='%Y-%m-%d',
             attrs={'class': 'form-control', 'type': 'date'}
         )
     )
@@ -134,22 +137,25 @@ class StaffAttendanceManualEntryForm(forms.Form):
     )
     event_time = forms.TimeField(
         required=False,
-        input_formats=['%H:%M'],
+        input_formats=['%H:%M', '%H:%M:%S'],
         widget=forms.TimeInput(
+            format='%H:%M',
             attrs={'class': 'form-control', 'type': 'time'}
         )
     )
     session_start_time = forms.TimeField(
         required=False,
-        input_formats=['%H:%M'],
+        input_formats=['%H:%M', '%H:%M:%S'],
         widget=forms.TimeInput(
+            format='%H:%M',
             attrs={'class': 'form-control', 'type': 'time'}
         )
     )
     session_end_time = forms.TimeField(
         required=False,
-        input_formats=['%H:%M'],
+        input_formats=['%H:%M', '%H:%M:%S'],
         widget=forms.TimeInput(
+            format='%H:%M',
             attrs={'class': 'form-control', 'type': 'time'}
         )
     )

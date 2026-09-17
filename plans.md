@@ -1,3 +1,23 @@
+## Teacher Clock-In Rollout Fixes and Help Centre (2026-09-17) ✅ Completed, not deployed
+
+### Implementation Goal
+Make the existing teacher clock in/out safe to hand to staff, and add an in-app Help Centre (`/help/`) with step-by-step guides.
+
+### Changes
+-   Timesheets and exports show Perth times; "today" uses Perth dates everywhere.
+-   A clock-in with no clock-out after 12 hours is a missed clock-out: not counted, does not block a new clock-in.
+-   Clock-outs pair with the latest open clock-in by time, regardless of facility.
+-   Excel hours are numbers. New facilities default to a 100 m radius. Fresh GPS reading on every clock.
+-   Fixed: phone navigation dropdown, invisible menu button, manual entry form date/time, double submit.
+-   Help Centre: five guides with generated screenshots (`help_centre/screenshots/`).
+
+### Verification Results
+-   ✅ 20 new tests pass (`core.tests.test_clock_rollout_fixes`, `help_centre`); 10 of them fail on production commit `a72d3f8`.
+-   ✅ End-to-end walkthrough on an emulated iPhone: 32/32 checks.
+-   ⏳ Deploy, then set existing facility radius to 100 m (see `DEPLOYMENT.md`).
+
+---
+
 ## Restrict Course Status Changes (2025-12-21) ✅ Completed
 
 ### Implementation Goal

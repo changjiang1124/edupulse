@@ -135,7 +135,7 @@ def get_today_classes_for_teacher_at_facility(teacher, facility, date=None):
     from academics.models import Class
     
     if date is None:
-        date = timezone.now().date()
+        date = timezone.localdate()
     
     return Class.objects.filter(
         date=date,

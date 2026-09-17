@@ -1,0 +1,37 @@
+{% load static %}
+<p>When a teacher clocks in or out, EduPulse checks that their phone is at a campus. It compares the location of the phone with the location saved for each campus. You only need to set this up once for each campus.</p>
+
+<div class="alert alert-warning">
+    <strong>Do this before teachers start clocking in.</strong>
+    If a campus has no location saved, teachers cannot clock in there.
+</div>
+
+<h2>Save the campus location</h2>
+<ol class="help-steps">
+    <li>
+        <p>Click <span class="help-ui">Facilities</span> in the top menu. Click <span class="help-ui">Edit</span> next to the campus.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/campus-facility-list.png' %}" alt="Facility Management page with the Edit button highlighted" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>Find the campus coordinates. On a computer, open <strong>Google Maps</strong> and find the campus building. Right-click on the building. The first line of the menu shows two numbers, for example <code>-31.98161, 115.78838</code>. Click the numbers to copy them.</p>
+    </li>
+    <li>
+        <p>Paste the first number into <span class="help-ui">GPS Latitude</span> and the second number into <span class="help-ui">GPS Longitude</span>. The first number for Perth always starts with a minus sign.</p>
+    </li>
+    <li>
+        <p>Check <span class="help-ui">GPS Verification Radius (meters)</span>. This is how far from the saved point a teacher can be and still clock in. We recommend <strong>100</strong>. Phone location inside a building is often 20 to 50 metres out, so a smaller number can stop teachers who are already inside.</p>
+        <p>Campuses set up before September 2026 may still show <strong>50</strong>. Change it to 100.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/campus-facility-edit.png' %}" alt="Facility Information form with GPS Latitude, GPS Longitude and GPS Verification Radius highlighted" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>Click <span class="help-ui">Update Facility</span>.</p>
+    </li>
+</ol>
+
+<h2>Check it works</h2>
+<p>Stand inside the campus with your phone and open <span class="help-ui">Clock In/Out</span> (see the next guide). The page should show the campus name and <span class="help-ui">Verified</span>. You do not need to press Clock In to check.</p>
+<p>If the page says you are too far away while you are inside, check that the two numbers were not swapped. If they are right, try a radius of 150.</p>

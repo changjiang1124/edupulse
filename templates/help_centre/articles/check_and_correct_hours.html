@@ -1,0 +1,79 @@
+{% load static %}
+<p>Each clock-in and clock-out makes one shift. Check the shifts before you run payroll, and fix any that are wrong or missing.</p>
+
+<h2>See everyone's hours</h2>
+<ol class="help-steps">
+    <li>
+        <p>Click <span class="help-ui">Staff</span> in the top menu, then click <span class="help-ui">Timesheet Overview</span>.</p>
+    </li>
+    <li>
+        <p>Choose the dates. Click a quick range such as <span class="help-ui">This Week</span>, or pick <span class="help-ui">From Date</span> and <span class="help-ui">To Date</span>. To see one person only, choose them in <span class="help-ui">Staff Member</span>. Then click <span class="help-ui">Apply Filter</span>.</p>
+    </li>
+    <li>
+        <p>The table shows each person's total hours, the number of days they worked and the number of shifts.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/hours-overview.png' %}" alt="Staff Timesheet Overview with date filters, totals and a table of staff hours" loading="lazy">
+        </figure>
+    </li>
+</ol>
+
+<h2>Check one teacher's shifts</h2>
+<ol class="help-steps">
+    <li>
+        <p>In the overview table, click the view button (the eye) next to the teacher. You can also open the teacher from the staff list.</p>
+    </li>
+    <li>
+        <p>The <span class="help-ui">Timesheet</span> section lists every shift with the date, clock-in and clock-out times, class, campus and hours.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/hours-staff-timesheet.png' %}" alt="A teacher's Timesheet section listing shifts with clock-in and clock-out times" loading="lazy">
+        </figure>
+        <p>Two labels need your attention:</p>
+        <ul>
+            <li><strong>In Progress</strong> means the teacher is clocked in right now. No action is needed.</li>
+            <li><strong>Missing clock-out</strong> means the teacher did not clock out within 12 hours. These hours are not counted until you add the finish time.</li>
+        </ul>
+    </li>
+</ol>
+
+<h2>Fix a missing clock-out or a wrong time</h2>
+<ol class="help-steps">
+    <li>
+        <p>Ask the teacher what time they finished. Then click <span class="help-ui">Edit</span> on that shift.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/hours-missing-clock-out.png' %}" alt="Timesheet with a Missing clock-out shift and its Edit link highlighted" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>Set <span class="help-ui">Entry Mode</span> to <span class="help-ui">Full Session</span>. Check the <span class="help-ui">Work Date</span> and <span class="help-ui">Clock In Time</span>, and enter the <span class="help-ui">Clock Out Time</span>.</p>
+    </li>
+    <li>
+        <p>Click <span class="help-ui">Optional Details</span> and write a short <span class="help-ui">Audit Note</span>, for example "Forgot to clock out. Finish time confirmed by the teacher." This note appears in the Excel export.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/hours-edit-entry.png' %}" alt="Edit Timesheet Entry form with a clock-out time and an audit note" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>Click <span class="help-ui">Save Changes</span>. The shift now shows both times and its hours are counted.</p>
+    </li>
+</ol>
+
+<h2>Add a shift that was never recorded</h2>
+<p>Use this when a teacher worked but did not clock in at all, for example when their phone was flat.</p>
+<ol class="help-steps">
+    <li>
+        <p>Open the teacher's page and click <span class="help-ui">Add Entry</span> in the Timesheet section.</p>
+    </li>
+    <li>
+        <p>Leave <span class="help-ui">Entry Mode</span> as <span class="help-ui">Full Session</span>. Enter the <span class="help-ui">Work Date</span>, <span class="help-ui">Clock In Time</span> and <span class="help-ui">Clock Out Time</span>. Add an <span class="help-ui">Audit Note</span> under <span class="help-ui">Optional Details</span>.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/hours-add-entry.png' %}" alt="Add Timesheet Entry form filled in for a full session" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>Click <span class="help-ui">Save Timesheet Entry</span>.</p>
+    </li>
+</ol>
+
+<div class="alert alert-info mb-0">
+    Shifts you add or edit are marked <strong>Manual Entry</strong> in the Excel export. Shifts recorded on the clock page are marked <strong>GPS Clock</strong>. This lets you see which hours were checked by location.
+</div>

@@ -38,6 +38,7 @@ urlpatterns = [
     path('students/', include('students.urls')),
     path('academics/', include('academics.urls')),
     path('facilities/', include('facilities.urls')),
+    path('help/', include('help_centre.urls')),
     
     # Public enrollment URLs (accessible at /enroll/)
     path('enroll/', include('enrollment.urls')),

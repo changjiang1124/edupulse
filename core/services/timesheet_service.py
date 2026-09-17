@@ -134,7 +134,7 @@ class TimesheetExportService:
             
             # Set default date range if not provided
             if not end_date:
-                end_date = timezone.now().date()
+                end_date = timezone.localdate()
             if not start_date:
                 start_date = end_date - timedelta(days=30)  # Last 30 days
             
@@ -227,7 +227,7 @@ class TimesheetExportService:
         ws['A3'] = f'Report Period: {start_date.strftime("%d/%m/%Y")} - {end_date.strftime("%d/%m/%Y")}'
         if teacher:
             ws['A4'] = f'Staff Member: {TimesheetExportService._get_staff_display_name(teacher)}'
-        ws['A5'] = f'Generated: {timezone.now().strftime("%d/%m/%Y %H:%M")}'
+        ws['A5'] = f'Generated: {timezone.localtime().strftime("%d/%m/%Y %H:%M")}'
         
         # Column headers
         header_row = 7
@@ -295,7 +295,7 @@ class TimesheetExportService:
                 clock_in = TeacherAttendance.objects.filter(
                     teacher=attendance.teacher,
                     clock_type='clock_in',
-                    timestamp__date=attendance.timestamp.date(),
+                    timestamp__date=timezone.localdate(attendance.timestamp),
                     timestamp__lt=attendance.timestamp
                 ).order_by('-timestamp').first()
                 
@@ -455,7 +455,7 @@ class TimesheetExportService:
         ws['A1'] = f'Perth Art School - Monthly Staff Summary'
         ws['A1'].font = Font(bold=True, size=14)
         ws['A2'] = f'Period: {start_date.strftime("%B %Y")}'
-        ws['A3'] = f'Generated: {timezone.now().strftime("%d/%m/%Y %H:%M")}'
+        ws['A3'] = f'Generated: {timezone.localtime().strftime("%d/%m/%Y %H:%M")}'
         
         # Column headers
         headers = ['Staff Member', 'Total Hours', 'Days Worked', 'Avg Hours/Day', 'Total Sessions']

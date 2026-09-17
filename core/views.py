@@ -69,7 +69,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 # Teacher-specific upcoming classes
                 'upcoming_classes': Class.objects.filter(
                     course__teacher=self.request.user,
-                    date__gte=timezone.now().date(),
+                    date__gte=timezone.localdate(),
                     is_active=True
                 ).annotate(
                     student_count=Count(
@@ -107,7 +107,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 
                 # Upcoming classes for all courses
                 'upcoming_classes': Class.objects.filter(
-                    date__gte=timezone.now().date(),
+                    date__gte=timezone.localdate(),
                     is_active=True
                 ).annotate(
                     student_count=Count(
@@ -200,7 +200,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
 
 
-from .services.staff_timesheet_service import StaffTimesheetService
+from .services.staff_timesheet_service import MAX_SHIFT_DURATION, MAX_SHIFT_HOURS, StaffTimesheetService
 
 # ... imports ...
 
@@ -859,16 +859,37 @@ def get_latest_teacher_attendance(teacher):
     ).order_by('-timestamp').first()
 
 
+def is_missed_clock_out(record, now=None):
+    """A clock-in left open longer than the maximum shift counts as a missed clock-out."""
+    if not record or record.clock_type != 'clock_in':
+        return False
+    return (now or timezone.now()) - record.timestamp > MAX_SHIFT_DURATION
+
+
+def get_open_clock_in(teacher):
+    """Return the teacher's current clock-in, ignoring one left open past the maximum shift."""
+    latest_record = get_latest_teacher_attendance(teacher)
+    if latest_record and latest_record.clock_type == 'clock_in' and not is_missed_clock_out(latest_record):
+        return latest_record
+    return None
+
+
 def validate_clock_transition(teacher, clock_type):
     if clock_type not in VALID_CLOCK_TYPES:
         return False, 'Invalid clock type'
 
     latest_record = get_latest_teacher_attendance(teacher)
+    open_clock_in = get_open_clock_in(teacher)
 
-    if clock_type == 'clock_in' and latest_record and latest_record.clock_type == 'clock_in':
+    if clock_type == 'clock_in' and open_clock_in:
         return False, 'You are already clocked in. Please clock out first.'
 
-    if clock_type == 'clock_out' and (not latest_record or latest_record.clock_type != 'clock_in'):
+    if clock_type == 'clock_out' and not open_clock_in:
+        if is_missed_clock_out(latest_record):
+            return False, (
+                f'Your last clock-in was more than {MAX_SHIFT_HOURS} hours ago, so it cannot be closed here. '
+                'Please clock in for today and tell the office your finish time.'
+            )
         return False, 'No active clock in found. Please clock in first.'
 
     return True, None
@@ -890,7 +911,7 @@ class TeacherClockView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, Template
         
         context['teacher'] = self.request.user
         context['google_maps_api_key'] = getattr(settings, 'GOOGLE_MAPS_API_KEY', '')
-        context['today'] = timezone.now().date()
+        context['today'] = timezone.localdate()
         
         # Get recent attendance records for this teacher
         recent_records = TeacherAttendance.objects.filter(
@@ -902,13 +923,9 @@ class TeacherClockView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, Template
         latest_record = get_latest_teacher_attendance(self.request.user)
         
         context['latest_record'] = latest_record
-        context['is_clocked_in'] = (latest_record and latest_record.clock_type == 'clock_in')
-        context['has_overdue_clock_out'] = bool(
-            latest_record and latest_record.clock_type == 'clock_in' and not latest_record.is_today
-        )
-        context['overdue_clock_out_date'] = (
-            latest_record.timestamp if context['has_overdue_clock_out'] else None
-        )
+        context['is_clocked_in'] = get_open_clock_in(self.request.user) is not None
+        context['has_missed_clock_out'] = is_missed_clock_out(latest_record)
+        context['max_shift_hours'] = MAX_SHIFT_HOURS
         
         return context
 
@@ -1058,7 +1075,7 @@ class TeacherClockSubmitView(LoginRequiredMixin, TeacherOrAdminRequiredMixin, Vi
                 selected_classes = Class.objects.filter(
                     id__in=selected_class_ids,
                     teacher=request.user,
-                    date=timezone.now().date(),
+                    date=timezone.localdate(),
                     facility=facility,
                     is_active=True
                 )

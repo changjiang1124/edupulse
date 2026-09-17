@@ -1,0 +1,59 @@
+{% load static %}
+<p>Timesheets download as Excel files. Hours are saved as numbers, so you can add them up in Excel.</p>
+
+<h2>For administrators: total hours for all staff</h2>
+<ol class="help-steps">
+    <li>
+        <p>Click <span class="help-ui">Staff</span>, then <span class="help-ui">Timesheet Overview</span>.</p>
+    </li>
+    <li>
+        <p>Choose the pay period with <span class="help-ui">From Date</span> and <span class="help-ui">To Date</span>, then click <span class="help-ui">Apply Filter</span>.</p>
+    </li>
+    <li>
+        <p>Click <span class="help-ui">Export Summary</span>. The file lists each person's total hours, working days and shifts for that period.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/export-summary-button.png' %}" alt="Staff Timesheet Overview with the Export Summary link highlighted" loading="lazy">
+        </figure>
+    </li>
+</ol>
+
+<h2>For administrators: every shift for one teacher</h2>
+<p>Use this when you need the clock-in and clock-out times, not just the totals.</p>
+<ol class="help-steps">
+    <li>
+        <p>In the Timesheet Overview table, click the green Excel button next to the teacher. You can also click <span class="help-ui">Excel</span> in the Timesheet section of the teacher's page.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/export-staff-row.png' %}" alt="Staff Summary table with a teacher's Excel export button highlighted" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>The file has one row per shift: date, clock-in and clock-out times, class, campus and hours. It also shows whether each time came from the clock page (GPS Clock) or was added by the office (Manual Entry), and any audit note.</p>
+    </li>
+</ol>
+
+<div class="alert alert-warning">
+    Before you export for payroll, check for shifts marked <strong>Missing clock-out</strong> and fix them first. Those hours are not included until a finish time is added. See <a href="{% url 'help_centre:article' 'check-and-correct-hours' %}">Check and correct hours</a>.
+</div>
+
+<h2>For teachers: your own hours</h2>
+<ol class="help-steps">
+    <li>
+        <p>Tap the menu button, tap your name, then tap <span class="help-ui">My Timesheet</span>.</p>
+    </li>
+    <li>
+        <p>Choose the <span class="help-ui">Start Date</span> and <span class="help-ui">End Date</span> and tap <span class="help-ui">Filter</span>. Your total hours and each shift appear below.</p>
+    </li>
+    <li>
+        <p>To download them, tap <span class="help-ui">Export Current Range</span>.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot help-screenshot--phone" src="{% static 'help_centre/img/export-my-timesheet.png' %}" alt="Teacher's Timesheet page on a phone with Export Current Range highlighted" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>Check the dates, then tap <span class="help-ui">Export Timesheet</span>. The Excel file downloads to your phone.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot help-screenshot--phone" src="{% static 'help_centre/img/export-my-export.png' %}" alt="Timesheet Export form on a phone with the Export Timesheet button highlighted" loading="lazy">
+        </figure>
+    </li>
+</ol>
+<p>Teachers can only see and export their own hours.</p>
