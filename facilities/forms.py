@@ -43,7 +43,7 @@ class FacilityForm(forms.ModelForm):
                 'class': 'form-control',
                 'min': '10',
                 'max': '500',
-                'value': '50'
+                'value': '100'
             }),
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'

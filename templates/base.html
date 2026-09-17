@@ -95,6 +95,11 @@
                         {% endif %}
                     </ul>
                     <ul class="navbar-nav">
+                        {% if user.role == 'teacher' or user.role == 'admin' %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'help_centre' %}active{% endif %}" href="{% url 'help_centre:index' %}">Help</a>
+                        </li>
+                        {% endif %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" 
                                data-bs-toggle="dropdown" aria-expanded="false">

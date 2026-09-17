@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ article.title }} - Help Centre - EduPulse{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/help-centre.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="help-centre">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{% url 'help_centre:index' %}">Help Centre</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ article.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <div class="col-lg-9">
+            <article class="help-article">
+                <p class="help-article-meta">Step {{ step_number }} of {{ articles|length }} &middot; For {{ article.audience|lower }}</p>
+                <h1 class="page-title mb-2">{{ article.title }}</h1>
+                <p class="help-article-lead">{{ article.summary }}</p>
+
+                {% include article.template_name %}
+
+                <nav class="help-pager" aria-label="Guide steps">
+                    {% if previous_article %}
+                    <a href="{% url 'help_centre:article' previous_article.slug %}">
+                        <span class="help-pager-label">Previous</span>
+                        {{ previous_article.title }}
+                    </a>
+                    {% endif %}
+                    {% if next_article %}
+                    <a class="help-pager-next" href="{% url 'help_centre:article' next_article.slug %}">
+                        <span class="help-pager-label">Next</span>
+                        {{ next_article.title }}
+                    </a>
+                    {% endif %}
+                </nav>
+            </article>
+        </div>
+
+        <aside class="col-lg-3">
+            <h2 class="h6 text-uppercase text-muted fw-bold mb-3">In this guide</h2>
+            <ol class="help-step-nav">
+                {% for item in articles %}
+                <li class="help-step-nav-item {% if item.slug == article.slug %}is-current{% endif %}">
+                    <a href="{% url 'help_centre:article' item.slug %}" {% if item.slug == article.slug %}aria-current="page"{% endif %}>{{ item.title }}</a>
+                </li>
+                {% endfor %}
+            </ol>
+        </aside>
+    </div>
+</div>
+{% endblock %}

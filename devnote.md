@@ -1,5 +1,27 @@
 # EduPulse 开发备注
 
+## 教师打卡上线前修复 + Help Centre (2026-09-17)
+
+分支 `feat/help-centre`，从生产在跑的 `a72d3f8` 切出，不含未上线的 CourseGroup 改动。
+
+- **工时表时间早 8 小时**：SQLite + `USE_TZ` 取回的 `timestamp` 是 UTC，`StaffTimesheetService` 的三个 `_build_*` 直接 `.date()` / `.time()`。
+  改为先 `timezone.localtime()`。凡是「今天」一律用 `timezone.localdate()`（`is_today`、打卡页、当天课程、仪表盘）。
+- **一个班次最长 12 小时**（`MAX_SHIFT_HOURS`，在 `core/services/staff_timesheet_service.py`）。
+  超过 12 小时没有下班卡的上班卡算「Missing clock-out」，不计工时；老师可以直接打当天的上班卡，但不能再关闭那条旧记录。
+  原来会把第二天的下班卡配成约 24 小时的「完整班次」。
+- **配对不再要求校区相同**，只按时间取最近的一条未关闭上班卡。原来管理员补录下班卡不选校区时，那天算 0 小时。
+- **Excel 工时写数字**（保留 2 位小数），不再是 `"1.73h"` 这种文字，Excel 可以求和。
+- **手机端两个导航 bug**：`custom.js` 里 ≤768px 的 jQuery 下拉菜单处理器和 Bootstrap 自带的互相抵消，菜单点不开，已删除；
+  `navbar-dark` 的汉堡图标是白色，放在白色导航栏上看不见，已在 `custom.css` 改成深色。
+- **手工补录表单**：`DateInput` / `TimeInput` 没指定 `format`，按 en-AU 渲染成 `16/09/2026` 和 `16:02:00`，
+  浏览器 date 输入框显示为空，保存报「This field is required」。已指定 ISO 格式。原测试直接 POST，所以没测出来。
+- **打卡页**：定位 `maximumAge` 改为 0，不再复用 5 分钟前的旧位置；按定位错误码给出怎么处理的提示；
+  重试按钮加了文字；提交时按钮进入加载状态、防连点，去掉会卡死的 Bootstrap modal；断网或非 JSON 响应给出明确提示。
+- **校区默认半径 50 → 100 米**（`facilities` 迁移 0004，只改默认值）。已存在的校区不会自动变，上线后要手动改。
+- **Help Centre**：`help_centre` app，路由 `/help/`，登录后可见，导航栏加了 Help。
+  文章注册在 `help_centre/articles.py`，正文在 `templates/help_centre/articles/`，截图用 `help_centre/screenshots/` 的脚本生成（见其 README）。
+- 测试：`core/tests/test_clock_rollout_fixes.py`（15 个，其中 10 个在旧代码上失败）、`help_centre/tests.py`（5 个）。
+
 ## Enrollment 欢迎邮件价格校验调整 (2026-02-03)
 
 - 仅对 `pending` 邮件执行 Early Bird 价格校验；`confirmation`/welcome 不再被价格调整拦截。

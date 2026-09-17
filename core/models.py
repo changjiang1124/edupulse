@@ -785,7 +785,7 @@ class TeacherAttendance(models.Model):
     def is_today(self):
         """Check if the record is from today"""
         from django.utils import timezone
-        return self.timestamp.date() == timezone.now().date()
+        return timezone.localdate(self.timestamp) == timezone.localdate()
 
 
 class EmailLog(models.Model):

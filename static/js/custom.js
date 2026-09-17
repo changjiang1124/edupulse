@@ -285,14 +285,6 @@ $(document).ready(function() {
         }
     });
 
-    // 移动端菜单优化
-    if (window.innerWidth <= 768) {
-        $('.navbar-nav .dropdown').on('click', function(e) {
-            e.stopPropagation();
-            $(this).find('.dropdown-menu').toggleClass('show');
-        });
-    }
-
     // 页面加载完成后的动画
     $('.fade-in').each(function(i) {
         var element = $(this);

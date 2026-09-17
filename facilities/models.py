@@ -40,7 +40,7 @@ class Facility(models.Model):
         help_text='GPS longitude coordinate for attendance verification'
     )
     attendance_radius = models.PositiveIntegerField(
-        default=50,
+        default=100,
         verbose_name='Attendance Verification Radius (meters)',
         help_text='Maximum distance in meters for valid attendance check-in'
     )

@@ -203,13 +203,13 @@
             <!-- Alert Area -->
             <div id="feedbackAlert" class="alert d-none mb-4" role="alert"></div>
 
-            {% if has_overdue_clock_out %}
-            <div class="alert alert-warning border-0 bg-warning bg-opacity-10 text-warning mb-4">
+            {% if has_missed_clock_out %}
+            <div class="alert alert-warning border-0 mb-4" id="missedClockOutAlert">
                 <div class="d-flex">
                     <i class="fas fa-exclamation-triangle mt-1 me-3"></i>
                     <div>
-                        <h6 class="alert-heading fw-bold mb-1">Pending Clock Out</h6>
-                        <p class="mb-0 small">You remained clocked in from {{ latest_record.timestamp|date:"l, d M" }}. Please clock out to close usage.</p>
+                        <h6 class="alert-heading fw-bold mb-1">Missed Clock Out</h6>
+                        <p class="mb-0 small">You clocked in on {{ latest_record.timestamp|date:"l j F" }} at {{ latest_record.timestamp|time:"g:i A" }} but did not clock out within {{ max_shift_hours }} hours. Please tell the office your finish time so your hours are correct. You can clock in for today as normal.</p>
                     </div>
                 </div>
             </div>
@@ -217,8 +217,8 @@
 
             <!-- Location Status Card -->
             <div class="location-card">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div class="d-flex align-items-center flex-grow-1">
                         <div id="locationIcon" class="location-status-icon status-icon-pending">
                             <i class="fas fa-satellite-dish"></i>
                         </div>
@@ -227,9 +227,9 @@
                             <div id="locationDesc" class="small text-muted">Waiting for GPS signal</div>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-sm btn-light border text-muted" 
+                    <button type="button" class="btn btn-sm btn-light border text-muted ms-auto" 
                             id="retryLocationBtn" onclick="requestLocation()" style="display:none;">
-                        <i class="fas fa-redo-alt"></i>
+                        <i class="fas fa-redo-alt me-1"></i>Try again
                     </button>
                 </div>
             </div>
@@ -302,17 +302,6 @@
 
 </div>
 
-<!-- Loading Overlay/Modal -->
-<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-body text-center py-4">
-                <div class="spinner-border text-primary mb-3" role="status"></div>
-                <h6 class="mb-0" id="loadingMessage">Processing...</h6>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -322,13 +311,12 @@ let selectedClasses = [];
 let locationVerified = false;
 let facilityData = null;
 let hasClassesAvailable = false;
+let isSubmitting = false;
 // Global state from Django context
 const isClockedIn = {{ is_clocked_in|yesno:"true,false" }};
-const hasOverdueClockOut = {{ has_overdue_clock_out|yesno:"true,false" }};
-const overdueClockOutDate = "{{ overdue_clock_out_date|date:'l, d M'|escapejs }}";
 
-// Location configuration
-const locationOptions = { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 };
+// Location configuration: always ask for a fresh position so an old one is never reused
+const locationOptions = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
 
 document.addEventListener('DOMContentLoaded', function() {
     startClock();
@@ -413,7 +401,7 @@ function handleLocationSuccess(position) {
         },
         body: JSON.stringify({ latitude: lat, longitude: lon })
     })
-    .then(r => r.json())
+    .then(parseJsonResponse)
     .then(data => {
         if (data.success) {
             handleVerified(data);
@@ -421,12 +409,35 @@ function handleLocationSuccess(position) {
             handleLocationError({ message: data.error });
         }
     })
-    .catch(err => handleLocationError({ message: 'Server verification failed' }));
+    .catch(err => handleLocationError({ message: err.message || 'Server verification failed' }));
+}
+
+function parseJsonResponse(response) {
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        throw new Error(`Something went wrong (error ${response.status}). Please reload the page and try again.`);
+    }
+    return response.json();
+}
+
+function locationErrorMessage(error) {
+    // Codes from the browser Geolocation API
+    if (error && error.code === 1) {
+        return 'Location is blocked for this website. Allow location for your browser in your phone settings, then tap Try again.';
+    }
+    if (error && error.code === 2) {
+        return 'Your phone could not find your location. Turn on Location Services and Wi-Fi, then tap Try again.';
+    }
+    if (error && error.code === 3) {
+        return 'Finding your location took too long. Tap Try again.';
+    }
+    return (error && error.message) || 'Could not verify location.';
 }
 
 function handleLocationError(error) {
     console.error("Location Error", error);
-    updateLocationUI('error', 'Location Failed', error.message || 'Could not verify location.');
+    locationVerified = false;
+    updateLocationUI('error', 'Location Failed', locationErrorMessage(error));
     setButtonsDisabled(true); // Keep disabled if location fails
 }
 
@@ -550,7 +561,25 @@ function clearAllClasses() {
 
 // --- Submission ---
 
+function setSubmitting(type, submitting) {
+    const btn = document.getElementById(type === 'clock_in' ? 'clockInBtn' : 'clockOutBtn');
+    isSubmitting = submitting;
+    if (!btn) return;
+    if (submitting) {
+        btn.dataset.label = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>'
+            + (type === 'clock_in' ? 'Clocking in...' : 'Clocking out...');
+        btn.disabled = true;
+    } else {
+        if (btn.dataset.label) btn.innerHTML = btn.dataset.label;
+        btn.disabled = !locationVerified;
+    }
+}
+
 function submitClock(type) {
+    // Ignore repeat taps while a request is in progress
+    if (isSubmitting) return;
+
     // Validation
     if (!locationVerified) {
         showFeedback('warning', 'Please wait for location verification.');
@@ -560,16 +589,10 @@ function submitClock(type) {
     if (type === 'clock_in' && hasClassesAvailable && selectedClasses.length === 0) {
         if (!confirm('No classes selected. Continue as General Attendance?')) return;
     }
-    
-    if (type === 'clock_out' && hasOverdueClockOut) {
-        if (!confirm('You are closing a previous overdue session. Continue?')) return;
-    }
 
     // Prepare data
     const notes = document.getElementById('clockNotes').value;
-    const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
-    document.getElementById('loadingMessage').textContent = type === 'clock_in' ? 'Clocking In...' : 'Clocking Out...';
-    modal.show();
+    setSubmitting(type, true);
 
     fetch('{% url "teacher_clock_submit" %}', {
         method: 'POST',
@@ -588,21 +611,20 @@ function submitClock(type) {
             notes: notes
         })
     })
-    .then(r => r.json())
+    .then(parseJsonResponse)
     .then(data => {
-        setTimeout(() => { // minimal UI delay
-            modal.hide();
-            if (data.success) {
-                showFeedback('success', 'Success! Refreshing...');
-                location.reload();
-            } else {
-                showFeedback('danger', data.error || 'Submission failed');
-            }
-        }, 600);
+        if (data.success) {
+            showFeedback('success', `${data.message} Refreshing...`, false);
+            location.reload();
+        } else {
+            setSubmitting(type, false);
+            showFeedback('danger', data.error || 'Submission failed', false);
+        }
     })
     .catch(err => {
-        modal.hide();
-        showFeedback('danger', 'Network error occurred.');
+        setSubmitting(type, false);
+        const offline = err instanceof TypeError;
+        showFeedback('danger', offline ? 'No internet connection. Check your signal and try again.' : err.message, false);
     });
 }
 

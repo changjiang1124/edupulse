@@ -1,0 +1,45 @@
+{% load static %}
+<p>Every teacher needs their own EduPulse login. They use it to clock in and out and to see their own hours.</p>
+
+<h2>Create the account</h2>
+<ol class="help-steps">
+    <li>
+        <p>Click <span class="help-ui">Staff</span> in the top menu, then click <span class="help-ui">Add New Staff Member</span>.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/add-teacher-staff-list.png' %}" alt="Staff Management page with the Add New Staff Member button highlighted" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>Fill in the form:</p>
+        <ul>
+            <li><span class="help-ui">Username</span> is what the teacher types to log in. A simple pattern such as <code>firstname.lastname</code> works well.</li>
+            <li><span class="help-ui">Password</span> must be at least 8 characters and not a common word. Type it again in <span class="help-ui">Confirm Password</span>.</li>
+            <li>Enter the teacher's <span class="help-ui">First Name</span>, <span class="help-ui">Last Name</span> and <span class="help-ui">Email Address</span>. <span class="help-ui">Phone Number</span> is optional.</li>
+            <li>Leave <span class="help-ui">Role</span> as <span class="help-ui">Teacher</span>.</li>
+        </ul>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/add-teacher-form.png' %}" alt="Add New Staff Member form filled in for a teacher" loading="lazy">
+        </figure>
+    </li>
+    <li>
+        <p>Click <span class="help-ui">Add Staff</span>. EduPulse shows a green message and the teacher appears in the staff list.</p>
+        <figure class="help-figure">
+            <img class="help-screenshot" src="{% static 'help_centre/img/add-teacher-saved.png' %}" alt="Staff list showing the new teacher and a success message" loading="lazy">
+        </figure>
+    </li>
+</ol>
+
+<h2>Give the teacher their login</h2>
+<p>EduPulse does not email the login details, so send them to the teacher yourself:</p>
+<ul>
+    <li>the website address: <code>https://edupulse.perthartschool.com.au</code></li>
+    <li>their username and password</li>
+</ul>
+<p>Ask the teacher to change their password after they first log in. They can do this from the menu under their name, then <span class="help-ui">Change Password</span>.</p>
+
+<div class="alert alert-info mb-0">
+    <strong>Teacher or Administrator?</strong>
+    A <strong>Teacher</strong> can clock in and out and see only their own hours.
+    An <strong>Administrator</strong> can see and change everyone's hours, staff details and settings.
+    Only choose Administrator for office staff.
+</div>

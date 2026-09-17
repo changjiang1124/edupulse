@@ -10,6 +10,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# A clock-in with no clock-out within this window is treated as a missed
+# clock-out, so a forgotten shift is flagged for review instead of being paid
+# as one very long session.
+MAX_SHIFT_HOURS = 12
+MAX_SHIFT_DURATION = timedelta(hours=MAX_SHIFT_HOURS)
+
 
 class StaffTimesheetService:
     """
@@ -109,17 +115,18 @@ class StaffTimesheetService:
                 open_clock_ins.append(record)
                 continue
 
+            # Pair with the most recent open clock-in by time. Facility is not
+            # required to match: a manual clock-out often has no facility.
             match_index = None
             for index in range(len(open_clock_ins) - 1, -1, -1):
-                clock_in = open_clock_ins[index]
-                if (
-                    clock_in.facility_id == record.facility_id and
-                    clock_in.timestamp <= record.timestamp
-                ):
+                if open_clock_ins[index].timestamp <= record.timestamp:
                     match_index = index
                     break
 
-            if match_index is None:
+            if (
+                match_index is None or
+                record.timestamp - open_clock_ins[match_index].timestamp > MAX_SHIFT_DURATION
+            ):
                 pairs.append(StaffTimesheetService._build_unmatched_clock_out(record))
                 continue
 
@@ -170,13 +177,14 @@ class StaffTimesheetService:
         classes = StaffTimesheetService._merge_classes(clock_in, clock_out)
         duration = clock_out.timestamp - clock_in.timestamp
         duration_hours = duration.total_seconds() / 3600
+        local_clock_in = timezone.localtime(clock_in.timestamp)
         return {
-            'date': clock_in.timestamp.date(),
+            'date': local_clock_in.date(),
             'clock_in': clock_in,
             'clock_out': clock_out,
             'primary_record': clock_in,
-            'clock_in_time': clock_in.timestamp.time(),
-            'clock_out_time': clock_out.timestamp.time(),
+            'clock_in_time': local_clock_in.time(),
+            'clock_out_time': timezone.localtime(clock_out.timestamp).time(),
             'duration_hours': duration_hours,
             'facility': clock_in.facility,
             'classes': classes,
@@ -188,12 +196,13 @@ class StaffTimesheetService:
     @staticmethod
     def _build_unmatched_clock_in(clock_in):
         classes = StaffTimesheetService._merge_classes(clock_in, None)
+        local_clock_in = timezone.localtime(clock_in.timestamp)
         return {
-            'date': clock_in.timestamp.date(),
+            'date': local_clock_in.date(),
             'clock_in': clock_in,
             'clock_out': None,
             'primary_record': clock_in,
-            'clock_in_time': clock_in.timestamp.time(),
+            'clock_in_time': local_clock_in.time(),
             'clock_out_time': None,
             'duration_hours': None,
             'facility': clock_in.facility,
@@ -201,19 +210,21 @@ class StaffTimesheetService:
             'source': 'teacher_attendance',
             'notes': clock_in.notes,
             'is_complete': False,
+            'is_open': timezone.now() - clock_in.timestamp <= MAX_SHIFT_DURATION,
             'anomaly': 'clock_in_without_clock_out'
         }
 
     @staticmethod
     def _build_unmatched_clock_out(clock_out):
         classes = StaffTimesheetService._merge_classes(None, clock_out)
+        local_clock_out = timezone.localtime(clock_out.timestamp)
         return {
-            'date': clock_out.timestamp.date(),
+            'date': local_clock_out.date(),
             'clock_in': None,
             'clock_out': clock_out,
             'primary_record': clock_out,
             'clock_in_time': None,
-            'clock_out_time': clock_out.timestamp.time(),
+            'clock_out_time': local_clock_out.time(),
             'duration_hours': None,
             'facility': clock_out.facility,
             'classes': classes,
@@ -375,8 +386,8 @@ class StaffTimesheetService:
             logger.error(f"Error getting all staff timesheet data: {str(e)}")
             return {
                 'date_range': {
-                    'start_date': start_date or timezone.now().date() - timedelta(days=30),
-                    'end_date': end_date or timezone.now().date()
+                    'start_date': start_date or timezone.localdate() - timedelta(days=30),
+                    'end_date': end_date or timezone.localdate()
                 },
                 'overall_summary': {
                     'total_hours': 0,

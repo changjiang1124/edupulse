@@ -25,6 +25,19 @@ This document outlines the steps required to deploy EduPulse in a new environmen
    sudo bash deploy/deploy.sh
    ```
 
+## Release notes: teacher clock-in rollout and Help Centre (2026-09)
+
+Deploy `feat/help-centre` (based on production commit `a72d3f8`). `deploy/deploy.sh` covers migrate and collectstatic.
+
+1. Back up `db.sqlite3` before deploying.
+2. Migration `facilities.0004` only changes the default radius for new campuses. No data changes.
+3. After deploy, in **Facilities**, check every active campus:
+   - GPS Latitude and GPS Longitude are filled in. Without them, teachers cannot clock in at that campus.
+   - GPS Verification Radius is at least 100. Existing campuses keep their old value (usually 50).
+4. `static/js/custom.js` and `static/css/custom.css` changed. Static URLs are not hashed, so ask staff to
+   refresh (or close and reopen the browser) if the phone menu still does not open.
+5. Smoke test on a phone: log in as a teacher, open **Help**, open **Clock In/Out** and confirm the campus shows as Verified.
+
 ## Prerequisites
 - Python 3.8+
 - pip package manager
